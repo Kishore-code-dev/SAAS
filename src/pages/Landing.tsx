@@ -1,402 +1,669 @@
-import { Link } from 'react-router-dom'
-import { useState, useEffect, useRef } from 'react'
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
-import { useInView } from 'react-intersection-observer'
-import HeroVisual from '../components/landing/HeroVisual'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  Truck, Brain, Shield, Zap, BarChart3, Clock,
-  ChevronRight, Map, Users, Navigation, Fuel, Activity, Globe, ArrowRight, Play, Star, Smartphone,
-  Menu, X, CheckCircle2, ShieldCheck, ZapOff, Fingerprint, Layers
+  Activity,
+  ArrowRight,
+  BarChart3,
+  Check,
+  Compass,
+  Fuel,
+  Menu,
+  ShieldAlert,
+  Smartphone,
+  Truck,
+  Users,
+  Wrench,
+  X,
 } from 'lucide-react'
-
-// --- Components ---
-
-const Navbar = () => {
-  const [isScrolled, setIsScrolled] = useState(false)
-  const [isVisible, setIsVisible] = useState(true)
-  const lastScrollY = useRef(0)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY
-      setIsScrolled(currentScrollY > 50)
-      
-      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
-        setIsVisible(false)
-      } else {
-        setIsVisible(true)
-      }
-      lastScrollY.current = currentScrollY
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  return (
-    <motion.nav
-      initial={{ y: 0 }}
-      animate={{ y: isVisible ? 0 : -100 }}
-      transition={{ duration: 0.3, ease: 'easeInOut' }}
-      className={`fixed top-0 left-0 right-0 h-20 z-50 px-6 lg:px-16 flex items-center justify-between transition-all duration-500 ${
-        isScrolled ? 'bg-background/80 backdrop-blur-2xl border-b border-white/5' : 'bg-transparent'
-      }`}
-    >
-      <div className="flex items-center gap-3 group cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-        <div className="w-10 h-10 rounded-[12px] flex items-center justify-center bg-black shadow-gold group-hover:scale-110 transition-transform border border-primary/20">
-          <Truck className="w-6 h-6 text-primary" />
-        </div>
-        <span className="font-display text-2xl font-black tracking-tighter text-white">DriveMitra</span>
-      </div>
-
-      <div className="hidden lg:flex items-center gap-10 text-[11px] font-black uppercase tracking-[0.2em] text-muted">
-        {['Features', 'Pricing', 'About', 'Contact'].map((item) => (
-          <a key={item} href={`#${item.toLowerCase()}`} className="hover:text-primary transition-colors">{item}</a>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-6">
-        <Link to="/auth" className="hidden sm:block text-[11px] font-black uppercase tracking-[0.2em] text-white hover:text-primary transition-colors">
-          Log In
-        </Link>
-        <Link to="/auth">
-          <button className="btn-primary !px-6 !py-2.5 !text-[11px] uppercase tracking-widest">Get Started</button>
-        </Link>
-      </div>
-    </motion.nav>
-  )
-}
-
-const StatCounter = ({ value, label }: { value: string; label: string }) => {
-  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.5 })
-  const [count, setCount] = useState(0)
-  const target = parseFloat(value.replace(/[^0-9.]/g, ''))
-  const suffix = value.replace(/[0-9.]/g, '')
-
-  useEffect(() => {
-    if (inView) {
-      let start = 0
-      const duration = 2000
-      const step = (timestamp: number) => {
-        if (!start) start = timestamp
-        const progress = Math.min((timestamp - start) / duration, 1)
-        setCount(progress * target)
-        if (progress < 1) window.requestAnimationFrame(step)
-      }
-      window.requestAnimationFrame(step)
-    }
-  }, [inView, target])
-
-  return (
-    <div ref={ref} className="text-center group">
-      <div className="text-5xl lg:text-6xl font-display font-black text-gradient-gold mb-3 group-hover:scale-110 transition-transform duration-500">
-        {count.toLocaleString(undefined, { maximumFractionDigits: 1 })}{suffix}
-      </div>
-      <div className="h-1 w-12 bg-primary/20 mx-auto mb-4 rounded-full" />
-      <p className="text-[10px] text-muted uppercase font-black tracking-[0.4em]">{label}</p>
-    </div>
-  )
-}
-
-const Marquee = () => {
-  const brands = ['RELIANCE', 'TATA', 'MAHINDRA', 'ADANI', 'EICHER', 'AMAZON', 'FLIPKART', 'DELHIVERY']
-  return (
-    <div className="relative flex overflow-x-hidden border-y border-white/5 bg-white/[0.01] py-12">
-      <div className="animate-marquee whitespace-nowrap flex items-center gap-24 pr-24">
-        {brands.concat(brands).map((brand, i) => (
-          <span key={i} className="text-4xl font-display font-black tracking-tighter text-white/20 hover:text-primary/40 transition-colors cursor-default select-none">
-            {brand}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const FeatureCard = ({ icon: Icon, title, desc, delay }: any) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay }}
-      whileHover={{ y: -8 }}
-      className="glass-card p-10 rounded-[32px] border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-primary/30 transition-all duration-500 group relative overflow-hidden"
-    >
-      <div className="absolute -right-10 -top-10 w-32 h-32 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-colors" />
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-8 bg-primary/10 border border-primary/20 shadow-gold group-hover:scale-110 transition-transform duration-500">
-        <Icon className="w-8 h-8 text-primary shadow-gold" />
-      </div>
-      <h3 className="text-2xl font-display font-black mb-4 text-white group-hover:text-primary transition-colors">{title}</h3>
-      <p className="text-muted leading-relaxed font-medium text-sm">{desc}</p>
-      <div className="mt-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary opacity-30 group-hover:opacity-100 transition-opacity">
-        Explore Tech <ChevronRight className="w-4 h-4" />
-      </div>
-    </motion.div>
-  )
-}
-
-// --- Main Page ---
+import { toast } from 'sonner'
+import { SUBSCRIPTION_PLANS } from '../data/seedOrganizations'
+import { useFleet } from '../hooks/useFleet'
+import { useAuth, validateEmailFormat } from '../hooks/useAuth'
+import { EnterpriseModal, formatInr } from '../components/ui/EnterprisePrimitives'
 
 export default function Landing() {
-  const { scrollYProgress } = useScroll()
-  const backgroundY = useTransform(scrollYProgress, [0, 1], ['0%', '20%'])
+  const navigate = useNavigate()
+  const { submitDemoRequest, setEnvironment } = useFleet()
+  const { enterDemoSession } = useAuth()
 
-  const features = [
-    { icon: Map, title: 'Live GPS Fleet Map', desc: 'Track every vehicle in real-time on an elite India-wide map using just driver smartphones.' },
-    { icon: Brain, title: 'AI Monitoring Agents', desc: 'Neural agents detect overspeeding, harsh braking, and route deviations with 99.9% precision.' },
-    { icon: Activity, title: 'Behavioral Scoring', desc: 'Smartphone telemetry measures acceleration, cornering, and phone usage for safety profiling.' },
-    { icon: Navigation, title: 'Auto Trip Detection', desc: 'Zero manual input. Trips ignite and terminate automatically based on velocity vectors.' },
-    { icon: Fuel, title: 'Digital Fuel Ledger', desc: 'Record purchases via UPI/Paytm. AI OCR verifies physical receipts for bulletproof accounting.' },
-    { icon: Globe, title: 'V-Language Support', desc: 'Interface in English, Hindi, Tamil, Telugu, and Kannada—built for the diverse Indian logistics.' },
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [demoModalOpen, setDemoModalOpen] = useState(false)
+  const [selectedPlanName, setSelectedPlanName] = useState<string>('Growth')
+  const [formState, setFormState] = useState({
+    fullName: '',
+    workEmail: '',
+    companyName: '',
+    fleetSize: '15–50 vehicles',
+    phone: '',
+    notes: '',
+  })
+  const [submittedRequest, setSubmittedRequest] = useState(false)
+
+  const handleExploreDemo = () => {
+    setEnvironment('demo')
+    enterDemoSession({
+      fullName: 'Karthikeyan R',
+      email: 'karthikeyan@kaverilogistics.in',
+      role: 'fleet_manager',
+      isDemo: true,
+    })
+    navigate('/dashboard')
+  }
+
+  const handleOpenDemoModal = (plan = 'Growth') => {
+    setSelectedPlanName(plan)
+    setSubmittedRequest(false)
+    setDemoModalOpen(true)
+  }
+
+  const handleDemoSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formState.fullName.trim() || !validateEmailFormat(formState.workEmail) || !formState.companyName.trim()) {
+      toast.error('Please enter your name, valid work email, and company name.')
+      return
+    }
+    submitDemoRequest({
+      ...formState,
+      notes: `${selectedPlanName ? `[Plan interest: ${selectedPlanName}] ` : ''}${formState.notes}`.trim(),
+    })
+    setSubmittedRequest(true)
+    toast.success('Demo request recorded. Our fleet solutions team will follow up.')
+  }
+
+  const platformModules = [
+    {
+      icon: Truck,
+      title: 'Fleet Intelligence & Digital Twins',
+      description:
+        'Unify registration, insurance, odometer, component health, maintenance ledger, and active trip status inside each vehicle profile.',
+    },
+    {
+      icon: Smartphone,
+      title: 'Smartphone Telematics',
+      description:
+        'Capture GPS location, speed profiles, trip stops, and driver motion events via standard Android/web devices with zero mandatory tracker hardware.',
+    },
+    {
+      icon: Wrench,
+      title: 'Predictive Maintenance Engine',
+      description:
+        'Estimate component failure windows across 8 vehicle subsystems using mileage, service history, road stress, and inspection reports.',
+    },
+    {
+      icon: Users,
+      title: 'Driver Intelligence & Fairness',
+      description:
+        'Explainable safety scores adjusted for corridor road stress and GPS quality, paired with a transparent event dispute workflow.',
+    },
+    {
+      icon: Fuel,
+      title: 'Fuel & Charging Verification',
+      description:
+        'Track UPI, fleet card, cash, and EV charging spend with automated duplicate flagging and cost-per-kilometer variance checks.',
+    },
+    {
+      icon: BarChart3,
+      title: 'Financial Control & ICE vs EV',
+      description:
+        'Analyze fuel, maintenance, and estimated downtime exposure across every vehicle, with direct ICE and electric TCO comparisons.',
+    },
   ]
 
-  const plans = [
+  const industryApplications = [
     {
-      name: 'Starter', price: '₹999', period: '/mo',
-      desc: 'Precision for small fleets',
-      features: ['Up to 5 vehicles', 'Real-time GPS', 'Auto Trip Detection', 'Email Reports'],
-      cta: 'Start Free Trial', popular: false
+      sector: 'Regional Freight & Distribution',
+      detail: 'Monitor multi-city highway corridors, catch overdue service intervals early, and quantify delay costs per idle day.',
     },
     {
-      name: 'Growth', price: '₹2,999', period: '/mo',
-      desc: 'Scale your operations',
-      features: ['Up to 25 vehicles', 'Driver behavior scoring', 'Fuel management', 'AI alert engine', 'Maintenance tracking'],
-      cta: 'Begin Growth', popular: true
+      sector: 'Last-Mile & EV Cargo Fleets',
+      detail: 'Track battery state of health, charging spend per kWh, regenerative braking behavior, and ICE-to-EV unit cost savings.',
     },
     {
-      name: 'Enterprise', price: 'Custom', period: '',
-      desc: 'Elite fleet management',
-      features: ['Unlimited power', 'Multi-language support', 'Custom AI models', 'White-labeling', 'API Infrastructure'],
-      cta: 'Contact Sales', popular: false
+      sector: 'Cold Chain & Perishables',
+      detail: 'Identify unplanned highway halts, stale telemetry gaps, and mechanical risks before time-sensitive cargo dispatches.',
+    },
+    {
+      sector: 'Industrial & Construction Supply',
+      detail: 'Factor high-stress corridor conditions, pothole indices, and payload wear into proactive suspension and brake scheduling.',
     },
   ]
 
   return (
-    <div className="min-h-screen bg-background text-foreground overflow-x-hidden selection:bg-primary/30 scroll-smooth">
-      <Navbar />
-      
-      {/* Dynamic Background */}
-      <motion.div style={{ y: backgroundY }} className="fixed inset-0 pointer-events-none -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(245,197,24,0.08),transparent_50%)]" />
-        <div className="absolute inset-0 opacity-[0.05]"
-          style={{
-            backgroundImage: 'linear-gradient(rgba(245,197,24,1) 1px, transparent 1px), linear-gradient(90deg, rgba(245,197,24,1) 1px, transparent 1px)',
-            backgroundSize: '100px 100px'
-          }} />
-      </motion.div>
+    <div className="min-h-screen bg-[#F7F0D9] text-[#625346]">
+      {/* Top Bar Contract: 3 exact zones separated by gap-8 */}
+      <header className="sticky top-0 z-40 bg-[#FBF6E6]/95 backdrop-blur border-b border-[#E0D4B7]">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-8">
+          <Link
+            to="/"
+            className="text-lg font-extrabold tracking-tight text-[#625346] whitespace-nowrap shrink-0"
+          >
+            DriveMitra
+          </Link>
+
+          <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-[#7D6D5F]" aria-label="Primary navigation">
+            <a href="#platform" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
+              Platform
+            </a>
+            <a href="#predictive" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
+              Predictive AI
+            </a>
+            <a href="#solutions" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
+              Solutions
+            </a>
+            <a href="#pricing" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
+              Pricing
+            </a>
+            <Link to="/auth" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
+              Sign In
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => handleOpenDemoModal('Growth')}
+              className="btn-accent text-xs sm:text-sm"
+            >
+              Request Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen((prev) => !prev)}
+              aria-label="Toggle navigation menu"
+              className="md:hidden p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7]"
+            >
+              {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+
+        {mobileNavOpen && (
+          <div className="md:hidden border-t border-[#E0D4B7] bg-[#FBF6E6] px-6 py-4 space-y-3">
+            <a href="#platform" onClick={() => setMobileNavOpen(false)} className="block text-sm font-medium text-[#625346]">
+              Platform
+            </a>
+            <a href="#predictive" onClick={() => setMobileNavOpen(false)} className="block text-sm font-medium text-[#625346]">
+              Predictive AI
+            </a>
+            <a href="#solutions" onClick={() => setMobileNavOpen(false)} className="block text-sm font-medium text-[#625346]">
+              Solutions
+            </a>
+            <a href="#pricing" onClick={() => setMobileNavOpen(false)} className="block text-sm font-medium text-[#625346]">
+              Pricing
+            </a>
+            <Link to="/auth" onClick={() => setMobileNavOpen(false)} className="block text-sm font-semibold text-[#6E5696]">
+              Sign In
+            </Link>
+          </div>
+        )}
+      </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 max-w-7xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="inline-flex items-center gap-2.5 px-6 py-2 rounded-full text-[10px] font-black tracking-[0.3em] uppercase mb-12 bg-white/5 border border-white/10 text-primary shadow-gold"
-        >
-          <Zap className="w-3.5 h-3.5 fill-primary shadow-gold" /> The Intelligence Layer for Indian Fleet Operations
-        </motion.div>
-
-        <motion.h1 
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="font-display text-7xl md:text-8xl lg:text-[130px] font-black tracking-tighter mb-10 leading-[0.85] text-white"
-        >
-          Fleet Intel. <br />
-          <span className="text-gradient-gold drop-shadow-2xl">Re-Engineered.</span>
-        </motion.h1>
-
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-lg md:text-xl text-muted max-w-2xl mb-16 font-medium leading-relaxed"
-        >
-          DriveMitra turns smartphones into high-fidelity telematics engines. 
-          Hardware-free, AI-driven, and meticulously designed for India's logistics elite.
-        </motion.p>
-
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex flex-col sm:flex-row gap-8 mb-24"
-        >
-          <button className="btn-primary !text-lg !px-16 !py-6 shadow-gold group">
-            Get Started Free <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </button>
-          <button className="btn-secondary !text-lg !px-12 !py-6">
-            View Case Studies
-          </button>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 60 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.6 }}
-          className="w-full relative group mt-12"
-        >
-          <div className="absolute -inset-10 bg-primary/20 blur-[120px] rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-1000" />
-          <div className="glass-card rounded-[40px] p-4 overflow-hidden shadow-2xl relative border-white/10">
-            <HeroVisual />
-          </div>
-        </motion.div>
-      </section>
-
-      {/* Stats Board */}
-      <section className="py-32 relative">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-16">
-          <StatCounter value="5000+" label="Active Vehicles" />
-          <StatCounter value="98.4%" label="GPS Precision" />
-          <StatCounter value="₹12Cr+" label="Fuel Savings" />
-          <StatCounter value="5" label="Local Languages" />
-        </div>
-      </section>
-
-      {/* Trust Section */}
-      <section className="py-20 flex flex-col items-center">
-        <p className="text-[10px] font-black uppercase tracking-[0.6em] text-muted mb-16">Propelling the Future of These Legends</p>
-        <div className="w-full">
-          <Marquee />
-        </div>
-      </section>
-
-      {/* Features Showcase */}
-      <section id="features" className="py-40 px-6 max-w-7xl mx-auto">
-        <div className="text-center mb-32">
-          <div className="inline-block px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-8">Ecosystem</div>
-          <h2 className="text-6xl md:text-8xl font-display font-black mb-10 leading-none">The Full Stack. <br /><span className="text-gradient-gold">Zero Hardware.</span></h2>
-          <p className="text-muted max-w-2xl mx-auto text-lg font-medium">
-            We've eliminated the friction of expensive black boxes. Welcome to software-defined fleet intelligence.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-          {features.map((f, i) => (
-            <FeatureCard key={i} {...f} delay={i * 0.1} />
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing section */}
-      <section id="pricing" className="py-40 px-6 bg-white/[0.01] border-y border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-32 gap-12">
-            <div className="max-w-xl">
-              <div className="inline-block px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest mb-8">Investment</div>
-              <h2 className="text-6xl md:text-8xl font-display font-black leading-[0.85]">Engineered for <br /><span className="text-gradient-gold">Scale.</span></h2>
+      <section className="py-16 lg:py-24 border-b border-[#D4C7E6] bg-[#EEE8F7]">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
+          <div className="lg:col-span-6 flex flex-col justify-center">
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider mb-4">
+              Enterprise Fleet Intelligence · Smartphone Telematics
+            </p>
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-[#625346] leading-[1.12] tracking-tight">
+              Your Fleet. Your Intelligence. Your Competitive Advantage.
+            </h1>
+            <p className="mt-5 text-base sm:text-lg text-[#625346]/85 max-w-xl leading-relaxed">
+              Monitor vehicle operations, anticipate maintenance requirements, and transform everyday fleet data into smarter operational and financial decisions.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3.5">
+              <button type="button" onClick={handleExploreDemo} className="btn-accent py-3 px-6">
+                Explore Platform
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenDemoModal('Growth')}
+                className="btn-secondary py-3 px-6"
+              >
+                Request a Demo
+              </button>
             </div>
-            <p className="text-muted max-w-md text-lg font-medium lg:pb-6">
-              Logistics is a game of margins. Our pricing is designed to grow as you dominate.
+            <p className="mt-6 text-xs text-[#7D6D5F]">
+              No dedicated GPS hardware required to start · Multi-organization RLS isolation · Supports ICE and EV commercial fleets
             </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {plans.map((p, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className={`glass-card p-12 rounded-[48px] flex flex-col h-full relative group shadow-premium transition-all duration-700
-                ${p.popular ? 'border-primary/50 bg-white/[0.04] scale-105 z-10 shadow-gold' : 'border-white/5 bg-white/[0.01]'}`}
-              >
-                {p.popular && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-8 py-2 rounded-full text-[11px] font-black uppercase tracking-widest bg-primary text-black shadow-gold ring-4 ring-background">
-                    Most Popular
-                  </div>
-                )}
-                
-                <div className="mb-12">
-                  <h3 className="text-3xl font-display font-black mb-2 uppercase tracking-tight text-white">{p.name}</h3>
-                  <p className="text-sm text-muted font-bold">{p.desc}</p>
-                </div>
-                
-                <div className="mb-16">
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-7xl font-display font-black text-white group-hover:text-primary transition-colors">{p.price}</span>
-                    <span className="text-sm text-muted uppercase font-black">{p.period}</span>
-                  </div>
-                  <div className="h-1.5 w-24 bg-primary/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-primary w-1/3 group-hover:w-full transition-all duration-1000" />
-                  </div>
-                </div>
 
-                <ul className="space-y-6 mb-16 flex-1">
-                  {p.features.map((f, ii) => (
-                    <li key={ii} className="flex items-center gap-4 text-sm text-muted font-medium group/li">
-                      <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center group-hover/li:bg-primary transition-colors">
-                        <Star className="w-3 h-3 text-primary group-hover/li:text-black" />
-                      </div>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
+          {/* Authentic Interactive Platform Preview */}
+          <div className="lg:col-span-6 flex">
+            <div className="w-full bg-[#F4EBD5] border border-[#D4C7E6] rounded-2xl p-6 shadow-card flex flex-col justify-between">
+              <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#E0D4B7]">
+                <div>
+                  <p className="text-xs font-semibold text-[#7D6D5F]">Command Centre Snapshot · Sample Demo Fleet</p>
+                  <p className="font-bold text-base text-[#625346] mt-0.5">
+                    Kaveri Logistics Pvt Ltd
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-[#625346] bg-[#E8C65A]/45 border border-[#C9A63B] px-2.5 py-1 rounded-[8px]">
+                  DEMO WORKSPACE
+                </span>
+              </div>
 
-                <button className={`w-full py-6 rounded-[24px] font-black text-sm uppercase tracking-[0.2em] transition-all duration-500
-                  ${p.popular 
-                    ? 'btn-primary shadow-gold' 
-                    : 'bg-white/5 text-white hover:bg-white/10 border border-white/10'}`}>
-                  {p.cta}
+              <div className="grid grid-cols-3 gap-3 my-5">
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-xl p-3.5">
+                  <p className="text-xs text-[#7D6D5F]">Fleet Health Avg</p>
+                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1">67%</p>
+                </div>
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-xl p-3.5">
+                  <p className="text-xs text-[#7D6D5F]">Active Trips</p>
+                  <p className="text-2xl font-bold text-[#6E5696] tabular-nums mt-1">3</p>
+                </div>
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-xl p-3.5">
+                  <p className="text-xs text-[#7D6D5F]">Priority Reviews</p>
+                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-[#D9786C] inline-block" />
+                    2
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-[#625346] inline-flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#D9786C]" />
+                      Critical Maintenance Window · 6–10 Days
+                    </p>
+                    <p className="text-sm font-bold text-[#625346] mt-0.5">
+                      TN 30 EF 9012 · Engine Oil & Thermal Stress
+                    </p>
+                  </div>
+                  <span className="text-xs font-semibold text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9] px-2 py-0.5 rounded tabular-nums">
+                    Conf. 87%
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 pt-2 border-t border-[#E0D4B7] text-xs">
+                  <div>
+                    <span className="text-[#7D6D5F] block">Preventive Est.</span>
+                    <span className="font-semibold text-[#625346] tabular-nums">{formatInr(4800)}</span>
+                  </div>
+                  <div>
+                    <span className="text-[#7D6D5F] block">Delay Exposure</span>
+                    <span className="font-semibold text-[#625346] tabular-nums inline-flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#D9786C]" />
+                      {formatInr(62800)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[#7D6D5F] block">Est. Savings</span>
+                    <span className="font-semibold text-[#625346] tabular-nums inline-flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#789A75]" />
+                      {formatInr(58000)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 mt-4 border-t border-[#E0D4B7] flex items-center justify-between text-xs text-[#7D6D5F]">
+                <span>From Fleet Tracking to Fleet Intelligence</span>
+                <button
+                  type="button"
+                  onClick={handleExploreDemo}
+                  className="font-semibold text-[#625346] hover:text-[#6E5696] hover:underline inline-flex items-center gap-1"
+                >
+                  Open Live Demo
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
-              </motion.div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Architecture & Smartphone Telematics */}
+      <section id="platform" className="py-16 lg:py-20 bg-[#F7F0D9]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Unified Operating Architecture</p>
+            <h2 className="dm-section-title text-3xl mt-2">
+              Eight integrated intelligence modules sharing one operational record
+            </h2>
+            <p className="text-[#7D6D5F] mt-3 text-base">
+              Every organization, vehicle digital twin, driver profile, trip route, fuel transaction, and maintenance log updates the same underlying system.
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {platformModules.map((mod) => {
+              const Icon = mod.icon
+              return (
+                <div key={mod.title} className="enterprise-card p-6 flex flex-col justify-between hover:bg-[#FBF6E6] transition-colors">
+                  <div>
+                    <div className="w-10 h-10 rounded-[10px] bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center mb-4">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="dm-card-title">{mod.title}</h3>
+                    <p className="text-sm text-[#7D6D5F] mt-2 leading-relaxed">{mod.description}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Predictive Maintenance & Smartphone Honesty */}
+      <section id="predictive" className="py-16 lg:py-20 bg-[#EEE8F7] border-y border-[#D4C7E6]">
+        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          <div className="lg:col-span-6">
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Flagship Predictive Maintenance</p>
+            <h2 className="dm-section-title text-3xl mt-2">
+              Explainable wear windows built on verifiable operational inputs
+            </h2>
+            <p className="text-[#625346]/85 mt-3 leading-relaxed">
+              DriveMitra never claims a smartphone sensor can directly measure internal brake pads or engine oil viscosity. Instead, our deterministic and machine-learning baseline models combine verifiable signals to prioritize workshop scheduling before roadside breakdowns occur.
+            </p>
+            <div className="mt-6 space-y-3 text-sm text-[#625346]">
+              <div className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
+                <span>Vehicle age, cumulative odometer, and daily utilization intensity</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
+                <span>Recorded service intervals, parts history, and driver pre-trip inspection flags</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
+                <span>Corridor road-stress indices, ambient heat exposure, and driving event rates</span>
+              </div>
+              <div className="flex items-start gap-2.5">
+                <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
+                <span>Transparent confidence intervals, model version tags, and delay-cost comparisons</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-6 enterprise-card p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#E0D4B7]">
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-4 h-4 text-[#6E5696]" />
+                <span className="font-semibold text-sm text-[#625346]">
+                  Fleet Risk & Telemetry Integrity Safeguards
+                </span>
+              </div>
+              <Compass className="w-4 h-4 text-[#7D6D5F]" />
+            </div>
+            <div className="mt-4 space-y-4 text-sm">
+              <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4">
+                <p className="font-semibold text-[#625346]">Honest Telemetry Freshness</p>
+                <p className="text-[#7D6D5F] text-xs mt-1">
+                  Coordinates older than 5 minutes are marked Stale or Offline with exact GPS accuracy in meters—never misrepresented as live tracking.
+                </p>
+              </div>
+              <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4">
+                <p className="font-semibold text-[#625346]">Driver Dispute Fairness</p>
+                <p className="text-[#7D6D5F] text-xs mt-1">
+                  Drivers can challenge accelerometer spikes caused by potholes or loose dashboard mounts; approved disputes are excluded from safety penalties.
+                </p>
+              </div>
+              <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4">
+                <p className="font-semibold text-[#625346]">Neutral Fuel Anomaly Review</p>
+                <p className="text-[#7D6D5F] text-xs mt-1">
+                  Duplicate entries or efficiency drops are flagged as Needs Review with supporting odometer math rather than automated accusations.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Industry Solutions */}
+      <section id="solutions" className="py-16 lg:py-20 bg-[#F7F0D9]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Commercial Fleet Fit</p>
+            <h2 className="dm-section-title text-3xl mt-2">
+              Built for multi-city Indian commercial and mixed EV operations
+            </h2>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
+            {industryApplications.map((item) => (
+              <div key={item.sector} className="enterprise-card p-6 hover:bg-[#FBF6E6] transition-colors">
+                <h3 className="dm-card-title text-lg">{item.sector}</h3>
+                <p className="text-sm text-[#7D6D5F] mt-2 leading-relaxed">{item.detail}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="pt-32 pb-16 px-6 bg-black border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-20 mb-32">
-            <div className="col-span-1 md:col-span-1">
-              <div className="flex items-center gap-3 mb-10">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/5 border border-white/10">
-                  <Truck className="w-6 h-6 text-primary" />
-                </div>
-                <span className="font-display text-2xl font-black text-white">DriveMitra</span>
-              </div>
-              <p className="text-sm text-muted leading-relaxed mb-10">
-                The definitive intelligence layer for India's logistics enterprise. 
-                Zero hardware. Elite clarity. Built for the modern supply chain.
-              </p>
-              <div className="flex gap-4">
-                {[Globe, Zap, Activity, Shield].map((Icon, i) => (
-                  <div key={i} className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-primary/20 hover:border-primary/40 transition-all cursor-pointer group">
-                    <Icon className="w-5 h-5 text-muted group-hover:text-white" />
+      {/* Pricing */}
+      <section id="pricing" className="py-16 lg:py-20 bg-[#EEE8F7] border-t border-[#D4C7E6]">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="max-w-2xl">
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Transparent Licensing</p>
+            <h2 className="dm-section-title text-3xl mt-2">
+              Predictable pricing per active fleet organization
+            </h2>
+            <p className="text-[#7D6D5F] mt-2 text-sm">
+              Start with a repeatable Demo or Pilot workspace before onboarding your production fleet.
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {SUBSCRIPTION_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`rounded-xl p-6 flex flex-col justify-between border shadow-card ${
+                  plan.id === 'growth'
+                    ? 'bg-[#FBF6E6] text-[#625346] border-2 border-[#E8C65A]'
+                    : 'bg-[#F4EBD5] text-[#625346] border-[#E0D4B7]'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-lg font-bold text-[#625346]">{plan.name}</h3>
+                    {plan.id === 'growth' && (
+                      <span className="text-xs font-semibold text-[#625346] bg-[#E8C65A]/45 border border-[#C9A63B] px-2.5 py-0.5 rounded-[8px]">
+                        Recommended
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-            
-            {['Product', 'Company', 'Contact'].map((section, idx) => (
-              <div key={idx}>
-                <h5 className="text-[11px] font-black uppercase tracking-[0.3em] text-primary mb-10">{section}</h5>
-                <ul className="space-y-6">
-                  {['Features', 'Intelligence', 'Fleet Map', 'Cloud Ledger', 'API Engine'].map((item, i) => (
-                    <li key={i} className="text-[13px] text-muted font-bold hover:text-white cursor-pointer transition-colors flex items-center gap-2 group">
-                      <ChevronRight className="w-3 h-3 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+                  <p className="text-xs mt-1.5 text-[#7D6D5F]">{plan.tagline}</p>
+                  <div className="mt-5 pb-5 border-b border-[#E0D4B7]">
+                    {plan.monthlyInr !== null ? (
+                      <p className="text-3xl font-bold tabular-nums text-[#625346]">
+                        {formatInr(plan.monthlyInr)}
+                        <span className="text-xs font-normal ml-1 text-[#7D6D5F]">
+                          / month
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-2xl font-bold text-[#625346]">Custom Contract</p>
+                    )}
+                  </div>
+                  <ul className="mt-5 space-y-2.5 text-sm">
+                    {plan.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2">
+                        <Check className="w-4 h-4 mt-0.5 shrink-0 text-[#4D6E4A]" />
+                        <span className="text-[#625346]">{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleOpenDemoModal(plan.name)}
+                  className={`mt-8 w-full ${plan.id === 'growth' ? 'btn-accent' : 'btn-secondary'}`}
+                >
+                  {plan.monthlyInr === null ? 'Contact Enterprise Sales' : `Request ${plan.name} Pilot`}
+                </button>
               </div>
             ))}
           </div>
-          
-          <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row items-center justify-between gap-10">
-            <div className="flex items-center gap-6">
-              <p className="text-[10px] text-muted font-black uppercase tracking-[0.4em]">© 2026 DriveMitra Intelligence Group</p>
-              <div className="h-4 w-px bg-white/10 hidden md:block" />
-              <p className="text-[10px] text-muted font-black uppercase tracking-[0.4em] flex items-center gap-2">Built in India 🇮🇳 <Fingerprint className="w-3 h-3" /></p>
-            </div>
-            <div className="flex gap-10">
-               {['Privacy Policy', 'Security Protocol', 'Term of Service'].map(text => (
-                 <a key={text} className="text-[10px] text-muted font-black uppercase tracking-[0.2em] hover:text-primary transition-colors">{text}</a>
-               ))}
-            </div>
+        </div>
+      </section>
+
+      {/* Final CTA & Footer */}
+      <section className="py-14 bg-[#F4EBD5] border-t border-[#E0D4B7] text-[#625346]">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-[#625346]">
+              Ready to move from reactive repairs to fleet intelligence?
+            </h2>
+            <p className="text-[#625346]/80 text-sm mt-1.5">
+              Launch the interactive Demo Workspace immediately or request a guided pilot onboarding.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={handleExploreDemo}
+              className="btn-accent py-2.5 px-5"
+            >
+              Launch Demo Workspace
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOpenDemoModal('Growth')}
+              className="btn-secondary py-2.5 px-5"
+            >
+              Request Demo
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <footer className="bg-[#FBF6E6] border-t border-[#E0D4B7] py-8">
+        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#7D6D5F]">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[#6E5696]" />
+            <span className="font-semibold text-[#625346]">DriveMitra</span>
+            <span>·</span>
+            <span>Enterprise Fleet Intelligence Platform</span>
+          </div>
+          <div className="flex items-center gap-6">
+            <a href="#platform" className="hover:text-[#625346]">Platform</a>
+            <a href="#predictive" className="hover:text-[#625346]">Predictive AI</a>
+            <a href="#pricing" className="hover:text-[#625346]">Pricing</a>
+            <Link to="/auth" className="hover:text-[#625346]">Sign In</Link>
+            <Link to="/driver" className="hover:text-[#625346]">Driver App</Link>
           </div>
         </div>
       </footer>
+
+      {/* Request Demo Modal */}
+      <EnterpriseModal
+        open={demoModalOpen}
+        onClose={() => setDemoModalOpen(false)}
+        title="Request a DriveMitra Fleet Pilot"
+        subtitle={`Selected plan interest: ${selectedPlanName} · Timezone: Asia/Kolkata`}
+      >
+        {submittedRequest ? (
+          <div className="py-4 space-y-4">
+            <div className="p-4 rounded-[10px] bg-[#789A75]/20 border border-[#789A75] text-[#625346] text-sm">
+              Thank you, <strong>{formState.fullName}</strong>. Your pilot request for{' '}
+              <strong>{formState.companyName}</strong> has been logged.
+            </div>
+            <div className="flex items-center justify-end gap-3">
+              <button type="button" onClick={() => setDemoModalOpen(false)} className="btn-secondary">
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setDemoModalOpen(false)
+                  handleExploreDemo()
+                }}
+                className="btn-accent"
+              >
+                Explore Demo Workspace Now
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleDemoSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="demo-name" className="dm-label">Full Name *</label>
+                <input
+                  id="demo-name"
+                  required
+                  value={formState.fullName}
+                  onChange={(e) => setFormState((s) => ({ ...s, fullName: e.target.value }))}
+                  placeholder="Karthikeyan R"
+                  className="dm-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="demo-email" className="dm-label">Work Email *</label>
+                <input
+                  id="demo-email"
+                  type="email"
+                  required
+                  value={formState.workEmail}
+                  onChange={(e) => setFormState((s) => ({ ...s, workEmail: e.target.value }))}
+                  placeholder="ops@company.in"
+                  className="dm-input"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="demo-company" className="dm-label">Organization Name *</label>
+                <input
+                  id="demo-company"
+                  required
+                  value={formState.companyName}
+                  onChange={(e) => setFormState((s) => ({ ...s, companyName: e.target.value }))}
+                  placeholder="Kaveri Logistics Pvt Ltd"
+                  className="dm-input"
+                />
+              </div>
+              <div>
+                <label htmlFor="demo-size" className="dm-label">Fleet Size</label>
+                <select
+                  id="demo-size"
+                  value={formState.fleetSize}
+                  onChange={(e) => setFormState((s) => ({ ...s, fleetSize: e.target.value }))}
+                  className="dm-input"
+                >
+                  <option value="5–15 vehicles">5–15 vehicles</option>
+                  <option value="15–50 vehicles">15–50 vehicles</option>
+                  <option value="50–200 vehicles">50–200 vehicles</option>
+                  <option value="200+ vehicles">200+ vehicles</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="demo-phone" className="dm-label">Phone Number</label>
+              <input
+                id="demo-phone"
+                value={formState.phone}
+                onChange={(e) => setFormState((s) => ({ ...s, phone: e.target.value }))}
+                placeholder="+91 98400 00000"
+                className="dm-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="demo-notes" className="dm-label">Operational Priorities</label>
+              <textarea
+                id="demo-notes"
+                rows={3}
+                value={formState.notes}
+                onChange={(e) => setFormState((s) => ({ ...s, notes: e.target.value }))}
+                placeholder="Predictive maintenance, fuel auditing, EV transition..."
+                className="dm-input"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setDemoModalOpen(false)} className="btn-secondary">
+                Cancel
+              </button>
+              <button type="submit" className="btn-accent">
+                Submit Request
+              </button>
+            </div>
+          </form>
+        )}
+      </EnterpriseModal>
     </div>
   )
 }

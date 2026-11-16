@@ -1,288 +1,628 @@
-import { useParams, Link } from 'react-router-dom'
-import { useVehicles } from '../hooks/useVehicles'
-import { useVehicleComponents } from '../hooks/useVehicleComponents'
-import { useAIPredictions } from '../hooks/useAIPredictions'
-import { useMaintenanceHistory } from '../hooks/useMaintenanceHistory'
-import { useDrivers } from '../hooks/useDrivers'
-import { ArrowLeft, MapPin, User2, Fuel, Calendar, Activity, Wrench, Brain, AlertTriangle } from 'lucide-react'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getHealthColor, getHealthClass, formatCurrency, getPriorityClass } from '../lib/utils'
+import React, { useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, Edit3, Info, Trash2, Wrench } from 'lucide-react'
+import { toast } from 'sonner'
+import { useFleet } from '../hooks/useFleet'
+import { classifyTelemetryFreshness, TELEMETRY_SCOPE_DISCLOSURE } from '../utils/intelligenceEngine'
+import { canPerformAction } from '../utils/rbac'
+import {
+  EmptySectionState,
+  EnterpriseModal,
+  formatDateTime,
+  formatInr,
+  formatShortDate,
+  SeverityText,
+} from '../components/ui/EnterprisePrimitives'
 
-// Generate health timeline from current health score
-function buildTimeline(healthScore: number) {
-  const now = new Date()
-  const trend: { month: string; score: number | null; predicted: number | null }[] = []
-  for (let i = 9; i >= 1; i--) {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() - i)
-    const noise = Math.floor(Math.random() * 4) - 2
-    const base = Math.min(100, Math.round(healthScore + i * 2.5 + noise))
-    trend.push({ month: d.toLocaleString('default', { month: 'short' }), score: base, predicted: null })
-  }
-  trend.push({ month: now.toLocaleString('default', { month: 'short' }), score: healthScore, predicted: null })
-  for (let i = 1; i <= 3; i++) {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() + i)
-    trend.push({
-      month: d.toLocaleString('default', { month: 'short' }),
-      score: null,
-      predicted: Math.max(10, Math.round(healthScore - i * (100 - healthScore) * 0.08))
-    })
-  }
-  return trend
-}
+const TABS = [
+  'Overview',
+  'Telemetry',
+  'Trips',
+  'Driver History',
+  'Components',
+  'Maintenance',
+  'Fuel',
+  'Financials',
+  'Predictions',
+  'Activity History',
+] as const
+
+type DigitalTwinTab = (typeof TABS)[number]
 
 export default function VehicleDetails() {
-  const { id } = useParams<{ id: string }>()
-  const { vehicles, loading: vLoad } = useVehicles()
-  const { components, loading: cLoad } = useVehicleComponents(id)
-  const { predictions } = useAIPredictions()
-  const { records } = useMaintenanceHistory(id)
-  const { drivers } = useDrivers()
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const {
+    activeOrganization,
+    activeRole,
+    vehicles,
+    archivedVehicles,
+    drivers,
+    driverEvents,
+    trips,
+    fuelTransactions,
+    maintenanceRecords,
+    predictions,
+    inspections,
+    auditLogs,
+    corridors,
+    assignDriverToVehicle,
+    decommissionVehicle,
+    updateVehicle,
+    scheduleMaintenance,
+  } = useFleet()
 
-  const vehicle = vehicles.find(v => v.id === id)
-  const vehiclePredictions = predictions.filter(p => p.vehicle_id === id)
-  const driver = drivers.find(d => d.vehicle_id === id)
+  const [activeTab, setActiveTab] = useState<DigitalTwinTab>('Overview')
+  const [editOpen, setEditOpen] = useState(false)
 
-  if (vLoad) return (
-    <div className="space-y-4 animate-pulse">
-      <div className="skeleton h-16 rounded-2xl" />
-      <div className="grid grid-cols-4 gap-3">{Array.from({length:4}).map((_,i)=><div key={i} className="skeleton h-20 rounded-xl"/>)}</div>
-      <div className="grid grid-cols-2 gap-4"><div className="skeleton h-64 rounded-2xl"/><div className="skeleton h-64 rounded-2xl"/></div>
-    </div>
-  )
+  const vehicle = vehicles.find((v) => v.id === id) ?? archivedVehicles.find((v) => v.id === id)
 
-  if (!vehicle) return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-      <AlertTriangle className="w-12 h-12 text-warning/40 mb-3" />
-      <p className="text-muted-foreground">Vehicle not found</p>
-      <Link to="/vehicles" className="text-primary text-sm mt-2 hover:underline">← Back to fleet</Link>
-    </div>
-  )
+  const [editForm, setEditForm] = useState({
+    make: vehicle?.make ?? '',
+    model: vehicle?.model ?? '',
+    year: vehicle?.year ?? 2024,
+    odometerKm: vehicle?.odometerKm ?? 0,
+    dailyAvgKm: vehicle?.dailyAvgKm ?? 140,
+    corridorId: vehicle?.corridorId ?? corridors[0]?.id ?? 'cor-chennai',
+    insuranceProvider: vehicle?.insuranceProvider ?? '',
+    insuranceExpiry: vehicle?.insuranceExpiry ?? '',
+  })
 
-  const health = vehicle.health_score
-  const timeline = buildTimeline(health)
-  const prob7d  = Math.max(0, Math.round((100 - health) * 0.4))
-  const prob30d = Math.max(0, Math.round((100 - health) * 0.65))
-  const prob90d = Math.max(0, Math.round((100 - health) * 0.85))
+  if (!vehicle) {
+    return (
+      <div className="space-y-4">
+        <button type="button" onClick={() => navigate('/dashboard/fleet')} className="btn-secondary text-xs">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Fleet
+        </button>
+        <EmptySectionState
+          title="Vehicle record not found in active organization"
+          description="The requested vehicle may belong to another organization or environment."
+          actionLabel="Return to Fleet"
+          onAction={() => navigate('/dashboard/fleet')}
+        />
+      </div>
+    )
+  }
+
+  const canEdit = canPerformAction(activeRole, 'edit_vehicle')
+  const canAssign = canPerformAction(activeRole, 'assign_driver')
+  const canDecommission = canPerformAction(activeRole, 'decommission_vehicle')
+  const canScheduleMaint = canPerformAction(activeRole, 'schedule_maintenance')
+
+  const assignedDriver = drivers.find((d) => d.id === vehicle.assignedDriverId)
+  const freshness = classifyTelemetryFreshness(vehicle.telemetry.lastUpdatedAt, vehicle.telemetry.connectionState)
+  const vehicleTrips = trips.filter((t) => t.vehicleId === vehicle.id)
+  const vehicleFuel = fuelTransactions.filter((f) => f.vehicleId === vehicle.id)
+  const vehicleMaint = maintenanceRecords.filter((m) => m.vehicleId === vehicle.id)
+  const vehiclePredictions = predictions.filter((p) => p.vehicleId === vehicle.id)
+  const vehicleEvents = driverEvents.filter((e) => e.vehicleId === vehicle.id)
+  const vehicleInspections = inspections.filter((i) => i.vehicleId === vehicle.id)
+  const vehicleLogs = auditLogs.filter((l) => l.entityId === vehicle.id)
+
+  const totalFuelSpend = vehicleFuel.reduce((s, f) => s + f.amountInr, 0)
+  const totalMaintSpend = vehicleMaint.reduce((s, m) => s + m.costInr, 0)
+  const totalLoggedKm = vehicleTrips.reduce((s, t) => s + t.distanceKm, 0)
+
+  const handleOpenEdit = () => {
+    setEditForm({
+      make: vehicle.make,
+      model: vehicle.model,
+      year: vehicle.year,
+      odometerKm: vehicle.odometerKm,
+      dailyAvgKm: vehicle.dailyAvgKm,
+      corridorId: vehicle.corridorId,
+      insuranceProvider: vehicle.insuranceProvider,
+      insuranceExpiry: vehicle.insuranceExpiry,
+    })
+    setEditOpen(true)
+  }
+
+  const handleSaveSpecs = (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const corridor = corridors.find((c) => c.id === editForm.corridorId)
+      updateVehicle(vehicle.id, {
+        make: editForm.make.trim(),
+        model: editForm.model.trim(),
+        year: Number(editForm.year),
+        odometerKm: Number(editForm.odometerKm),
+        dailyAvgKm: Number(editForm.dailyAvgKm),
+        corridorId: editForm.corridorId,
+        cityName: corridor?.name ?? vehicle.cityName,
+        insuranceProvider: editForm.insuranceProvider.trim(),
+        insuranceExpiry: editForm.insuranceExpiry,
+      })
+      toast.success(`Updated specifications for ${vehicle.registrationNumber}`)
+      setEditOpen(false)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unable to update vehicle specifications.')
+    }
+  }
+
+  const handleDecommission = () => {
+    try {
+      decommissionVehicle(vehicle.id)
+      toast.success(`Archived ${vehicle.registrationNumber} (historical records preserved)`)
+      navigate('/dashboard/fleet')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action not permitted.')
+    }
+  }
 
   return (
-    <div className="space-y-5 page-enter">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link to="/vehicles">
-          <button className="p-2 rounded-xl hover:bg-secondary transition-colors"><ArrowLeft className="w-4 h-4" /></button>
-        </Link>
-        <div className="flex-1">
-          <div className="flex items-center flex-wrap gap-3">
-            <h1 className="font-display text-xl font-bold">{vehicle.registration_number}</h1>
-            <span className={getHealthClass(health)}>{vehicle.status}</span>
-            <span className="text-xs text-muted-foreground">{vehicle.make} {vehicle.model} • {vehicle.year} • {vehicle.fuel_type}</span>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard/fleet')}
+            className="text-xs font-semibold text-[#7D6D5F] hover:text-[#625346] inline-flex items-center gap-1.5 mb-2"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            All Fleet Assets
+          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="dm-page-title tabular-nums">{vehicle.registrationNumber}</h1>
+            <SeverityText severity={vehicle.healthScore <= 49 ? 'critical' : vehicle.healthScore <= 74 ? 'at-risk' : 'healthy'} />
+            <SeverityText severity={freshness.freshness} label={freshness.label} />
+            {vehicle.decommissioned && <SeverityText severity="moderate" label="Archived" />}
           </div>
+          <p className="text-sm text-[#7D6D5F] mt-1">
+            {vehicle.make} {vehicle.model} ({vehicle.year}) · {vehicle.category} · {vehicle.powertrain} ({vehicle.fuelType}) · {vehicle.cityName}
+          </p>
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className="text-3xl font-display font-bold" style={{ color: getHealthColor(health) }}>{health}%</div>
-          <div className="text-xs text-muted-foreground">Health Score</div>
-        </div>
-      </div>
 
-      {/* Info */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { icon: MapPin, label: 'City', value: vehicle.city_name || '—' },
-          { icon: User2, label: 'Driver', value: vehicle.assigned_driver || 'Unassigned' },
-          { icon: Fuel, label: 'Fuel', value: vehicle.fuel_type },
-          { icon: Calendar, label: 'Next Service', value: vehicle.next_service_due || 'Not set' },
-        ].map(({ icon: Icon, label, value }) => (
-          <div key={label} className="glass-card p-3.5 rounded-xl flex items-center gap-3">
-            <Icon className="w-4 h-4 text-primary flex-shrink-0" />
-            <div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xs font-semibold">{value}</p></div>
-          </div>
-        ))}
-      </div>
-
-      {/* Failure risk banners */}
-      {vehiclePredictions.length > 0 && (
-        <div className="space-y-2">
-          {vehiclePredictions.map(p => (
-            <div key={p.id} className={`flex items-start gap-3 p-4 rounded-2xl border ${
-              p.priority === 'critical' ? 'bg-destructive/10 border-destructive/30' :
-              p.priority === 'high' ? 'bg-warning/10 border-warning/25' : 'bg-info/10 border-info/25'
-            }`}>
-              <AlertTriangle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.priority === 'critical' ? 'text-destructive' : p.priority === 'high' ? 'text-warning' : 'text-info'}`} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-xs font-semibold">{p.component_name}</span>
-                  <span className={getPriorityClass(p.priority)}>{p.priority}</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">{p.ai_reasoning}</p>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                <p className="text-xs font-bold text-success">{formatCurrency(p.estimated_cost_if_fixed)}</p>
-                <p className="text-[10px] text-muted-foreground">saves {formatCurrency(p.roi_if_fixed_now)}</p>
-              </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {canAssign && !vehicle.decommissioned && (
+            <div>
+              <label htmlFor="assign-drv-select" className="sr-only">Assign Driver</label>
+              <select
+                id="assign-drv-select"
+                value={vehicle.assignedDriverId ?? ''}
+                onChange={(e) => {
+                  try {
+                    assignDriverToVehicle(vehicle.id, e.target.value || null)
+                    toast.success('Updated assigned driver')
+                  } catch (err) {
+                    toast.error(err instanceof Error ? err.message : 'Unable to assign driver')
+                  }
+                }}
+                className="dm-input py-2 text-xs font-medium"
+              >
+                <option value="">Unassigned Driver</option>
+                {drivers.filter((d) => d.status !== 'onboarding').map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Health Timeline */}
-        <div className="glass-card p-5 rounded-2xl">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity className="w-4 h-4 text-primary" />
-            <h3 className="font-display font-semibold text-sm">Health Timeline</h3>
-            <span className="text-[10px] text-muted-foreground ml-auto">AI predicted trend</span>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={timeline} margin={{top:4,right:4,left:-20,bottom:0}}>
-              <defs>
-                <linearGradient id="ahGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(160 84% 39%)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="hsl(160 84% 39%)" stopOpacity={0.02}/>
-                </linearGradient>
-                <linearGradient id="phGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(43 96% 56%)" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="hsl(43 96% 56%)" stopOpacity={0.02}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(220 10% 18%)"/>
-              <XAxis dataKey="month" tick={{fontSize:10, fill:'hsl(220 10% 55%)'}}/>
-              <YAxis tick={{fontSize:10, fill:'hsl(220 10% 55%)'}} domain={[0,100]}/>
-              <Tooltip contentStyle={{background:'hsl(220 15% 10%)',border:'1px solid hsl(220 10% 20%)',borderRadius:12,fontSize:11}}/>
-              <Area type="monotone" dataKey="score" name="Actual" stroke="hsl(160 84% 39%)" fill="url(#ahGrad)" strokeWidth={2} connectNulls={false}/>
-              <Area type="monotone" dataKey="predicted" name="AI Predicted" stroke="hsl(43 96% 56%)" fill="url(#phGrad)" strokeWidth={2} strokeDasharray="4 3" connectNulls={false}/>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Driver Impact */}
-        <div className="glass-card p-5 rounded-2xl">
-          <h3 className="font-display font-semibold text-sm mb-3">Driver Impact Analysis</h3>
-          {driver ? (
-            <>
-              <div className="flex items-center gap-3 mb-3 p-3 bg-secondary/40 rounded-xl">
-                <div className="w-10 h-10 rounded-full bg-gradient-gold flex items-center justify-center text-black font-bold text-sm">{driver.driver_name.charAt(0)}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">{driver.driver_name}</p>
-                  <p className="text-[11px] text-muted-foreground">Overall score: {driver.overall_score}/100</p>
-                </div>
-                <div className="text-2xl font-display font-bold" style={{color: driver.overall_score>=70?'hsl(160 84% 39%)':driver.overall_score>=50?'hsl(38 92% 50%)':'hsl(0 72% 51%)'}}>{driver.overall_score}</div>
-              </div>
-              {[
-                {label:'Aggressive Driving', value:driver.aggressive_driving_score, max:100, inverse:true},
-                {label:'Harsh Braking', value:driver.harsh_braking_count, max:200, inverse:true},
-                {label:'Fuel Efficiency', value:driver.fuel_efficiency_score, max:100, inverse:false},
-              ].map(({label,value,max,inverse})=>{
-                const pct = Math.round((value/max)*100)
-                const color = inverse?(pct>60?'hsl(0 72% 51%)':pct>30?'hsl(38 92% 50%)':'hsl(160 84% 39%)'):(pct>70?'hsl(160 84% 39%)':pct>40?'hsl(38 92% 50%)':'hsl(0 72% 51%)')
-                return (
-                  <div key={label} className="mb-2">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-muted-foreground">{label}</span>
-                      <span style={{color}}>{value}</span>
-                    </div>
-                    <div className="health-bar"><div className="health-bar-fill" style={{width:`${pct}%`,background:color}}/></div>
-                  </div>
-                )
-              })}
-              <p className="text-[11px] text-muted-foreground mt-3 leading-relaxed">{driver.impact_on_vehicle}</p>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-32">
-              <p className="text-xs text-muted-foreground">No driver data for this vehicle</p>
-            </div>
+          )}
+          {canEdit && (
+            <button type="button" onClick={handleOpenEdit} className="btn-secondary text-xs">
+              <Edit3 className="w-3.5 h-3.5" />
+              Edit Specifications
+            </button>
+          )}
+          {canDecommission && !vehicle.decommissioned && (
+            <button type="button" onClick={handleDecommission} className="btn-danger text-xs">
+              <Trash2 className="w-3.5 h-3.5" />
+              Decommission
+            </button>
           )}
         </div>
       </div>
 
-      {/* Component Health from Supabase */}
-      {!cLoad && components.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Brain className="w-4 h-4 text-primary" />
-            <h3 className="font-display font-semibold text-sm">Component Health</h3>
-            <span className="text-[11px] text-muted-foreground">{components.length} components tracked</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-            {components.map(c => {
-              const pred = vehiclePredictions.find(p => p.component_name.toLowerCase().includes(c.component_name.toLowerCase().split(' ')[0]))
-              return (
-                <div key={c.id} className="glass-card p-4 rounded-xl">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold truncate">{c.component_name}</span>
-                    <span className={getHealthClass(c.health_score)}>{c.status}</span>
-                  </div>
-                  <div className="text-2xl font-display font-bold mb-1" style={{color:getHealthColor(c.health_score)}}>{c.health_score}%</div>
-                  <div className="health-bar mb-2">
-                    <div className="health-bar-fill" style={{width:`${c.health_score}%`,background:getHealthColor(c.health_score)}}/>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    Wear rate: {(c.wear_rate * 100).toFixed(1)}%/month
-                  </p>
-                  {c.predicted_replacement && (
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Replace by: {c.predicted_replacement}</p>
-                  )}
-                  {pred && (
-                    <div className="mt-2 p-1.5 bg-warning/10 rounded-lg">
-                      <p className="text-[10px] text-warning font-medium">AI Alert: {Math.round(pred.failure_probability_30d * 100)}% 30d risk</p>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Failure probabilities */}
-      <div className="glass-card p-5 rounded-2xl">
-        <h3 className="font-display font-semibold text-sm mb-4">Failure Probability</h3>
-        <div className="grid grid-cols-3 gap-4">
-          {[['7 Day', prob7d], ['30 Day', prob30d], ['90 Day', prob90d]].map(([label, prob]) => (
-            <div key={label} className="text-center p-4 rounded-xl bg-secondary/40">
-              <p className="text-xs text-muted-foreground mb-1">{label}</p>
-              <div className="text-3xl font-display font-bold" style={{color: Number(prob)>50?'hsl(0 72% 51%)':Number(prob)>25?'hsl(38 92% 50%)':'hsl(160 84% 39%)'}}>
-                {prob}%
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">failure risk</p>
-              <div className="mt-2 health-bar">
-                <div className="health-bar-fill" style={{width:`${prob}%`,background:Number(prob)>50?'hsl(0 72% 51%)':Number(prob)>25?'hsl(38 92% 50%)':'hsl(160 84% 39%)'}}/>
-              </div>
-            </div>
+      {/* 10 Digital Twin Tabs */}
+      <div className="border-b border-[#E0D4B7] overflow-x-auto">
+        <div className="flex items-center gap-1 min-w-max" role="tablist" aria-label="Vehicle Digital Twin Sections">
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab
+                  ? 'border-[#6E5696] text-[#625346]'
+                  : 'border-transparent text-[#7D6D5F] hover:text-[#625346]'
+              }`}
+            >
+              {tab}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Maintenance History */}
-      {records.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Wrench className="w-4 h-4 text-primary" />
-            <h3 className="font-display font-semibold text-sm">Maintenance History</h3>
+      {/* Tab Contents */}
+      {activeTab === 'Overview' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="enterprise-card p-5 space-y-3">
+            <h2 className="dm-card-title text-sm">Registration & Compliance</h2>
+            <dl className="space-y-2 text-xs">
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Registration No.</dt><dd className="tabular-nums font-semibold">{vehicle.registrationNumber}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">RC Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.registrationExpiry)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Insurance Provider</dt><dd className="font-medium">{vehicle.insuranceProvider}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Insurance Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.insuranceExpiry)}</dd></div>
+            </dl>
           </div>
-          <div className="space-y-2">
-            {records.map(r => (
-              <div key={r.id} className="glass-card p-4 rounded-xl flex items-start gap-4">
-                <div className="flex-shrink-0 w-2 h-2 rounded-full bg-success mt-1.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold">{r.maintenance_type}</p>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">{r.description}</p>
-                  {r.parts_replaced?.length > 0 && (
-                    <p className="text-[10px] text-muted-foreground mt-1">Parts: {r.parts_replaced.join(', ')}</p>
-                  )}
-                  <p className="text-[10px] text-muted-foreground mt-0.5">By: {r.performed_by}</p>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <p className="text-xs font-bold text-primary">{formatCurrency(r.cost)}</p>
-                  <p className="text-[10px] text-muted-foreground">{new Date(r.performed_at).toLocaleDateString('en-IN')}</p>
-                </div>
-              </div>
-            ))}
+          <div className="enterprise-card p-5 space-y-3">
+            <h2 className="dm-card-title text-sm">Utilization & Service</h2>
+            <dl className="space-y-2 text-xs">
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Odometer</dt><dd className="tabular-nums font-semibold">{vehicle.odometerKm.toLocaleString('en-IN')} km</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Daily Avg Usage</dt><dd className="tabular-nums">{vehicle.dailyAvgKm} km/day</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Last Service Date</dt><dd className="tabular-nums">{formatShortDate(vehicle.lastServiceDate)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Next Service Due</dt><dd className="tabular-nums">{formatShortDate(vehicle.nextServiceDueDate)}</dd></div>
+            </dl>
+          </div>
+          <div className="enterprise-card p-5 space-y-3">
+            <h2 className="dm-card-title text-sm">Assignment & Health</h2>
+            <dl className="space-y-2 text-xs">
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Assigned Driver</dt><dd className="font-semibold">{assignedDriver?.name ?? 'Unassigned'}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Corridor Base</dt><dd>{vehicle.cityName}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">{vehicle.powertrain === 'EV' ? 'Battery SOC' : 'Fuel Level'}</dt><dd className="tabular-nums">{vehicle.fuelOrSocPct}%</dd></div>
+              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Composite Health</dt><dd className="tabular-nums font-bold">{vehicle.healthScore}%</dd></div>
+            </dl>
           </div>
         </div>
       )}
+
+      {activeTab === 'Telemetry' && (
+        <div className="enterprise-card p-6 space-y-5">
+          <div className="flex items-start gap-3 p-4 rounded-[10px] bg-[#EEE8F7] border border-[#D4C7E6] text-xs text-[#625346]">
+            <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
+            <p>{TELEMETRY_SCOPE_DISCLOSURE}</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
+              <span className="text-[#7D6D5F] block">Telemetry Freshness</span>
+              <div className="mt-1.5"><SeverityText severity={freshness.freshness} label={freshness.label} /></div>
+            </div>
+            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
+              <span className="text-[#7D6D5F] block">GPS Accuracy</span>
+              <span className="tabular-nums text-base font-bold text-[#625346] mt-1 block">±{vehicle.telemetry.gpsAccuracyMeters} m</span>
+            </div>
+            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
+              <span className="text-[#7D6D5F] block">Signal Quality</span>
+              <span className="tabular-nums text-base font-bold text-[#625346] mt-1 block">{vehicle.telemetry.signalQualityPct}%</span>
+            </div>
+            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
+              <span className="text-[#7D6D5F] block">Motion Permission</span>
+              <span className="font-semibold text-[#625346] mt-1 block">
+                {vehicle.telemetry.motionPermissionGranted ? 'Granted' : 'Missing / Restricted'}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-[#7D6D5F] tabular-nums">
+            Last coordinates: {vehicle.telemetry.location.lat.toFixed(4)}, {vehicle.telemetry.location.lng.toFixed(4)} ({vehicle.telemetry.cityLabel}) · Updated {formatDateTime(vehicle.telemetry.lastUpdatedAt, activeOrganization.timezone)}
+          </p>
+        </div>
+      )}
+
+      {activeTab === 'Trips' && (
+        <div className="enterprise-card overflow-hidden">
+          <table className="dm-table">
+            <thead>
+              <tr><th>Origin → Destination</th><th>Start Time</th><th>Distance</th><th>Avg / Max Speed</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {vehicleTrips.map((t) => (
+                <tr key={t.id}>
+                  <td className="font-medium">{t.originAddress} → {t.destinationAddress}</td>
+                  <td className="tabular-nums text-xs">{formatDateTime(t.startTime, activeOrganization.timezone)}</td>
+                  <td className="tabular-nums">{t.distanceKm} km</td>
+                  <td className="tabular-nums">{t.avgSpeedKmh} / {t.maxSpeedKmh} km/h</td>
+                  <td><SeverityText severity={t.status === 'delayed' ? 'high' : t.status === 'completed' ? 'normal' : 'moderate'} label={t.status} /></td>
+                </tr>
+              ))}
+              {vehicleTrips.length === 0 && (
+                <tr><td colSpan={5} className="text-center text-[#7D6D5F] py-8">No trips logged for this vehicle.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'Driver History' && (
+        <div className="enterprise-card p-5 space-y-4">
+          <p className="text-sm font-semibold text-[#625346]">
+            Current Driver: {assignedDriver ? `${assignedDriver.name} (Safety Score ${assignedDriver.safetyScore}/100)` : 'Unassigned'}
+          </p>
+          <div className="divide-y divide-[#E0D4B7]/70">
+            {vehicleEvents.map((ev) => (
+              <div key={ev.id} className="py-3 flex items-center justify-between gap-4 text-xs">
+                <div>
+                  <p className="font-semibold text-[#625346] capitalize">{ev.eventType.replace('_', ' ')} · {ev.locationLabel}</p>
+                  <p className="text-[#7D6D5F]">Speed {ev.speedKmh} km/h · GPS ±{ev.gpsAccuracyMeters}m · {formatDateTime(ev.timestamp)}</p>
+                </div>
+                <SeverityText severity={ev.disputeStatus === 'accepted_dismissed' ? 'normal' : ev.severity === 'high' ? 'high' : 'moderate'} label={ev.disputeStatus === 'none' ? ev.severity : ev.disputeStatus} />
+              </div>
+            ))}
+            {vehicleEvents.length === 0 && <p className="text-xs text-[#7D6D5F]">No driving behavior events recorded.</p>}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Components' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vehicle.components.map((comp) => (
+            <div key={comp.id} className="enterprise-card p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-sm text-[#625346]">{comp.componentName}</h3>
+                <SeverityText severity={comp.status} />
+              </div>
+              <p className="text-2xl font-bold text-[#625346] tabular-nums">{comp.healthScore}%</p>
+              <div className="w-full h-1.5 bg-[#E0D4B7] rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${comp.healthScore <= 45 ? 'bg-[#D9786C]' : comp.healthScore <= 72 ? 'bg-[#E8C65A]' : 'bg-[#789A75]'}`}
+                  style={{ width: `${comp.healthScore}%` }}
+                />
+              </div>
+              <p className="text-xs text-[#7D6D5F]">{comp.notes}</p>
+              <p className="text-[11px] tabular-nums text-[#7D6D5F]">
+                Wear {comp.wearRatePer1000Km}/1000km · Last serviced {comp.lastServicedAt}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'Maintenance' && (
+        <div className="enterprise-card overflow-hidden">
+          <table className="dm-table">
+            <thead>
+              <tr><th>Service Type</th><th>Component</th><th>Workshop</th><th>Date</th><th>Cost</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {vehicleMaint.map((m) => (
+                <tr key={m.id}>
+                  <td className="font-semibold">{m.serviceType}</td>
+                  <td>{m.componentName}</td>
+                  <td className="text-[#7D6D5F]">{m.serviceCenter}</td>
+                  <td className="tabular-nums text-xs">{formatShortDate(m.performedAt)}</td>
+                  <td className="tabular-nums">{formatInr(m.costInr)}</td>
+                  <td><SeverityText severity={m.status === 'completed' ? 'normal' : 'high'} label={m.status} /></td>
+                </tr>
+              ))}
+              {vehicleMaint.length === 0 && (
+                <tr><td colSpan={6} className="text-center text-[#7D6D5F] py-8">No maintenance records logged yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'Fuel' && (
+        <div className="enterprise-card overflow-hidden">
+          <table className="dm-table">
+            <thead>
+              <tr><th>Station</th><th>Quantity</th><th>Amount</th><th>Odometer</th><th>Source</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {vehicleFuel.map((f) => (
+                <tr key={f.id}>
+                  <td className="font-medium">{f.station}</td>
+                  <td className="tabular-nums">{f.litersOrKwh} {vehicle.powertrain === 'EV' ? 'kWh' : 'L'}</td>
+                  <td className="tabular-nums font-semibold">{formatInr(f.amountInr)}</td>
+                  <td className="tabular-nums">{f.odometerKm.toLocaleString('en-IN')} km</td>
+                  <td className="text-xs text-[#7D6D5F]">{f.entrySource.replace(/_/g, ' ')}</td>
+                  <td><SeverityText severity={f.verificationStatus === 'needs_review' ? 'high' : 'normal'} label={f.verificationStatus.replace('_', ' ')} /></td>
+                </tr>
+              ))}
+              {vehicleFuel.length === 0 && (
+                <tr><td colSpan={6} className="text-center text-[#7D6D5F] py-8">No fuel or charging transactions logged.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'Financials' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="enterprise-card p-5">
+            <span className="text-xs text-[#7D6D5F]">Recorded Fuel / Energy</span>
+            <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{formatInr(totalFuelSpend)}</p>
+          </div>
+          <div className="enterprise-card p-5">
+            <span className="text-xs text-[#7D6D5F]">Recorded Maintenance</span>
+            <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{formatInr(totalMaintSpend)}</p>
+          </div>
+          <div className="enterprise-card p-5">
+            <span className="text-xs text-[#7D6D5F]">Logged Trip Distance</span>
+            <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{totalLoggedKm.toFixed(1)} km</p>
+          </div>
+          <div className="enterprise-card p-5">
+            <span className="text-xs text-[#7D6D5F]">Monthly Revenue Baseline</span>
+            <p className="text-xl font-bold text-[#625346] tabular-nums mt-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#789A75]" />
+              {formatInr(vehicle.monthlyRevenueInr)}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Predictions' && (
+        <div className="space-y-4">
+          {vehiclePredictions.map((pred) => (
+            <div key={pred.id} className="enterprise-card p-5 flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-1.5 max-w-2xl">
+                <div className="flex items-center gap-2">
+                  {pred.insufficientData ? (
+                    <SeverityText severity="moderate" label="Insufficient Data" />
+                  ) : (
+                    <>
+                      <SeverityText severity={pred.priority} />
+                      <span className="text-xs text-[#7D6D5F] tabular-nums">
+                        {pred.earliestWindowDays}–{pred.latestWindowDays}d window · {Math.round(pred.confidenceScore * 100)}% conf.
+                      </span>
+                    </>
+                  )}
+                </div>
+                <h3 className="font-bold text-base text-[#625346]">
+                  {pred.componentName}: {pred.predictedIssue}
+                </h3>
+                <p className="text-xs text-[#7D6D5F]">{pred.evidenceSummary}</p>
+                <p className="text-xs text-[#625346] font-medium">Action: {pred.recommendedAction}</p>
+              </div>
+              <div className="text-right space-y-2">
+                {!pred.insufficientData && (
+                  <p className="text-xs text-[#7D6D5F]">
+                    Preventive {formatInr(pred.repairCostInr)} vs Delay {formatInr(pred.delayCostInr)}
+                  </p>
+                )}
+                {pred.insufficientData ? (
+                  <SeverityText severity="moderate" label="Baseline Required" />
+                ) : pred.status === 'open' && canScheduleMaint ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      scheduleMaintenance({
+                        vehicleId: vehicle.id,
+                        serviceType: `${pred.componentName} Preventive Service`,
+                        componentName: pred.componentName,
+                        serviceCenter: `${vehicle.cityName} Authorized Fleet Bay`,
+                        description: pred.recommendedAction,
+                        costInr: pred.repairCostInr,
+                        performedAt: new Date(Date.now() + 2 * 86400000).toISOString(),
+                        linkedPredictionId: pred.id,
+                      })
+                      toast.success(`Scheduled ${pred.componentName} service for ${vehicle.registrationNumber}`)
+                    }}
+                    className="btn-accent text-xs"
+                  >
+                    <Wrench className="w-3.5 h-3.5" />
+                    Schedule Service
+                  </button>
+                ) : (
+                  <SeverityText severity="normal" label={pred.status} />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'Activity History' && (
+        <div className="enterprise-card p-5 space-y-4">
+          <h2 className="dm-card-title text-sm">Inspections & Audit Events</h2>
+          <div className="divide-y divide-[#E0D4B7]/70">
+            {vehicleInspections.map((ins) => (
+              <div key={ins.id} className="py-3 flex items-center justify-between gap-4 text-xs">
+                <div>
+                  <p className="font-semibold text-[#625346]">
+                    Pre-trip Inspection · Tyres: {ins.tyreCondition} · Brakes: {ins.brakeFeel}
+                  </p>
+                  <p className="text-[#7D6D5F]">{ins.notes || 'No issues reported'} · {formatDateTime(ins.timestamp)}</p>
+                </div>
+                <SeverityText severity={ins.passed ? 'normal' : 'high'} label={ins.passed ? 'Passed' : 'Flags Reported'} />
+              </div>
+            ))}
+            {vehicleLogs.map((l) => (
+              <div key={l.id} className="py-3 text-xs">
+                <p className="font-semibold text-[#625346]">{l.summary}</p>
+                <p className="text-[#7D6D5F]">{l.actorName} · {formatDateTime(l.timestamp)}</p>
+              </div>
+            ))}
+            {vehicleInspections.length === 0 && vehicleLogs.length === 0 && (
+              <p className="text-xs text-[#7D6D5F]">No inspection or audit logs recorded yet.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <EnterpriseModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={`Edit Specifications · ${vehicle.registrationNumber}`}
+        subtitle="Updates vehicle digital twin parameters and recalculates predictive baselines"
+      >
+        <form onSubmit={handleSaveSpecs} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="edit-make" className="dm-label">Manufacturer</label>
+              <input
+                id="edit-make"
+                required
+                value={editForm.make}
+                onChange={(e) => setEditForm((f) => ({ ...f, make: e.target.value }))}
+                className="dm-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-model" className="dm-label">Model</label>
+              <input
+                id="edit-model"
+                required
+                value={editForm.model}
+                onChange={(e) => setEditForm((f) => ({ ...f, model: e.target.value }))}
+                className="dm-input"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="edit-year" className="dm-label">Model Year</label>
+              <input
+                id="edit-year"
+                type="number"
+                value={editForm.year}
+                onChange={(e) => setEditForm((f) => ({ ...f, year: Number(e.target.value) }))}
+                className="dm-input font-mono"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-odo" className="dm-label">Odometer (km)</label>
+              <input
+                id="edit-odo"
+                type="number"
+                value={editForm.odometerKm}
+                onChange={(e) => setEditForm((f) => ({ ...f, odometerKm: Number(e.target.value) }))}
+                className="dm-input font-mono"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-daily" className="dm-label">Avg Daily km</label>
+              <input
+                id="edit-daily"
+                type="number"
+                value={editForm.dailyAvgKm}
+                onChange={(e) => setEditForm((f) => ({ ...f, dailyAvgKm: Number(e.target.value) }))}
+                className="dm-input font-mono"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="edit-corridor" className="dm-label">Corridor</label>
+              <select
+                id="edit-corridor"
+                value={editForm.corridorId}
+                onChange={(e) => setEditForm((f) => ({ ...f, corridorId: e.target.value }))}
+                className="dm-input"
+              >
+                {corridors.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="edit-ins-exp" className="dm-label">Insurance Expiry</label>
+              <input
+                id="edit-ins-exp"
+                type="date"
+                value={editForm.insuranceExpiry}
+                onChange={(e) => setEditForm((f) => ({ ...f, insuranceExpiry: e.target.value }))}
+                className="dm-input font-mono"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t border-[#E0D4B7]">
+            <button type="button" onClick={() => setEditOpen(false)} className="btn-secondary">Cancel</button>
+            <button type="submit" className="btn-accent">Save Specifications</button>
+          </div>
+        </form>
+      </EnterpriseModal>
     </div>
   )
 }

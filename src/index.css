@@ -1,184 +1,212 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@400;500;600;700;800&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 10, 10, 10;
-    --foreground: 240, 240, 240;
-    --primary: 245, 197, 24;
-    --primary-amber: 255, 179, 71;
-    --card: 17, 17, 17;
-    --card-hover: 22, 22, 22;
-    --muted: 136, 136, 136;
-    --danger: 255, 68, 68;
-    --success: 0, 200, 150;
-    --border: 255, 255, 255, 0.06;
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', system-ui, sans-serif;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-white overflow-x-hidden;
-    line-height: 1.6;
-    letter-spacing: -0.01em;
+    @apply bg-[#F7F0D9] text-[#625346] font-sans antialiased selection:bg-[#E8C65A]/40 selection:text-[#625346] overflow-x-hidden;
+    font-size: 14.5px;
+    font-weight: 450;
+    line-height: 1.55;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-bold tracking-tight text-white;
-    letter-spacing: -0.02em;
+    @apply font-sans tracking-tight text-[#625346];
+  }
+
+  h1, h2 {
+    text-wrap: balance;
   }
 }
 
 @layer components {
-  .glass-card {
-    @apply bg-[#111111]/80 backdrop-blur-[12px] border border-white/5 rounded-xl;
-    box-shadow: 0 10px 40px -10px rgba(0,0,0,0.5), 0 0 20px rgba(255,179,71,0.03);
+  .enterprise-card {
+    @apply bg-[#F4EBD5] border border-[#E0D4B7] rounded-xl shadow-card;
+  }
+
+  .elevated-surface {
+    @apply bg-[#FBF6E6] border border-[#E0D4B7] rounded-xl shadow-card;
+  }
+
+  .lavender-surface {
+    @apply bg-[#EEE8F7] border border-[#D4C7E6] rounded-xl shadow-card;
+  }
+
+  .dm-page-title {
+    font-size: clamp(28px, 2.5vw, 33px);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: #625346;
+  }
+
+  .dm-section-title {
+    font-size: clamp(21px, 2vw, 24px);
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    color: #625346;
+  }
+
+  .dm-card-title {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #625346;
+  }
+
+  .dm-kpi-value {
+    font-size: clamp(28px, 2.4vw, 34px);
+    font-weight: 700;
+    line-height: 1.15;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    color: #625346;
   }
 
   .btn-primary {
-    @apply px-6 py-3 rounded-[12px] font-black text-black transition-all duration-300 flex items-center justify-center gap-2 hover:scale-[1.03] active:scale-[0.98] relative overflow-hidden;
-    background: linear-gradient(135deg, #F5C518, #FFB347);
-    box-shadow: 0 0 30px rgba(245,197,24,0.15), 0 4px 10px rgba(0,0,0,0.4);
+    @apply px-4 py-2 rounded-[10px] font-semibold text-[13.5px] text-[#625346] bg-[#E8C65A] border border-[#C9A63B] hover:bg-[#DFBA48] hover:border-[#B6922B] active:scale-[0.99] transition-all duration-150 inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 shadow-subtle disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8A3D9];
   }
 
-  .btn-primary::after {
-    content: '';
-    @apply absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-300;
-  }
-
-  .btn-primary:hover::after {
-    @apply opacity-100;
+  .btn-accent {
+    @apply px-4 py-2 rounded-[10px] font-semibold text-[13.5px] text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9] hover:bg-[#E3DAF2] active:scale-[0.99] transition-all duration-150 inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 shadow-subtle disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8A3D9];
   }
 
   .btn-secondary {
-    @apply px-6 py-3 rounded-[12px] font-black text-primary border border-primary/40 bg-transparent transition-all duration-300 flex items-center justify-center gap-2 hover:bg-primary/5 hover:border-primary active:scale-[0.98];
+    @apply px-4 py-2 rounded-[10px] font-semibold text-[13.5px] text-[#625346] bg-[#FBF6E6] border border-[#E0D4B7] hover:bg-[#EEE8F7] hover:border-[#B8A3D9] active:scale-[0.99] transition-all duration-150 inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#B8A3D9];
   }
 
   .btn-danger {
-    @apply px-6 py-3 rounded-[12px] font-black text-white bg-danger/80 border border-danger/20 transition-all duration-300 flex items-center justify-center gap-2 hover:bg-danger hover:scale-[1.03] active:scale-[0.98];
+    @apply px-4 py-2 rounded-[10px] font-semibold text-[13.5px] text-[#625346] bg-[#D9786C]/22 border border-[#D9786C] hover:bg-[#D9786C]/32 active:scale-[0.99] transition-all duration-150 inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D9786C];
   }
 
   .dm-input {
-    @apply bg-[#1A1A1A] border border-white/10 rounded-[10px] px-4 py-3 text-sm text-white placeholder:text-muted/50 outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20 w-full;
+    @apply bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] px-3.5 py-2.5 text-[14px] text-[#625346] placeholder:text-[#7D6D5F] outline-none transition-colors focus:bg-[#F7F0D9] focus:border-[#B8A3D9] focus:ring-2 focus:ring-[#B8A3D9]/35 w-full;
   }
 
-  .card-lift {
-    @apply hover:-translate-y-1 transition-transform duration-300;
+  .dm-label {
+    @apply block text-[12.5px] font-semibold text-[#625346] mb-1.5;
   }
 
-  .badge {
-    @apply px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5;
-  }
-
-  .badge-moving { @apply bg-success/10 text-success border border-success/20; }
-  .badge-active { @apply bg-success/10 text-success border border-success/20; }
-  .badge-idle { @apply bg-primary/10 text-primary border border-primary/20; }
-  .badge-stopped { @apply bg-danger/10 text-danger border border-danger/20; }
-  .badge-critical { @apply bg-danger/20 text-danger border border-danger/40 animate-pulse; }
-
-  /* Table styling */
+  /* Enterprise Data Tables */
   .dm-table {
-    @apply w-full border-separate border-spacing-0 text-sm;
+    @apply w-full border-collapse text-[13.5px];
+    font-variant-numeric: tabular-nums;
   }
   .dm-table th {
-    @apply px-4 py-3 bg-card font-semibold text-muted text-left border-b border-border/10 uppercase tracking-widest text-[10px];
+    @apply px-4 py-3 bg-[#EEE8F7] font-semibold text-[#625346] text-left border-b border-[#D4C7E6] text-[12.5px] whitespace-nowrap;
   }
   .dm-table td {
-    @apply px-4 py-4 border-b border-border/5 text-foreground/90;
+    @apply px-4 py-3.5 border-b border-[#E0D4B7]/80 text-[#625346] align-middle;
+    font-weight: 450;
   }
-  .dm-table tr:hover td {
-    @apply bg-white/[0.02];
+  .dm-table tbody tr {
+    @apply bg-[#F4EBD5]/75 transition-colors;
+  }
+  .dm-table tbody tr:hover td {
+    @apply bg-[#FBF6E6];
   }
 }
 
 @layer utilities {
-  .text-gradient-gold {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, #F5C518, #FFB347);
-  }
-
-  .text-gradient-yellow {
-    @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, #F5C518, #FFB347);
+  .font-mono,
+  .tabular-nums {
+    font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
   }
 
   .scrollbar-custom {
     scrollbar-width: thin;
-    scrollbar-color: #F5C518 #111;
+    scrollbar-color: #B8A3D9 #F7F0D9;
   }
-
   .scrollbar-custom::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
-
   .scrollbar-custom::-webkit-scrollbar-track {
-    @apply bg-background;
+    background: #F7F0D9;
   }
-
   .scrollbar-custom::-webkit-scrollbar-thumb {
-    @apply bg-primary/40 rounded-full hover:bg-primary/60 transition-colors;
-  }
-
-  .shimmer-bg {
-    @apply bg-gradient-to-r from-transparent via-white/5 to-transparent bg-[length:200%_auto] animate-shimmer;
-  }
-
-  .glow-yellow {
-    box-shadow: 0 0 30px rgba(245,197,24,0.3), 0 0 60px rgba(245,197,24,0.1);
-  }
-
-  .bg-gradient-gold {
-    background: linear-gradient(135deg, #F5C518, #FFB347);
-  }
-
-  .bg-radial-gold {
-    background: radial-gradient(circle, rgba(245,197,24,0.3), transparent 70%);
-  }
-
-  .bg-cinematic {
-    background: linear-gradient(135deg, #0A0A0A, #111111);
-  }
-
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .no-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-
-  .scrollbar-none {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-none::-webkit-scrollbar {
-    display: none;
-  }
-
-  .shadow-3xl {
-    box-shadow: 0 20px 80px -20px rgba(0,0,0,0.8);
+    background: #B8A3D9;
+    border-radius: 9999px;
   }
 }
 
-/* Animations */
-.page-enter {
-  animation: page-enter-anim 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* Recharts Butter Cream + Lavender overrides */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-text {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', system-ui, sans-serif !important;
 }
 
-@keyframes page-enter-anim {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Recharts Custom Styling */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
-  stroke: rgba(255,255,255,0.03);
+  stroke: #E0D4B7;
+  stroke-dasharray: 3 3;
 }
 
 .recharts-default-tooltip {
-  @apply !bg-[#111] !border-white/10 !rounded-xl !p-3 !shadow-2xl !backdrop-blur-md;
+  @apply !bg-[#FBF6E6] !border !border-[#D4C7E6] !rounded-[10px] !px-3.5 !py-2.5 !shadow-elevated;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
 }
-.recharts-tooltip-label { @apply !text-muted !text-[10px] !font-bold !uppercase !tracking-widest !mb-1; }
-.recharts-tooltip-item { @apply !p-0 !text-[13px] !font-black !py-0.5; }
+.recharts-tooltip-label {
+  @apply !text-[#7D6D5F] !text-xs !font-semibold !mb-1;
+}
+.recharts-tooltip-item {
+  @apply !p-0 !text-xs !font-semibold !py-0.5 !text-[#625346];
+}
+
+/* Leaflet warm Butter Cream & Lavender controls */
+.leaflet-container {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Tamil', system-ui, sans-serif;
+  background: #F4EBD5;
+  color: #625346;
+}
+
+.leaflet-tile-pane {
+  filter: sepia(0.14) saturate(0.88) brightness(1.0) contrast(1.02);
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #FBF6E6 !important;
+  color: #625346 !important;
+  border: 1px solid #D4C7E6;
+  box-shadow: 0 12px 28px -6px rgba(98, 83, 70, 0.14) !important;
+  border-radius: 10px !important;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+}
+
+.leaflet-control-zoom a {
+  background-color: #FBF6E6 !important;
+  color: #625346 !important;
+  border-color: #E0D4B7 !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background-color: #EEE8F7 !important;
+}
+
+.leaflet-control-attribution {
+  background: rgba(251, 246, 230, 0.88) !important;
+  color: #7D6D5F !important;
+}
+
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

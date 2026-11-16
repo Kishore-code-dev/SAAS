@@ -1,367 +1,382 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { useFleet } from '../hooks/useFleet'
-import { useTranslation, languageOptions } from '../i18n/useTranslation'
+import React, { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { Activity, ArrowRight, Globe, KeyRound, ShieldCheck, Smartphone, Truck } from 'lucide-react'
 import { toast } from 'sonner'
-import {
-  Truck, Eye, EyeOff, ArrowRight, Shield, Zap,
-  Phone, UserCog, Globe, Activity, Upload, CheckCircle, CreditCard, Mail, Loader2,
-  ChevronRight, Languages, Check, Fingerprint, ShieldCheck, ZapOff
-} from 'lucide-react'
-import { cn } from '../lib/utils'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth, validateEmailFormat } from '../hooks/useAuth'
+import { useFleet } from '../hooks/useFleet'
+import { useTranslation } from '../i18n/useTranslation'
+import { languageOptions } from '../i18n/translations'
+import type { OperatingEnvironment, OrganizationRole } from '../types/fleet'
 
 export default function Auth() {
-  const { signIn } = useAuth()
-  const { setUserRole, setCurrentDriverId } = useFleet()
-  const { t, language, setLanguage } = useTranslation()
   const navigate = useNavigate()
+  const { signIn, signUp, signInWithOtp, verifyOtp, enterDemoSession, isCloudAuthReady } = useAuth()
+  const { setEnvironment, setActiveRole } = useFleet()
+  const { language, setLanguage } = useTranslation()
 
-  const [role, setRole] = useState<'admin' | 'driver'>('admin')
-  const [step, setStep] = useState<'language' | 'auth'>('language')
-  const [loading, setLoading] = useState(false)
-  const [showPw, setShowPw] = useState(false)
-  
-  const [adminLoginForm, setAdminLoginForm] = useState({ email: '', password: '' })
-  const [driverMobile, setDriverMobile] = useState('')
-  const [driverOtp, setDriverOtp] = useState('')
+  const [authTab, setAuthTab] = useState<'workspace' | 'signin' | 'signup' | 'otp'>('workspace')
+  const [selectedEnv, setSelectedEnv] = useState<OperatingEnvironment>('demo')
+  const [selectedRole, setSelectedRole] = useState<OrganizationRole>('fleet_manager')
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [otpToken, setOtpToken] = useState('')
   const [otpSent, setOtpSent] = useState(false)
+  const [fieldError, setFieldError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  // Skip language step if already set in localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem('dm_language')
-    if (saved) setStep('auth')
-  }, [])
+  const handleLaunchEnvironment = (targetPath: '/dashboard' | '/driver') => {
+    setEnvironment(selectedEnv)
+    const roleToUse: OrganizationRole = targetPath === '/driver' ? 'driver' : selectedRole
+    setActiveRole(roleToUse)
+    enterDemoSession({
+      fullName:
+        roleToUse === 'driver'
+          ? 'Rajesh Kumar'
+          : roleToUse === 'org_admin'
+            ? 'Karthikeyan R'
+            : 'Priya Sundar',
+      email: `${roleToUse}@drivemitra.in`,
+      role: roleToUse,
+      isDemo: selectedEnv !== 'production',
+    })
+    toast.success(`Entered ${selectedEnv.toUpperCase()} workspace as ${roleToUse.replace('_', ' ')}`)
+    navigate(targetPath)
+  }
 
-  const handleAdminSignIn = async (e: React.FormEvent) => {
+  const handleCredentialSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    // Simulate auth for luxury feel
-    setTimeout(async () => {
-      const { error } = await signIn(adminLoginForm.email, adminLoginForm.password)
-      if (error) {
-        toast.error('Identity Verification Failed')
-      } else {
-        setUserRole('admin')
-        navigate('/dashboard')
-        toast.success(`Nexus Authorized. Welcome back.`)
+    setFieldError(null)
+    if (!validateEmailFormat(email)) {
+      setFieldError('Enter a valid work email address (e.g., ops@company.in).')
+      return
+    }
+
+    if (authTab === 'otp') {
+      setSubmitting(true)
+      try {
+        if (!otpSent) {
+          const { error } = await signInWithOtp(email)
+          if (error) {
+            setFieldError(error.message)
+            toast.error(error.message)
+          } else {
+            setOtpSent(true)
+            toast.success('6-digit OTP verification code sent to your email.')
+          }
+        } else {
+          const { error } = await verifyOtp(email, otpToken)
+          if (error) {
+            setFieldError(error.message)
+            toast.error(error.message)
+          } else {
+            setEnvironment('production')
+            toast.success('OTP verified. Entering Production environment.')
+            navigate('/dashboard')
+          }
+        }
+      } finally {
+        setSubmitting(false)
       }
-      setLoading(false)
-    }, 1500)
-  }
+      return
+    }
 
-  const handleDriverOTPSend = () => {
-    if (!driverMobile || driverMobile.length < 10) { toast.error('Standard Mobile Identification Required'); return }
-    setOtpSent(true)
-    toast.success('Frequency Code Transmitted')
-  }
+    if (authTab === 'signup' && !fullName.trim()) {
+      setFieldError('Full name is required to create an organization account.')
+      return
+    }
+    if (!password || password.length < (authTab === 'signup' ? 8 : 6)) {
+      setFieldError(
+        authTab === 'signup'
+          ? 'Password must be at least 8 characters long.'
+          : 'Enter your password (minimum 6 characters).',
+      )
+      return
+    }
 
-  const handleDriverOTPVerify = () => {
-    if (driverOtp === '000000' || driverOtp.length === 6) {
-      setUserRole('driver')
-      setCurrentDriverId('d001')
-      navigate('/driver')
-      toast.success('Pilot Link Sycnrhonized')
-    } else {
-      toast.error('Sync Decryption Failed')
+    setSubmitting(true)
+    try {
+      if (authTab === 'signin') {
+        const { error } = await signIn(email, password)
+        if (error) {
+          setFieldError(error.message)
+          toast.error(error.message)
+        } else {
+          setEnvironment('production')
+          toast.success('Signed in to Production environment.')
+          navigate('/dashboard')
+        }
+      } else {
+        const { error } = await signUp(email, password, fullName)
+        if (error) {
+          setFieldError(error.message)
+          toast.error(error.message)
+        } else {
+          toast.success('Account created. Check your inbox to verify your email.')
+          setAuthTab('signin')
+        }
+      }
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const handleDemoLogin = (demoRole: 'admin' | 'driver') => {
-    setUserRole(demoRole)
-    if (demoRole === 'driver') { setCurrentDriverId('d001'); navigate('/driver') }
-    else navigate('/dashboard')
-    toast.success(`Demo Access: Authorized as ${demoRole.toUpperCase()}`)
-  }
-
   return (
-    <div className="min-h-screen flex items-stretch bg-background selection:bg-primary/30 overflow-hidden">
-      
-      {/* Brand Side (Elite Branding) */}
-      <div className="hidden lg:flex w-[45%] flex-col relative overflow-hidden bg-black border-r border-white/5">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_40%_50%,rgba(245,197,24,0.1),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.05] contrast-150" />
-        
-        {/* Animated Brand Background */}
-        <motion.div 
-           className="absolute -top-1/4 -left-1/4 w-[150%] h-[150%] opacity-[0.03] pointer-events-none"
-        />
-
-        <div className="relative z-10 p-16">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center gap-5"
+    <div className="min-h-screen bg-[#F7F0D9] flex flex-col">
+      <header className="bg-[#FBF6E6] border-b border-[#E0D4B7] px-6 h-16 flex items-center justify-between gap-4">
+        <Link to="/" className="font-extrabold text-lg text-[#625346] whitespace-nowrap">
+          DriveMitra
+        </Link>
+        <div className="flex items-center gap-3">
+          <Globe className="w-4 h-4 text-[#7D6D5F]" />
+          <label htmlFor="auth-lang" className="sr-only">Language</label>
+          <select
+            id="auth-lang"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as typeof language)}
+            className="text-xs font-medium text-[#625346] bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] px-2.5 py-1.5 outline-none"
           >
-            <div className="w-16 h-16 rounded-[22px] bg-black border border-primary/20 shadow-gold flex items-center justify-center p-[1px]">
-               <Truck className="w-8 h-8 text-primary shadow-gold" />
-            </div>
+            {languageOptions.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.nativeLabel}
+              </option>
+            ))}
+          </select>
+        </div>
+      </header>
+
+      <main className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left Context Card - Pale Lavender Luxury Panel */}
+          <div className="lg:col-span-5 bg-[#EEE8F7] border border-[#D4C7E6] text-[#625346] rounded-2xl p-8 shadow-card flex flex-col justify-between">
             <div>
-              <h2 className="font-display font-black text-4xl tracking-tighter text-white">DriveMitra</h2>
-              <p className="text-[10px] text-primary font-black uppercase tracking-[0.4em] mt-1 opacity-80">Precision Intelligence</p>
-            </div>
-          </motion.div>
-        </div>
-
-        <div className="relative z-10 flex-1 flex flex-col justify-center px-24">
-           <motion.div
-             initial={{ opacity: 0, y: 30 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.8, delay: 0.2 }}
-           >
-              <h1 className="text-8xl font-display font-black text-white leading-[0.85] tracking-tighter mb-10">
-                 The Command <br />
-                 <span className="text-gradient-gold drop-shadow-2xl">Interface.</span>
-              </h1>
-              <p className="text-muted text-xl font-medium max-w-sm mb-16 leading-relaxed border-l-2 border-primary/20 pl-8">
-                 Enter the nexus of predictive logistics and neural fleet telemetry.
-              </p>
-           </motion.div>
-
-           <div className="space-y-10">
-              {[
-                { icon: ShieldCheck, title: 'Strategic Security', label: 'E2E encrypted asset nodes' },
-                { icon: Activity, title: 'Neural Telemetry', label: 'Real-time behavior inference' },
-                { icon: Fingerprint, title: 'Biometric Integrity', label: 'Mission-critical access control' },
-              ].map((f, i) => (
-                <motion.div 
-                   key={i}
-                   initial={{ opacity: 0, x: -20 }}
-                   animate={{ opacity: 1, x: 0 }}
-                   transition={{ delay: 0.4 + (i * 0.1) }}
-                   className="flex items-center gap-6 group cursor-default"
-                >
-                   <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center group-hover:bg-primary/10 group-hover:border-primary/30 transition-all duration-500">
-                      <f.icon className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
-                   </div>
-                   <div>
-                      <h4 className="text-xs font-black text-white uppercase tracking-widest mb-1">{f.title}</h4>
-                      <p className="text-[10px] text-muted font-bold uppercase tracking-widest opacity-60">{f.label}</p>
-                   </div>
-                </motion.div>
-              ))}
-           </div>
-        </div>
-
-        <div className="relative z-10 p-16 border-t border-white/5 flex items-center gap-16">
-           <div>
-              <p className="text-[10px] text-muted font-black uppercase tracking-[0.4em] mb-2">Protocol Status</p>
-              <div className="flex items-center gap-3">
-                 <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-gold" />
-                 <span className="text-sm font-black text-white uppercase tracking-tighter">Operational</span>
+              <div className="w-10 h-10 rounded-[10px] bg-[#E8C65A] border border-[#C9A63B] flex items-center justify-center mb-6">
+                <Activity className="w-5 h-5 text-[#625346]" />
               </div>
-           </div>
-           <div>
-              <p className="text-[10px] text-muted font-black uppercase tracking-[0.4em] mb-2">Network Layer</p>
-              <span className="text-sm font-black text-white uppercase tracking-tighter">Hyper-Converged</span>
-           </div>
-        </div>
-      </div>
+              <h1 className="text-2xl font-bold text-[#625346]">
+                DriveMitra Workspace Access
+              </h1>
+              <p className="text-sm text-[#625346]/85 mt-3 leading-relaxed">
+                Environments are strictly isolated. Demo and Pilot workspaces use repeatable operational datasets and never mix with Production organization records.
+              </p>
+            </div>
 
-      {/* Auth Side (The Terminal) */}
-      <div className="flex-1 flex flex-col items-center justify-center p-12 bg-[#0A0A0A] relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(245,197,24,0.03),transparent_50%)]" />
-        
-        <motion.div 
-           initial={{ opacity: 0, scale: 0.95 }}
-           animate={{ opacity: 1, scale: 1 }}
-           className="w-full max-w-[480px] relative z-10"
-        >
-           <AnimatePresence mode="wait">
-             {step === 'language' ? (
-               <motion.div 
-                 key="lang"
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 exit={{ opacity: 0, y: -20 }}
-                 className="space-y-12"
-               >
-                  <div className="text-center">
-                     <div className="w-24 h-24 rounded-[36px] bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-8 shadow-gold">
-                        <Languages className="w-12 h-12 text-primary shadow-gold" />
-                     </div>
-                     <h2 className="text-4xl font-display font-black text-white tracking-tight mb-4 uppercase leading-none">Initiate Terminal</h2>
-                     <p className="text-muted text-xs font-black uppercase tracking-[0.3em]">Select Command Language</p>
+            <div className="mt-8 space-y-3 text-xs text-[#625346] border-t border-[#D4C7E6] pt-6">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-[#4D6E4A] shrink-0" />
+                <span>Organization-scoped Row Level Security (RLS)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Truck className="w-4 h-4 text-[#6E5696] shrink-0" />
+                <span>ICE, CNG, and EV Commercial Fleet Digital Twins</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-4 h-4 text-[#6E5696] shrink-0" />
+                <span>Dedicated Driver Mobile App with offline recovery</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Authentication Panel */}
+          <div className="lg:col-span-7 enterprise-card p-8">
+            <div className="flex flex-wrap items-center gap-1 p-1 bg-[#EEE8F7] rounded-[10px] border border-[#D4C7E6] mb-6" role="tablist">
+              {[
+                { id: 'workspace', label: 'Demo & Pilot' },
+                { id: 'signin', label: 'Sign In' },
+                { id: 'signup', label: 'Register' },
+                { id: 'otp', label: 'Email OTP' },
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={authTab === t.id}
+                  onClick={() => {
+                    setAuthTab(t.id as typeof authTab)
+                    setFieldError(null)
+                  }}
+                  className={`flex-1 py-2 px-3 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
+                    authTab === t.id ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            {authTab === 'workspace' ? (
+              <div className="space-y-5">
+                <div>
+                  <label className="dm-label">1. Select Operating Environment</label>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {(['demo', 'pilot', 'production'] as OperatingEnvironment[]).map((env) => (
+                      <button
+                        key={env}
+                        type="button"
+                        onClick={() => setSelectedEnv(env)}
+                        className={`p-3 rounded-[10px] border text-left transition-colors ${
+                          selectedEnv === env
+                            ? 'border-[#C9A63B] bg-[#E8C65A]/45 text-[#625346] shadow-subtle'
+                            : 'border-[#E0D4B7] bg-[#FBF6E6] text-[#625346] hover:bg-[#EEE8F7]'
+                        }`}
+                      >
+                        <span className="text-xs font-bold uppercase block">{env}</span>
+                        <span className="text-[11px] text-[#7D6D5F] block mt-0.5">
+                          {env === 'demo' ? '2 sample orgs' : env === 'pilot' ? 'Field evaluation' : 'Clean org slate'}
+                        </span>
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                     {languageOptions.map(l => (
-                       <button 
-                         key={l.code}
-                         onClick={() => setLanguage(l.code)}
-                         className={cn(
-                           "p-8 rounded-[36px] border text-left transition-all duration-300 relative group overflow-hidden",
-                           language === l.code ? "bg-primary border-primary shadow-gold" : "bg-white/[0.02] border-white/5 hover:border-white/20"
-                         )}
-                       >
-                          <span className={cn("block text-2xl font-black mb-1", language === l.code ? "text-black" : "text-white")}>{l.nativeLabel}</span>
-                          <span className={cn("text-[10px] font-black uppercase tracking-widest opacity-60", language === l.code ? "text-black" : "text-muted")}>{l.label}</span>
-                          {language === l.code && <Check className="absolute top-4 right-4 w-5 h-5 text-black" />}
-                       </button>
-                     ))}
-                  </div>
-
-                  <button 
-                    onClick={() => { localStorage.setItem('dm_language', language); setStep('auth'); }}
-                    className="w-full btn-primary !py-7 !rounded-[36px] !text-sm uppercase tracking-[0.3em] shadow-gold group"
+                <div>
+                  <label htmlFor="demo-role-select" className="dm-label">
+                    2. Select Role Permission View
+                  </label>
+                  <select
+                    id="demo-role-select"
+                    value={selectedRole}
+                    onChange={(e) => setSelectedRole(e.target.value as OrganizationRole)}
+                    className="dm-input"
                   >
-                    Confirm Configuration <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                    <option value="fleet_manager">Fleet Manager (Operations & Dispatch)</option>
+                    <option value="org_admin">Organization Admin (Full Controls)</option>
+                    <option value="maintenance">Maintenance Lead (Workshop & Predictions)</option>
+                    <option value="finance">Finance Controller (Fuel & Financial TCO)</option>
+                    <option value="platform_admin">Platform Super Admin</option>
+                  </select>
+                </div>
+
+                <div className="pt-2 space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchEnvironment('/dashboard')}
+                    className="btn-accent w-full py-3"
+                  >
+                    Enter Fleet Command Centre
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-               </motion.div>
-             ) : (
-               <motion.div 
-                 key="auth"
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 className="space-y-10"
-               >
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-gold" />
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Network Active</span>
-                     </div>
-                     <button onClick={() => setStep('language')} className="text-[10px] font-black text-muted hover:text-primary transition-colors uppercase tracking-[0.2em] flex items-center gap-2">
-                        <Globe className="w-3.5 h-3.5" /> Language Config
-                     </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchEnvironment('/driver')}
+                    className="btn-secondary w-full py-2.5"
+                  >
+                    <Smartphone className="w-4 h-4" />
+                    Open Driver Mobile Companion
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCredentialSubmit} noValidate className="space-y-4">
+                {!isCloudAuthReady && (
+                  <div className="p-3 rounded-[10px] bg-[#E8C65A]/25 border border-[#C9A63B] text-xs text-[#625346]">
+                    Cloud Supabase Auth variables are not configured in this preview environment. Submissions validate locally and recommend Instant Demo & Pilot Access.
                   </div>
+                )}
 
-                  {/* Role Switcher */}
-                  <div className="p-2 bg-white/[0.02] border border-white/5 rounded-[40px] flex gap-2">
-                     {[
-                       { id: 'admin', label: 'Command Hub', icon: UserCog },
-                       { id: 'driver', label: 'Pilot Terminal', icon: Truck },
-                     ].map(r => (
-                       <button 
-                         key={r.id}
-                         onClick={() => setRole(r.id as any)}
-                         className={cn(
-                           "flex-1 flex items-center justify-center gap-3 py-5 rounded-[32px] text-[10px] font-black uppercase tracking-widest transition-all",
-                           role === r.id ? "bg-white text-black shadow-2xl scale-[1.02]" : "text-muted hover:text-white"
-                         )}
-                       >
-                         <r.icon className="w-4 h-4" /> {r.label}
-                       </button>
-                     ))}
+                {fieldError && (
+                  <div
+                    role="alert"
+                    className="p-3 rounded-[10px] bg-[#D9786C]/22 border border-[#D9786C] text-xs font-semibold text-[#625346]"
+                  >
+                    {fieldError}
                   </div>
+                )}
 
-                  {/* Form Surface */}
-                  <div className="glass-card p-12 rounded-[48px] border-white/5 bg-white/[0.01] shadow-premium relative overflow-hidden group">
-                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-10 transition-opacity" />
-                     
-                     {role === 'admin' ? (
-                       <form onSubmit={handleAdminSignIn} className="space-y-8">
-                          <div>
-                             <h3 className="text-3xl font-display font-black text-white tracking-tight mb-2 uppercase italic leading-none">Nexus Admin</h3>
-                             <p className="text-muted text-[10px] font-black uppercase tracking-[0.3em]">Secure Identity Verification</p>
-                          </div>
-                          
-                          <div className="space-y-6">
-                             <div>
-                                <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-3 ml-2">Access Key (Email)</label>
-                                <input 
-                                  type="email" 
-                                  required
-                                  value={adminLoginForm.email}
-                                  onChange={e => setAdminLoginForm(p => ({ ...p, email: e.target.value }))}
-                                  className="dm-input !bg-black !py-6 !px-8 !text-lg !rounded-[24px]"
-                                  placeholder="admin@nexus.fleet"
-                                />
-                             </div>
-                             <div>
-                                <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-3 ml-2">Encryption Key</label>
-                                <div className="relative">
-                                   <input 
-                                     type={showPw ? 'text' : 'password'} 
-                                     required
-                                     value={adminLoginForm.password}
-                                     onChange={e => setAdminLoginForm(p => ({ ...p, password: e.target.value }))}
-                                     className="dm-input !bg-black !py-6 !pl-8 !pr-20 !text-lg !rounded-[24px]"
-                                     placeholder="••••••••"
-                                   />
-                                   <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-6 top-1/2 -translate-y-1/2 text-muted hover:text-primary transition-colors">
-                                      {showPw ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-                                   </button>
-                                </div>
-                             </div>
-                             <button type="submit" disabled={loading} className="w-full btn-primary !py-7 !rounded-[28px] !text-sm uppercase tracking-[0.4em] shadow-gold group mt-4">
-                                {loading ? <Loader2 className="animate-spin w-6 h-6" /> : "Initiate Verification"}
-                             </button>
-                          </div>
-                       </form>
-                     ) : (
-                       <div className="space-y-8">
-                          <div>
-                             <h3 className="text-3xl font-display font-black text-white tracking-tight mb-2 uppercase italic leading-none">Pilot Sync</h3>
-                             <p className="text-muted text-[10px] font-black uppercase tracking-[0.3em]">Telemetry Identification</p>
-                          </div>
-
-                          <div className="space-y-6">
-                             <div>
-                                <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-3 ml-2">Pilot Frequency (Mobile)</label>
-                                <div className="relative">
-                                   <div className="absolute left-6 top-1/2 -translate-y-1/2 text-primary font-black text-lg pr-6 border-r border-white/10">+91</div>
-                                   <input 
-                                     type="tel" 
-                                     value={driverMobile}
-                                     onChange={e => setDriverMobile(e.target.value)}
-                                     maxLength={10}
-                                     className="dm-input !bg-black !py-6 !pl-24 !pr-6 !text-lg !rounded-[24px] tracking-widest"
-                                     placeholder="00000 00000"
-                                   />
-                                </div>
-                             </div>
-                             
-                             {otpSent && (
-                               <motion.div 
-                                 initial={{ opacity: 0, scale: 0.9 }} 
-                                 animate={{ opacity: 1, scale: 1 }}
-                                 className="space-y-3"
-                               >
-                                  <label className="block text-[10px] font-black text-white/30 uppercase tracking-[0.3em] mb-3 ml-2">Transmission Code</label>
-                                  <input 
-                                    type="text" 
-                                    maxLength={6}
-                                    value={driverOtp}
-                                    onChange={e => setDriverOtp(e.target.value)}
-                                    className="dm-input !bg-black !py-7 !text-2xl !tracking-[1em] text-center !rounded-[24px]"
-                                    placeholder="••••••"
-                                  />
-                               </motion.div>
-                             )}
-
-                             <button 
-                               onClick={otpSent ? handleDriverOTPVerify : handleDriverOTPSend}
-                               className="w-full btn-primary !py-7 !rounded-[28px] !text-sm uppercase tracking-[0.4em] shadow-gold group mt-4"
-                             >
-                               {otpSent ? "Authorize Uplink" : "Transmit Signal"}
-                             </button>
-                          </div>
-                       </div>
-                     )}
+                {authTab === 'signup' && (
+                  <div>
+                    <label htmlFor="auth-fullname" className="dm-label">Full Name</label>
+                    <input
+                      id="auth-fullname"
+                      value={fullName}
+                      onChange={(e) => {
+                        setFullName(e.target.value)
+                        setFieldError(null)
+                      }}
+                      placeholder="Karthikeyan R"
+                      className="dm-input"
+                      required
+                    />
                   </div>
+                )}
 
-                  {/* Fast Action Demos */}
-                  <div className="pt-4 space-y-6">
-                     <div className="flex items-center gap-6">
-                        <div className="h-px flex-1 bg-white/5" />
-                        <span className="text-[9px] font-black text-muted uppercase tracking-[0.4em]">Rapid Nexus Access</span>
-                        <div className="h-px flex-1 bg-white/5" />
-                     </div>
-                     <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleDemoLogin('admin')} className="py-4 rounded-[20px] bg-white/[0.02] border border-white/5 text-[9px] font-black text-muted uppercase tracking-widest hover:bg-white/5 hover:text-primary transition-all flex items-center justify-center gap-3">
-                           <UserCog className="w-4 h-4" /> Admin Demo
-                        </button>
-                        <button onClick={() => handleDemoLogin('driver')} className="py-4 rounded-[20px] bg-white/[0.02] border border-white/5 text-[9px] font-black text-muted uppercase tracking-widest hover:bg-white/5 hover:text-primary transition-all flex items-center justify-center gap-3">
-                           <Truck className="w-4 h-4" /> Pilot Demo
-                        </button>
-                     </div>
+                <div>
+                  <label htmlFor="auth-email" className="dm-label">Work Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value)
+                      setFieldError(null)
+                    }}
+                    placeholder="name@company.in"
+                    className="dm-input"
+                    required
+                  />
+                </div>
+
+                {authTab === 'otp' ? (
+                  otpSent && (
+                    <div>
+                      <label htmlFor="auth-otp" className="dm-label">6-Digit Email Verification Code</label>
+                      <input
+                        id="auth-otp"
+                        value={otpToken}
+                        onChange={(e) => setOtpToken(e.target.value)}
+                        placeholder="123456"
+                        maxLength={6}
+                        className="dm-input font-mono tracking-widest"
+                        required
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div>
+                    <label htmlFor="auth-password" className="dm-label">Password</label>
+                    <input
+                      id="auth-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value)
+                        setFieldError(null)
+                      }}
+                      placeholder={authTab === 'signup' ? 'Minimum 8 characters' : 'Minimum 6 characters'}
+                      className="dm-input"
+                      required
+                    />
                   </div>
-               </motion.div>
-             )}
-           </AnimatePresence>
-        </motion.div>
-      </div>
+                )}
+
+                <button type="submit" disabled={submitting} className="btn-accent w-full py-3">
+                  {submitting ? (
+                    'Authenticating...'
+                  ) : authTab === 'signin' ? (
+                    'Sign In to Production'
+                  ) : authTab === 'signup' ? (
+                    'Create Organization Account'
+                  ) : otpSent ? (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      Verify 6-Digit OTP
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="w-4 h-4" />
+                      Send Email OTP Code
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-[#7D6D5F]">
+                  Supabase authentication is used for Production accounts when configured in environment variables.
+                </p>
+              </form>
+            )}
+          </div>
+        </div>
+      </main>
     </div>
   )
 }

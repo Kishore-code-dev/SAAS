@@ -1,120 +1,278 @@
-import { useState } from 'react'
-import { X, Truck } from 'lucide-react'
-import { TNCity } from '../../hooks/useTNCities'
-import { AddVehicleData } from '../../hooks/useVehicles'
+import React, { useState } from 'react'
 import { toast } from 'sonner'
+import { useFleet } from '../../hooks/useFleet'
+import { EnterpriseModal } from '../ui/EnterprisePrimitives'
+import type { FuelType, PowertrainType, VehicleCategory } from '../../types/fleet'
 
-interface Props {
+export default function AddVehicleDialog({
+  open,
+  onClose,
+}: {
   open: boolean
   onClose: () => void
-  onAdd: (data: AddVehicleData) => Promise<{ error: any }>
-  cities: TNCity[]
-}
+}) {
+  const { addVehicle, corridors, drivers } = useFleet()
 
-const MAKES = ['Tata', 'Mahindra', 'Ashok Leyland', 'Eicher', 'BharatBenz', 'Swaraj Mazda', 'MG', 'Force Motors', 'Other']
+  const [registrationNumber, setRegistrationNumber] = useState('')
+  const [make, setMake] = useState('Tata')
+  const [model, setModel] = useState('Ace Gold')
+  const [category, setCategory] = useState<VehicleCategory>('Light Commercial')
+  const [powertrain, setPowertrain] = useState<PowertrainType>('ICE')
+  const [fuelType, setFuelType] = useState<FuelType>('Diesel')
+  const [year, setYear] = useState(2024)
+  const [odometerKm, setOdometerKm] = useState(12500)
+  const [dailyAvgKm, setDailyAvgKm] = useState(140)
+  const [corridorId, setCorridorId] = useState(corridors[0]?.id ?? 'cor-chennai')
+  const [assignedDriverId, setAssignedDriverId] = useState('')
+  const [insuranceProvider, setInsuranceProvider] = useState('HDFC ERGO Commercial')
+  const [insuranceExpiry, setInsuranceExpiry] = useState('2027-06-30')
+  const [registrationExpiry, setRegistrationExpiry] = useState('2030-06-30')
+  const [formError, setFormError] = useState<string | null>(null)
 
-export default function AddVehicleDialog({ open, onClose, onAdd, cities }: Props) {
-  const [loading, setLoading] = useState(false)
-  const [form, setForm] = useState<Partial<AddVehicleData>>({
-    vehicle_type: 'ICE',
-    fuel_type: 'Diesel',
-    year: new Date().getFullYear(),
-  })
-
-  const set = (k: keyof AddVehicleData, v: any) => setForm(p => ({ ...p, [k]: v }))
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!form.registration_number || !form.make || !form.model) return
-    setLoading(true)
-    const { error } = await onAdd(form as AddVehicleData)
-    setLoading(false)
-    if (error) toast.error('Failed to add vehicle: ' + (error.message || error))
-    else {
-      toast.success(`${form.registration_number} added to fleet!`)
-      setForm({ vehicle_type: 'ICE', fuel_type: 'Diesel', year: new Date().getFullYear() })
-      onClose()
+  const handlePowertrainChange = (next: PowertrainType) => {
+    setPowertrain(next)
+    if (next === 'EV') {
+      setFuelType('Electric')
+      setCategory('Electric Cargo')
+    } else if (fuelType === 'Electric') {
+      setFuelType('Diesel')
+      setCategory('Light Commercial')
     }
   }
 
-  if (!open) return null
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setFormError(null)
+    try {
+      const created = addVehicle({
+        registrationNumber: registrationNumber.trim(),
+        make: make.trim(),
+        model: model.trim(),
+        category,
+        powertrain,
+        fuelType,
+        year: Number(year),
+        odometerKm: Number(odometerKm),
+        dailyAvgKm: Number(dailyAvgKm),
+        corridorId,
+        assignedDriverId: assignedDriverId || null,
+        insuranceProvider,
+        insuranceExpiry,
+        registrationExpiry,
+      })
+      toast.success(`Registered ${created.registrationNumber} into active organization`)
+      setRegistrationNumber('')
+      onClose()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to register vehicle.'
+      setFormError(message)
+      toast.error(message)
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg glass-card rounded-2xl p-6 animate-scale-in border border-border/80">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-primary" />
-            <h2 className="font-display font-semibold text-base">Add Vehicle</h2>
+    <EnterpriseModal
+      open={open}
+      onClose={onClose}
+      title="Register New Vehicle"
+      subtitle="Creates a Vehicle Digital Twin with initial component health baselines"
+      maxWidthClass="max-w-xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {formError && (
+          <div
+            role="alert"
+            className="p-3 rounded-[10px] bg-[#D9786C]/20 border border-[#D9786C] text-xs font-semibold text-[#625346]"
+          >
+            {formError}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-            <X className="w-4 h-4 text-muted-foreground" />
-          </button>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="veh-reg" className="dm-label">Registration Number *</label>
+            <input
+              id="veh-reg"
+              required
+              value={registrationNumber}
+              onChange={(e) => {
+                setRegistrationNumber(e.target.value)
+                setFormError(null)
+              }}
+              placeholder="TN 01 XY 4021"
+              className="dm-input font-mono uppercase"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-powertrain" className="dm-label">Powertrain</label>
+            <select
+              id="veh-powertrain"
+              value={powertrain}
+              onChange={(e) => handlePowertrainChange(e.target.value as PowertrainType)}
+              className="dm-input"
+            >
+              <option value="ICE">ICE (Combustion)</option>
+              <option value="EV">EV (Electric)</option>
+            </select>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Registration Number *</label>
-              <input id="vehicle-reg" required placeholder="TN09EF7890" value={form.registration_number || ''} onChange={e => set('registration_number', e.target.value.toUpperCase())} className="drive-input" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Make *</label>
-              <select id="vehicle-make" required value={form.make || ''} onChange={e => set('make', e.target.value)} className="drive-input appearance-none">
-                <option value="">Select make</option>
-                {MAKES.map(m => <option key={m}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Model *</label>
-              <input id="vehicle-model" required placeholder="Ace Gold" value={form.model || ''} onChange={e => set('model', e.target.value)} className="drive-input" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Year</label>
-              <input id="vehicle-year" type="number" min="2005" max={new Date().getFullYear()} value={form.year || ''} onChange={e => set('year', Number(e.target.value))} className="drive-input" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Type</label>
-              <select id="vehicle-type" value={form.vehicle_type} onChange={e => set('vehicle_type', e.target.value)} className="drive-input appearance-none">
-                <option value="ICE">ICE (Combustion)</option>
-                <option value="EV">EV (Electric)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Fuel Type</label>
-              <select id="vehicle-fuel" value={form.fuel_type} onChange={e => set('fuel_type', e.target.value)} className="drive-input appearance-none">
-                <option value="Diesel">Diesel</option>
-                <option value="Petrol">Petrol</option>
-                <option value="CNG">CNG</option>
-                <option value="Electric">Electric</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Current Mileage (km)</label>
-              <input id="vehicle-mileage" type="number" min="0" placeholder="48200" value={form.current_mileage || ''} onChange={e => set('current_mileage', Number(e.target.value))} className="drive-input" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">City</label>
-              <select id="vehicle-city" value={form.city_id || ''} onChange={e => set('city_id', e.target.value)} className="drive-input appearance-none">
-                <option value="">Select city</option>
-                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Assigned Driver</label>
-              <input id="vehicle-driver" placeholder="Driver name" value={form.assigned_driver || ''} onChange={e => set('assigned_driver', e.target.value)} className="drive-input" />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="veh-make" className="dm-label">Manufacturer *</label>
+            <input
+              id="veh-make"
+              required
+              value={make}
+              onChange={(e) => setMake(e.target.value)}
+              className="dm-input"
+            />
           </div>
+          <div>
+            <label htmlFor="veh-model" className="dm-label">Model *</label>
+            <input
+              id="veh-model"
+              required
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="dm-input"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-year" className="dm-label">Model Year</label>
+            <input
+              id="veh-year"
+              type="number"
+              min={1990}
+              max={new Date().getFullYear() + 1}
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              className="dm-input font-mono"
+            />
+          </div>
+        </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancel</button>
-            <button id="vehicle-submit" type="submit" disabled={loading} className="btn-gold flex-1 flex items-center justify-center gap-2">
-              {loading ? <div className="w-4 h-4 rounded-full border-2 border-black/30 border-t-black animate-spin" /> : 'Add Vehicle'}
-            </button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="veh-category" className="dm-label">Category</label>
+            <select
+              id="veh-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as VehicleCategory)}
+              className="dm-input"
+            >
+              <option value="Light Commercial">Light Commercial</option>
+              <option value="Medium Truck">Medium Truck</option>
+              <option value="Heavy Truck">Heavy Truck</option>
+              <option value="Delivery Van">Delivery Van</option>
+              <option value="Electric Cargo">Electric Cargo</option>
+            </select>
           </div>
-        </form>
-      </div>
-    </div>
+          <div>
+            <label htmlFor="veh-fuel" className="dm-label">Fuel / Energy</label>
+            <select
+              id="veh-fuel"
+              value={fuelType}
+              onChange={(e) => setFuelType(e.target.value as FuelType)}
+              className="dm-input"
+            >
+              <option value="Diesel">Diesel</option>
+              <option value="Petrol">Petrol</option>
+              <option value="CNG">CNG</option>
+              <option value="Electric">Electric</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="veh-corridor" className="dm-label">Primary Corridor</label>
+            <select
+              id="veh-corridor"
+              value={corridorId}
+              onChange={(e) => setCorridorId(e.target.value)}
+              className="dm-input"
+            >
+              {corridors.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="veh-odo" className="dm-label">Odometer (km)</label>
+            <input
+              id="veh-odo"
+              type="number"
+              min={0}
+              value={odometerKm}
+              onChange={(e) => setOdometerKm(Number(e.target.value))}
+              className="dm-input font-mono"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-daily" className="dm-label">Avg Daily km</label>
+            <input
+              id="veh-daily"
+              type="number"
+              min={1}
+              value={dailyAvgKm}
+              onChange={(e) => setDailyAvgKm(Number(e.target.value))}
+              className="dm-input font-mono"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-driver" className="dm-label">Assign Driver</label>
+            <select
+              id="veh-driver"
+              value={assignedDriverId}
+              onChange={(e) => setAssignedDriverId(e.target.value)}
+              className="dm-input"
+            >
+              <option value="">Unassigned</option>
+              {drivers.filter((d) => d.status !== 'onboarding').map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor="veh-ins" className="dm-label">Insurance Provider</label>
+            <input
+              id="veh-ins"
+              value={insuranceProvider}
+              onChange={(e) => setInsuranceProvider(e.target.value)}
+              className="dm-input"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-ins-exp" className="dm-label">Insurance Expiry</label>
+            <input
+              id="veh-ins-exp"
+              type="date"
+              value={insuranceExpiry}
+              onChange={(e) => setInsuranceExpiry(e.target.value)}
+              className="dm-input font-mono"
+            />
+          </div>
+          <div>
+            <label htmlFor="veh-reg-exp" className="dm-label">RC Validity</label>
+            <input
+              id="veh-reg-exp"
+              type="date"
+              value={registrationExpiry}
+              onChange={(e) => setRegistrationExpiry(e.target.value)}
+              className="dm-input font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E0D4B7]">
+          <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+          <button type="submit" className="btn-primary">Register Vehicle</button>
+        </div>
+      </form>
+    </EnterpriseModal>
   )
 }

@@ -1,388 +1,473 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
-import { useFleet } from '../hooks/useFleet'
-import { useTranslation } from '../i18n/useTranslation'
-import { DRIVERS } from '../data/fleetData'
-import { X, Layers, Truck, Search, Navigation, Filter, Map as MapIcon, Compass } from 'lucide-react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
+import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import L from 'leaflet'
-import { motion, AnimatePresence } from 'framer-motion'
+import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
+import {
+  BatteryCharging,
+  Pause,
+  Play,
+  Radio,
+  Search,
+  Signal,
+  Truck,
+  X,
+} from 'lucide-react'
+import { useFleet } from '../hooks/useFleet'
+import { classifyTelemetryFreshness, isValidCoordinate } from '../utils/intelligenceEngine'
+import { formatDateTime, SeverityText } from '../components/ui/EnterprisePrimitives'
+import type { Vehicle, VehicleOperationStatus } from '../types/fleet'
 
-const Y = '#F5C518'
-const M = '#FF4444'
-const G = '#00C896'
+function createVehicleMarkerIcon(status: VehicleOperationStatus, selected: boolean) {
+  const color =
+    status === 'moving'
+      ? '#789A75'
+      : status === 'idle' || status === 'delayed'
+        ? '#E8C65A'
+        : status === 'offline'
+          ? '#D9786C'
+          : '#B8A3D9'
 
-const STATUS_COLORS: Record<string, string> = {
-  active:  Y,
-  idle:    'rgba(255,255,255,0.6)',
-  stopped: M,
-  offline: 'rgba(255,255,255,0.2)',
-}
-
-const DEFAULT_CENTER: [number, number] = [21.5, 79.0]
-const DEFAULT_ZOOM = 5
-
-// --- Map Markers ---
-
-const createVehicleIcon = (status: string, reg: string, isSelected: boolean, speed: number, avatar?: string) => {
-  const color = STATUS_COLORS[status] || '#888'
-  const isMoving = status === 'active' && speed > 0
-  
   return L.divIcon({
-    className: 'custom-vehicle-marker',
-    html: `
-      <div style="
-        width: ${isSelected ? '44px' : '36px'}; 
-        height: ${isSelected ? '44px' : '36px'}; 
-        border-radius: 12px;
-        background: #111;
-        border: 2px solid ${color};
-        box-shadow: ${isSelected ? `0 0 20px ${color}80` : '0 4px 10px rgba(0,0,0,0.5)'};
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-        transform: rotate(45deg);
-      ">
-        <div style="transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">
-          ${avatar 
-            ? `<img src="${avatar}" style="width: 80%; height: 80%; border-radius: 8px; object-fit: cover;" />` 
-            : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14v10h1"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></svg>`
-          }
-        </div>
-        
-        ${isMoving ? `
-          <div style="
-            position: absolute; inset: -4px; border-radius: 14px; 
-            border: 2px solid ${color}; opacity: 0.4;
-            animation: marker-pulse 2s infinite;
-          "></div>
-        ` : ''}
-
-        <div style="
-          position: absolute; top: -30px; left: 50%; transform: translateX(-50%) rotate(-45deg);
-          background: #111; color: white; padding: 2px 8px; border-radius: 6px;
-          font-size: 10px; font-weight: 800; border: 1px solid ${color}40;
-          white-space: nowrap; pointer-events: none; backdrop-filter: blur(8px);
-          box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        ">
-          ${reg.split(' ')[0]}
-        </div>
-
-        ${isMoving ? `
-          <div style="
-            position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%) rotate(-45deg);
-            background: ${color}; color: black; padding: 1px 6px; border-radius: 4px;
-            font-size: 9px; font-weight: 900; white-space: nowrap;
-          ">${speed} KMH</div>
-        ` : ''}
-      </div>
-    `,
-    iconSize: [40, 40],
-    iconAnchor: [20, 20],
-    popupAnchor: [0, -20]
+    className: 'dm-vehicle-pin',
+    html: `<div style="width:${selected ? 34 : 26}px;height:${selected ? 34 : 26}px;border-radius:9999px;background:${color};border:3px solid #FBF6E6;box-shadow:0 2px 8px rgba(98,83,70,0.28);display:flex;align-items:center;justify-content:center;color:#625346;font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;font-weight:700;">●</div>`,
+    iconSize: [selected ? 34 : 26, selected ? 34 : 26],
+    iconAnchor: [selected ? 17 : 13, selected ? 17 : 13],
   })
 }
 
-// Recenter Component
-function RecenterMap({ center, zoom }: { center: [number, number], zoom: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, zoom, { animate: true, duration: 1.5 });
-  }, [center, zoom, map]);
-  return null;
+function createClusterIcon(count: number) {
+  return L.divIcon({
+    className: 'dm-cluster-pin',
+    html: `<div style="width:36px;height:36px;border-radius:9999px;background:#EEE8F7;color:#625346;border:2.5px solid #B8A3D9;box-shadow:0 3px 10px rgba(98,83,70,0.25);display:flex;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;">${count}</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+  })
 }
 
-export default function LiveMap() {
-  const { vehicles, alerts } = useFleet()
-  const { t } = useTranslation()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [filter, setFilter] = useState('All')
-  const [searchQuery, setSearchQuery] = useState('')
+function MapController({
+  selectedVehicle,
+  onZoomChange,
+}: {
+  selectedVehicle: Vehicle | null
+  onZoomChange: (zoom: number) => void
+}) {
+  const map = useMap()
 
-  const filteredVehicles = useMemo(() => {
-    return vehicles.filter(v => {
-      const matchesFilter = filter === 'All' || v.status === filter.toLowerCase()
-      const matchesSearch = v.registrationNo.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           v.model.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesFilter && matchesSearch
-    })
-  }, [vehicles, filter, searchQuery])
-
-  const selectedV = vehicles.find(v => v.id === selectedId)
-
-  // Auto-center 
-  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER)
-  const [mapZoom, setMapZoom] = useState(DEFAULT_ZOOM)
+  useMapEvents({
+    zoomend: () => {
+      onZoomChange(map.getZoom())
+    },
+  })
 
   useEffect(() => {
-    if (selectedV) {
-      setMapCenter([selectedV.location.lat, selectedV.location.lng])
-      setMapZoom(14)
+    if (
+      selectedVehicle &&
+      isValidCoordinate(selectedVehicle.telemetry.location.lat, selectedVehicle.telemetry.location.lng)
+    ) {
+      map.flyTo([selectedVehicle.telemetry.location.lat, selectedVehicle.telemetry.location.lng], 12, {
+        duration: 0.6,
+      })
     }
-  }, [selectedV])
+  }, [selectedVehicle, map])
+
+  return null
+}
+
+type FilterOption = 'all' | 'moving' | 'idle' | 'stopped' | 'offline' | 'delayed'
+
+export default function LiveMap() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const {
+    activeOrganization,
+    vehicles,
+    drivers,
+    trips,
+    simulationActive,
+    toggleSimulation,
+    searchTerm,
+    setSearchTerm,
+  } = useFleet()
+
+  const initialFilter = (searchParams.get('filter') as FilterOption) || 'all'
+  const [statusFilter, setStatusFilter] = useState<FilterOption>(
+    ['all', 'moving', 'idle', 'stopped', 'offline', 'delayed'].includes(initialFilter) ? initialFilter : 'all',
+  )
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(vehicles[0]?.id ?? null)
+  const [zoomLevel, setZoomLevel] = useState<number>(7)
+  const [showRoutes, setShowRoutes] = useState<boolean>(true)
+
+  const filteredVehicles = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    return vehicles.filter((v) => {
+      const freshness = classifyTelemetryFreshness(v.telemetry.lastUpdatedAt, v.telemetry.connectionState)
+      const matchesStatus =
+        statusFilter === 'all' ||
+        v.operationStatus === statusFilter ||
+        (statusFilter === 'offline' && freshness.freshness === 'offline')
+      const driver = drivers.find((d) => d.id === v.assignedDriverId)
+      const matchesSearch =
+        !q ||
+        v.registrationNumber.toLowerCase().includes(q) ||
+        v.cityName.toLowerCase().includes(q) ||
+        (driver?.name.toLowerCase().includes(q) ?? false)
+      return matchesStatus && matchesSearch
+    })
+  }, [vehicles, drivers, statusFilter, searchTerm])
+
+  const mappableVehicles = useMemo(
+    () => filteredVehicles.filter((v) => isValidCoordinate(v.telemetry.location.lat, v.telemetry.location.lng)),
+    [filteredVehicles],
+  )
+
+  const selectedVehicle = useMemo(
+    () => vehicles.find((v) => v.id === selectedVehicleId) ?? null,
+    [vehicles, selectedVehicleId],
+  )
+
+  const activeRoutes = useMemo(
+    () =>
+      trips.filter(
+        (t) =>
+          (t.status === 'active' || t.status === 'delayed') &&
+          mappableVehicles.some((v) => v.id === t.vehicleId) &&
+          t.route.filter((pt) => isValidCoordinate(pt.lat, pt.lng)).length >= 2,
+      ),
+    [trips, mappableVehicles],
+  )
+
+  // Deterministic grid clustering when zoomed out (zoom <= 7)
+  const clusteredEntries = useMemo(() => {
+    if (zoomLevel >= 8 || mappableVehicles.length <= 3) {
+      return mappableVehicles.map((v) => ({
+        type: 'single' as const,
+        vehicle: v,
+        lat: v.telemetry.location.lat,
+        lng: v.telemetry.location.lng,
+      }))
+    }
+    const cellSize = 0.7
+    const buckets = new Map<string, Vehicle[]>()
+    for (const v of mappableVehicles) {
+      const gx = Math.round(v.telemetry.location.lat / cellSize)
+      const gy = Math.round(v.telemetry.location.lng / cellSize)
+      const key = `${gx}:${gy}`
+      const arr = buckets.get(key) ?? []
+      arr.push(v)
+      buckets.set(key, arr)
+    }
+    const result: Array<
+      | { type: 'single'; vehicle: Vehicle; lat: number; lng: number }
+      | { type: 'cluster'; key: string; vehicles: Vehicle[]; lat: number; lng: number }
+    > = []
+    buckets.forEach((group, key) => {
+      if (group.length === 1) {
+        result.push({
+          type: 'single',
+          vehicle: group[0],
+          lat: group[0].telemetry.location.lat,
+          lng: group[0].telemetry.location.lng,
+        })
+      } else {
+        const avgLat = group.reduce((s, x) => s + x.telemetry.location.lat, 0) / group.length
+        const avgLng = group.reduce((s, x) => s + x.telemetry.location.lng, 0) / group.length
+        result.push({ type: 'cluster', key, vehicles: group, lat: avgLat, lng: avgLng })
+      }
+    })
+    return result
+  }, [mappableVehicles, zoomLevel])
+
+  const mapCenter: [number, number] = useMemo(() => {
+    if (mappableVehicles.length > 0) {
+      return [mappableVehicles[0].telemetry.location.lat, mappableVehicles[0].telemetry.location.lng]
+    }
+    return [11.9416, 78.8072]
+  }, [mappableVehicles])
+
+  const selectedDriver = selectedVehicle
+    ? drivers.find((d) => d.id === selectedVehicle.assignedDriverId)
+    : undefined
+  const selectedTrip = selectedVehicle
+    ? trips.find((t) => t.vehicleId === selectedVehicle.id && (t.status === 'active' || t.status === 'delayed'))
+    : undefined
+  const selectedFreshness = selectedVehicle
+    ? classifyTelemetryFreshness(selectedVehicle.telemetry.lastUpdatedAt, selectedVehicle.telemetry.connectionState)
+    : null
 
   return (
-    <div className="h-[calc(100vh-140px)] flex gap-6 page-enter pb-4">
-      
-      {/* Map Surface */}
-      <div className="flex-1 glass-card rounded-[32px] overflow-hidden relative shadow-premium border-white/5">
-        
-        {/* Floating Command Bar */}
-        <div className="absolute top-6 left-6 right-6 z-[1000] flex items-center justify-between pointer-events-none">
-           <div className="flex items-center gap-4 w-full pointer-events-auto">
-              <div className="flex-1 max-w-md h-14 glass-card bg-black/60 backdrop-blur-3xl border-white/10 rounded-2xl flex items-center px-5 gap-4 group">
-                 <Search className="w-5 h-5 text-muted group-focus-within:text-primary transition-colors" />
-                 <input 
-                    type="text" 
-                    placeholder="Search mission hub..." 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-muted/40 font-bold" 
-                 />
-                 <div className="h-5 w-px bg-white/10" />
-                 <button className="text-muted hover:text-primary transition-colors">
-                    <Navigation className="w-5 h-5" />
-                 </button>
-              </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="dm-page-title">Live Operations Map</h1>
+          <p className="text-sm text-[#7D6D5F] mt-1">
+            {activeOrganization.name} · Clustered corridor view with telemetry freshness indicators
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setShowRoutes((r) => !r)}
+            className="btn-secondary text-xs px-3 py-2"
+          >
+            {showRoutes ? 'Hide Route Polylines' : 'Show Route Polylines'}
+          </button>
+          <button
+            type="button"
+            onClick={toggleSimulation}
+            className="btn-secondary text-xs px-3 py-2"
+          >
+            {simulationActive ? <Pause className="w-3.5 h-3.5 text-[#6E5696]" /> : <Play className="w-3.5 h-3.5 text-[#4D6E4A]" />}
+            {simulationActive ? 'Pause Demo Stream' : 'Resume Demo Stream'}
+          </button>
+        </div>
+      </div>
 
-              <div className="flex bg-black/60 backdrop-blur-3xl border border-white/10 p-1.5 rounded-2xl gap-1">
-                 {['All', 'Active', 'Idle', 'Stopped'].map(f => (
-                   <button 
-                     key={f}
-                     onClick={() => setFilter(f)}
-                     className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === f ? 'bg-primary text-black shadow-gold' : 'text-muted hover:text-white hover:bg-white/5'}`}
-                   >
-                     {f}
-                   </button>
-                 ))}
-              </div>
-           </div>
-
-           <div className="flex items-center gap-3 pointer-events-auto">
-              <div className="glass-card bg-black/60 backdrop-blur-3xl border-white/10 px-4 py-3 flex items-center gap-3">
-                 <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-gold" />
-                 <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Radar Uplink Active</span>
-              </div>
-              <button className="w-12 h-12 glass-card bg-black/60 backdrop-blur-3xl border-white/10 flex items-center justify-center hover:bg-white/5 transition-all text-white">
-                 <Compass className="w-6 h-6" />
-              </button>
-           </div>
+      {/* Filter & Search Bar */}
+      <div className="enterprise-card p-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+          {(['all', 'moving', 'idle', 'stopped', 'delayed', 'offline'] as FilterOption[]).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setStatusFilter(opt)}
+              className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
+                statusFilter === opt ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
         </div>
 
-        {/* The Map */}
-        <div className="absolute inset-0 z-0">
-          <MapContainer 
-            center={DEFAULT_CENTER}
-            zoom={DEFAULT_ZOOM}
-            scrollWheelZoom={true}
-            zoomControl={false}
-            className="w-full h-full"
-          >
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-[#7D6D5F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Filter registration, city, driver..."
+            aria-label="Filter map vehicles"
+            className="dm-input pl-9 py-1.5 text-xs"
+          />
+        </div>
+      </div>
+
+      {/* Map + Detail Drawer */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        <div className="lg:col-span-8 enterprise-card overflow-hidden relative min-h-[480px] h-[560px]">
+          <MapContainer center={mapCenter} zoom={7} className="w-full h-full z-10">
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              attribution="&copy; OpenStreetMap contributors"
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              className="map-tiles"
             />
-            {/* Google Hybrid Overlay (Optional/Mock) */}
-            <TileLayer 
-              url="https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-              subdomains={['mt0', 'mt1', 'mt2', 'mt3']}
-              opacity={0.3}
-            />
+            <MapController selectedVehicle={selectedVehicle} onZoomChange={setZoomLevel} />
 
-            <RecenterMap center={mapCenter} zoom={mapZoom} />
+            {showRoutes &&
+              activeRoutes.map((trip) => (
+                <Polyline
+                  key={trip.id}
+                  positions={trip.route
+                    .filter((pt) => isValidCoordinate(pt.lat, pt.lng))
+                    .map((pt) => [pt.lat, pt.lng] as [number, number])}
+                  pathOptions={{
+                    color: trip.status === 'delayed' ? '#C9A63B' : '#6E5696',
+                    weight: 4,
+                    opacity: 0.85,
+                  }}
+                />
+              ))}
 
-            {filteredVehicles.map((v) => {
-              const driver = DRIVERS.find(d => d.id === v.driverId)
-              const isSelected = selectedId === v.id
-              return (
-                <Marker 
-                  key={v.id} 
-                  position={[v.location.lat, v.location.lng]}
-                  icon={createVehicleIcon(v.status, v.registrationNo, isSelected, v.speed, driver?.avatar)}
-                  eventHandlers={{ click: () => setSelectedId(isSelected ? null : v.id) }}
+            {clusteredEntries.map((entry) =>
+              entry.type === 'cluster' ? (
+                <Marker
+                  key={entry.key}
+                  position={[entry.lat, entry.lng]}
+                  icon={createClusterIcon(entry.vehicles.length)}
+                  eventHandlers={{
+                    click: () => setSelectedVehicleId(entry.vehicles[0].id),
+                  }}
                 >
-                  <Popup className="premium-map-popup">
-                    <div className="bg-[#111] text-white p-4 w-[240px] border border-white/10 shadow-3xl">
-                       <div className="flex items-center gap-4 mb-4 border-b border-white/5 pb-4">
-                          <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 overflow-hidden">
-                             {driver?.avatar ? <img src={driver.avatar} className="w-full h-full object-cover" /> : <Truck className="w-6 h-6 text-primary m-3" />}
-                          </div>
-                          <div>
-                             <p className="text-sm font-black tracking-tight">{v.registrationNo}</p>
-                             <p className="text-[10px] text-muted font-bold uppercase">{v.model}</p>
-                          </div>
-                       </div>
-                       <div className="grid grid-cols-2 gap-4">
-                          <div>
-                             <p className="text-[10px] text-muted uppercase font-black tracking-widest">Pilot</p>
-                             <p className="text-xs font-bold truncate">{driver?.name || 'Unassigned'}</p>
-                          </div>
-                          <div>
-                             <p className="text-[10px] text-muted uppercase font-black tracking-widest">Energy</p>
-                             <p className="text-xs font-bold transition-colors" style={{ color: v.fuelLevel < 30 ? M : Y }}>{v.fuelLevel}% Level</p>
-                          </div>
-                          <div className="col-span-2">
-                             <p className="text-[10px] text-muted uppercase font-black tracking-widest mb-1">Status</p>
-                             <div className="flex items-center gap-2">
-                                <div className="w-2 h-2 rounded-full" style={{ background: STATUS_COLORS[v.status] }} />
-                                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: STATUS_COLORS[v.status] }}>{v.status}</span>
-                             </div>
-                          </div>
-                       </div>
-                       <button className="w-full mt-5 py-3 rounded-xl bg-primary text-black text-[10px] font-black uppercase tracking-widest shadow-gold">
-                          Launch Analysis Drawer
-                       </button>
+                  <Popup>
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-[#625346]">{entry.vehicles.length} Vehicles in Cluster</p>
+                      {entry.vehicles.map((v) => (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => setSelectedVehicleId(v.id)}
+                          className="block text-[#6E5696] hover:text-[#625346] hover:underline font-semibold"
+                        >
+                          {v.registrationNumber} ({v.operationStatus})
+                        </button>
+                      ))}
                     </div>
                   </Popup>
                 </Marker>
-              )
-            })}
+              ) : (
+                <Marker
+                  key={entry.vehicle.id}
+                  position={[entry.lat, entry.lng]}
+                  icon={createVehicleMarkerIcon(
+                    entry.vehicle.operationStatus,
+                    entry.vehicle.id === selectedVehicleId,
+                  )}
+                  eventHandlers={{
+                    click: () => setSelectedVehicleId(entry.vehicle.id),
+                  }}
+                >
+                  <Popup>
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-[#625346]">{entry.vehicle.registrationNumber}</p>
+                      <p className="text-[#7D6D5F]">{entry.vehicle.telemetry.cityLabel}</p>
+                      <p className="tabular-nums font-medium text-[#625346]">Speed: {entry.vehicle.telemetry.speedKmh} km/h</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ),
+            )}
           </MapContainer>
-        </div>
-      </div>
 
-      {/* Side Intelligence Panel */}
-      <div className="hidden lg:flex w-80 flex-col gap-6 overflow-y-auto no-scrollbar flex-shrink-0">
-        
-        {/* Fleet Summary Card */}
-        <div className="glass-card p-6 rounded-[24px] border border-white/5 bg-white/[0.02] shadow-premium">
-           <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                 <Truck className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                 <h3 className="text-sm font-black uppercase tracking-widest text-white">Fleet Matrix</h3>
-                 <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em] mt-0.5">Tracking {vehicles.length} Assets</p>
-              </div>
-           </div>
-
-           <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Moving', count: vehicles.filter(v => v.status === 'active' && v.speed > 0).length, color: Y },
-                { label: 'Idle', count: vehicles.filter(v => v.status === 'idle').length, color: '#888' },
-                { label: 'Critical', count: vehicles.filter(v => v.status === 'stopped' || v.status === 'offline').length, color: M },
-                { label: 'Signals', count: alerts.length, color: G },
-              ].map((s, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center group hover:border-primary/30 transition-all">
-                   <p className="text-2xl font-display font-black mb-1 transition-transform group-hover:scale-110" style={{ color: s.color }}>{s.count}</p>
-                   <p className="text-[9px] font-black uppercase tracking-[0.2em] text-muted opacity-60">{s.label}</p>
-                </div>
-              ))}
-           </div>
-        </div>
-
-        {/* Selected Hub Card */}
-        <AnimatePresence mode="wait">
-          {selectedV ? (
-            <motion.div 
-              key={selectedV.id}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="glass-card p-6 rounded-[24px] border border-primary/40 bg-primary/[0.03] shadow-gold relative overflow-hidden"
-            >
-               <div className="absolute top-0 right-0 p-4">
-                  <button onClick={() => setSelectedId(null)} className="text-primary hover:text-white transition-colors">
-                     <X className="w-5 h-5" />
-                  </button>
-               </div>
-               <div className="flex items-center gap-4 mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-black border border-primary/20 overflow-hidden shadow-gold">
-                      {DRIVERS.find(d => d.id === selectedV.driverId)?.avatar ? (
-                        <img src={DRIVERS.find(d => d.id === selectedV.driverId)?.avatar} className="w-full h-full object-cover" />
-                      ) : (
-                        <Truck className="w-6 h-6 text-primary m-4" />
-                      )}
-                  </div>
-                  <div>
-                     <p className="text-lg font-display font-black text-white">{selectedV.registrationNo}</p>
-                     <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{selectedV.model}</p>
-                  </div>
-               </div>
-
-               <div className="space-y-4">
-                  <div className="flex justify-between items-center py-3 border-b border-primary/10">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Pilot Signal</span>
-                    <span className="text-xs font-bold text-white">{DRIVERS.find(d => d.id === selectedV.driverId)?.name || 'HUB CONTROL'}</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-primary/10">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Velocity</span>
-                    <span className="text-xl font-display font-black text-primary">{selectedV.speed} <span className="text-[9px]">KMH</span></span>
-                  </div>
-                  <div className="py-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Energy Status</span>
-                      <span className={cn("text-xs font-black", selectedV.fuelLevel < 30 ? "text-danger" : "text-primary")}>{selectedV.fuelLevel}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-black border border-primary/10 overflow-hidden">
-                       <div className="h-full bg-primary shadow-gold transition-all duration-1000" style={{ width: selectedV.fuelLevel + '%' }} />
-                    </div>
-                  </div>
-               </div>
-               
-               <button className="w-full mt-6 py-4 rounded-2xl bg-primary text-black font-black uppercase text-[10px] tracking-widest shadow-gold hover:scale-[1.02] transition-transform">
-                  Full Telemetry Report
-               </button>
-            </motion.div>
-          ) : (
-            <div className="flex-1 glass-card rounded-[24px] border border-white/5 bg-white/[0.01] flex flex-col min-h-[400px]">
-               <div className="p-6 border-b border-white/5">
-                  <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-muted">Active Node Stack</h3>
-               </div>
-               <div className="flex-1 overflow-y-auto no-scrollbar divide-y divide-white/[0.03]">
-                  {filteredVehicles.map(v => (
-                    <div 
-                      key={v.id} 
-                      onClick={() => setSelectedId(v.id)}
-                      className="p-4 hover:bg-white/[0.03] transition-all cursor-pointer group"
-                    >
-                       <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                             <Truck className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                             <p className="text-[13px] font-black text-white truncate uppercase">{v.registrationNo}</p>
-                             <p className="text-[9px] font-bold text-muted uppercase tracking-widest">{v.status} • {v.fuelLevel}% Fuel</p>
-                          </div>
-                          <div className="text-right">
-                             <p className="text-xs font-black text-white">{v.speed} <span className="text-[8px] text-muted">KMH</span></p>
-                          </div>
-                       </div>
-                    </div>
-                  ))}
-               </div>
+          {mappableVehicles.length === 0 && (
+            <div className="absolute inset-x-6 bottom-6 z-20 bg-[#FBF6E6]/95 border border-[#D4C7E6] rounded-xl p-4 shadow-elevated text-center">
+              <p className="text-sm font-bold text-[#625346]">No matching vehicles with valid GPS coordinates</p>
+              <p className="text-xs text-[#7D6D5F] mt-1">
+                Clear active status/search filters or verify smartphone GPS permissions on driver devices.
+              </p>
             </div>
           )}
-        </AnimatePresence>
-      </div>
+        </div>
 
-      <style>{`
-        .leaflet-container { 
-          background: #080808 !important; 
-          border-radius: 32px;
-        }
-        .map-tiles {
-          filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
-        }
-        .premium-map-popup .leaflet-popup-content-wrapper {
-          background: #111 !important;
-          color: white !important;
-          padding: 0 !important;
-          border-radius: 16px !important;
-          border: 1px solid rgba(255,255,255,0.1) !important;
-        }
-        .premium-map-popup .leaflet-popup-tip {
-          background: #111 !important;
-        }
-        .premium-map-popup .leaflet-popup-content {
-          margin: 0 !important;
-        }
-        @keyframes marker-pulse {
-          0% { transform: scale(1); opacity: 0.6; }
-          100% { transform: scale(1.6); opacity: 0; }
-        }
-      `}</style>
+        {/* Right Vehicle Detail Drawer / List */}
+        <div className="lg:col-span-4 enterprise-card p-5 flex flex-col justify-between">
+          {selectedVehicle && selectedFreshness ? (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-2 pb-3 border-b border-[#E0D4B7]">
+                <div>
+                  <p className="font-bold text-lg text-[#625346] tabular-nums">
+                    {selectedVehicle.registrationNumber}
+                  </p>
+                  <p className="text-xs text-[#7D6D5F]">
+                    {selectedVehicle.make} {selectedVehicle.model} · {selectedVehicle.powertrain}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedVehicleId(null)}
+                  aria-label="Clear selected vehicle"
+                  className="p-1 rounded-lg text-[#7D6D5F] hover:text-[#625346] hover:bg-[#EEE8F7]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <SeverityText severity={selectedFreshness.freshness} label={selectedFreshness.label} />
+                <span className="text-xs font-medium text-[#7D6D5F] capitalize">
+                  Status: {selectedVehicle.operationStatus}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
+                  <span className="text-[#7D6D5F] block">Assigned Driver</span>
+                  <span className="font-semibold text-[#625346] mt-0.5 block">
+                    {selectedDriver?.name ?? 'Unassigned'}
+                  </span>
+                </div>
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
+                  <span className="text-[#7D6D5F] block">Current Speed</span>
+                  <span className="font-bold text-[#625346] tabular-nums mt-0.5 block">
+                    {selectedVehicle.telemetry.speedKmh} km/h
+                  </span>
+                </div>
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
+                  <span className="text-[#7D6D5F] block">Active Trip Duration</span>
+                  <span className="font-semibold text-[#625346] tabular-nums mt-0.5 block">
+                    {selectedTrip ? `${selectedTrip.durationMinutes} min` : 'No active trip'}
+                  </span>
+                </div>
+                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
+                  <span className="text-[#7D6D5F] block">GPS Accuracy</span>
+                  <span className="font-semibold text-[#625346] tabular-nums mt-0.5 block">
+                    ±{selectedVehicle.telemetry.gpsAccuracyMeters} m
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 text-xs pt-2 border-t border-[#E0D4B7]">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#7D6D5F] inline-flex items-center gap-1.5">
+                    <Signal className="w-3.5 h-3.5" /> Signal Quality
+                  </span>
+                  <span className="font-semibold text-[#625346] tabular-nums">
+                    {selectedVehicle.telemetry.signalQualityPct}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#7D6D5F] inline-flex items-center gap-1.5">
+                    <Radio className="w-3.5 h-3.5" /> Connection State
+                  </span>
+                  <span className="font-semibold text-[#625346] capitalize">
+                    {selectedVehicle.telemetry.connectionState}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#7D6D5F] inline-flex items-center gap-1.5">
+                    <BatteryCharging className="w-3.5 h-3.5" /> Driver Phone Battery
+                  </span>
+                  <span className="font-semibold text-[#625346] tabular-nums">
+                    {selectedVehicle.telemetry.batteryLevelPct ?? '—'}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#7D6D5F]">Last Telemetry Update</span>
+                  <span className="text-[#625346] tabular-nums">
+                    {formatDateTime(selectedVehicle.telemetry.lastUpdatedAt, activeOrganization.timezone)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/dashboard/fleet/${selectedVehicle.id}`)}
+                  className="btn-accent flex-1 text-xs"
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  Open Digital Twin
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 text-center text-sm text-[#7D6D5F]">
+              Select a vehicle marker or list row to inspect telemetry freshness and route status.
+            </div>
+          )}
+
+          {/* Compact Vehicle Switcher List */}
+          <div className="mt-5 pt-4 border-t border-[#E0D4B7]">
+            <p className="text-xs font-semibold text-[#7D6D5F] mb-2">
+              Visible Fleet ({filteredVehicles.length})
+            </p>
+            <div className="max-h-40 overflow-y-auto scrollbar-custom divide-y divide-[#E0D4B7]/70">
+              {filteredVehicles.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setSelectedVehicleId(v.id)}
+                  className={`w-full py-2 px-2.5 text-left flex items-center justify-between text-xs rounded-[8px] hover:bg-[#EEE8F7] transition-colors ${
+                    v.id === selectedVehicleId ? 'bg-[#E8C65A]/45 font-semibold text-[#625346]' : 'text-[#625346]'
+                  }`}
+                >
+                  <span className="tabular-nums">{v.registrationNumber}</span>
+                  <span className="text-[#7D6D5F] capitalize">{v.operationStatus}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

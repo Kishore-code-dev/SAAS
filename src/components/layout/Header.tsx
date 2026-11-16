@@ -1,163 +1,332 @@
-import { Bell, Search, Globe, Menu, LogOut, UserCog, Smartphone, Clock, Command } from 'lucide-react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
+  Bell,
+  Bot,
+  Building2,
+  ChevronDown,
+  Globe,
+  Menu,
+  RotateCcw,
+  Search,
+  User,
+} from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { useAuth } from '../../hooks/useAuth'
-import { useTranslation, languageOptions } from '../../i18n/useTranslation'
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { toast } from 'sonner'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from '../../i18n/useTranslation'
+import { languageOptions } from '../../i18n/translations'
+import type { OperatingEnvironment, ReportingPeriod } from '../../types/fleet'
+import { canAccessRoute, canPerformAction } from '../../utils/rbac'
 
-interface HeaderProps { onMenuToggle: () => void }
+export default function Header({
+  onMenuToggle,
+  onOpenCopilot,
+}: {
+  onMenuToggle: () => void
+  onOpenCopilot?: () => void
+  title?: string
+}) {
+  const {
+    environment,
+    setEnvironment,
+    resetCurrentEnvironment,
+    organizations,
+    activeOrganization,
+    setActiveOrganizationId,
+    activeRole,
+    reportingPeriod,
+    setReportingPeriod,
+    searchTerm,
+    setSearchTerm,
+    alerts,
+    unreadAlertCount,
+    markAlertRead,
+  } = useFleet()
 
-export default function Header({ onMenuToggle }: HeaderProps) {
-  const { unreadAlertCount, userRole, setUserRole, setCurrentDriverId, alerts, searchTerm, setSearchTerm } = useFleet()
-  const { user, signOut } = useAuth()
-  const { t, language, setLanguage } = useTranslation()
+  const { user, demoProfile, signOut } = useAuth()
+  const { language, setLanguage } = useTranslation()
   const navigate = useNavigate()
-  
-  const [currentTime, setCurrentTime] = useState(new Date())
-  const [showLang, setShowLang] = useState(false)
-  const [showAlerts, setShowAlerts] = useState(false)
-  const [showUser, setShowUser] = useState(false)
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  const handleSignOut = async () => {
-    await signOut()
-    navigate('/auth')
-    toast.success('Signed out successfully')
+  const displayName =
+    demoProfile?.fullName ??
+    (typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null) ??
+    user?.email ??
+    'Fleet Operations'
+
+  const envStyles: Record<OperatingEnvironment, string> = {
+    demo: 'bg-[#EEE8F7] text-[#625346] border-[#B8A3D9]',
+    pilot: 'bg-[#E8C65A]/30 text-[#625346] border-[#C9A63B]',
+    production: 'bg-[#789A75]/22 text-[#625346] border-[#789A75]',
   }
 
-  const recentAlerts = alerts.filter(a => !a.read).slice(0, 5)
-
   return (
-    <header className="h-20 border-b border-white/5 flex items-center gap-6 px-8 flex-shrink-0 relative z-30 bg-background/50 backdrop-blur-xl">
-      {/* Search Bar / CMD+K */}
-      <div className="flex-1 max-w-xl group">
-        <div className={`relative flex items-center transition-all duration-300 ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
-          <Search className={`absolute left-4 w-4 h-4 transition-colors ${isSearchFocused ? 'text-primary' : 'text-muted'}`} />
-          <input 
-            type="text"
-            placeholder="Search anything... (CMD+K)"
+    <header className="h-16 bg-[#FBF6E6] border-b border-[#E0D4B7] px-4 lg:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <button
+          type="button"
+          onClick={onMenuToggle}
+          aria-label="Open navigation menu"
+          className="lg:hidden p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7] shrink-0"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Organization Selector */}
+        <div className="flex items-center gap-1.5 bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] px-2.5 py-1.5 min-w-0">
+          <Building2 className="w-4 h-4 text-[#6E5696] shrink-0" />
+          <label htmlFor="org-switcher" className="sr-only">
+            Active Organization
+          </label>
+          <select
+            id="org-switcher"
+            value={activeOrganization.id}
+            onChange={(e) => setActiveOrganizationId(e.target.value)}
+            className="bg-transparent text-xs font-semibold text-[#625346] outline-none pr-1 cursor-pointer max-w-[155px] sm:max-w-[195px] truncate"
+          >
+            {organizations.map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name} ({org.code})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Explicit Environment Switcher */}
+        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
+          <label htmlFor="env-switcher" className="sr-only">
+            Operating Environment
+          </label>
+          <select
+            id="env-switcher"
+            value={environment}
+            onChange={(e) => setEnvironment(e.target.value as OperatingEnvironment)}
+            className={`text-xs font-semibold border rounded-[10px] px-2.5 py-1.5 outline-none cursor-pointer uppercase ${envStyles[environment]}`}
+          >
+            <option value="demo">DEMO</option>
+            <option value="pilot">PILOT</option>
+            <option value="production">PRODUCTION</option>
+          </select>
+          {environment !== 'production' && (
+            <button
+              type="button"
+              onClick={resetCurrentEnvironment}
+              title="Reset environment data to baseline"
+              aria-label="Reset environment data"
+              className="p-1.5 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] text-[#7D6D5F] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Global Search + Period + Copilot + Notifications + User */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="relative hidden md:block w-40 xl:w-52">
+          <Search className="w-4 h-4 text-[#7D6D5F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            onFocus={() => setIsSearchFocused(true)}
-            onBlur={() => setIsSearchFocused(false)}
-            className="w-full bg-white/[0.03] border border-white/10 rounded-2xl py-3 pl-12 pr-16 text-sm text-white placeholder:text-muted/40 outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all"
+            placeholder="Search vehicles, drivers..."
+            aria-label="Global fleet search"
+            className="w-full bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#7D6D5F] outline-none focus:bg-[#FBF6E6] focus:border-[#B8A3D9]"
           />
-          <div className="absolute right-4 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] font-black text-muted uppercase tracking-widest pointer-events-none">
-            <Command className="w-3 h-3" /> K
-          </div>
         </div>
-      </div>
 
-      <div className="flex-1" />
+        {/* Reporting Period Selector */}
+        <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#D4C7E6]" role="group" aria-label="Reporting period">
+          {(['7d', '30d', '90d'] as ReportingPeriod[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setReportingPeriod(p)}
+              className={`px-2.5 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
+                reportingPeriod === p
+                  ? 'bg-[#E8C65A] text-[#625346] shadow-subtle'
+                  : 'text-[#7D6D5F] hover:text-[#625346]'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
 
-      {/* Mission Clock */}
-      <div className="hidden lg:flex flex-col items-end gap-0.5">
-         <div className="flex items-center gap-2 text-[13px] font-black text-white tracking-widest">
-            <Clock className="w-3.5 h-3.5 text-primary shadow-gold" />
-            {currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-         </div>
-         <p className="text-[9px] font-black text-muted uppercase tracking-[0.2em]">
-            {currentTime.toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-         </p>
-      </div>
-
-      <div className="h-8 w-px bg-white/10 hidden lg:block" />
-
-      {/* Control Buttons */}
-      <div className="flex items-center gap-3">
-        {/* Language */}
-        <div className="relative">
-          <button 
-            onClick={() => { setShowLang(!showLang); setShowAlerts(false); setShowUser(false) }}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 ${showLang ? 'bg-primary text-black' : 'bg-white/5 text-muted hover:text-white hover:bg-white/10 border border-white/5'}`}
+        {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
+          <button
+            type="button"
+            onClick={onOpenCopilot}
+            aria-label="Open Fleet Intelligence Copilot"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#DFD3F2] text-xs font-semibold transition-colors whitespace-nowrap"
           >
-            <Globe className="w-5 h-5" />
+            <Bot className="w-3.5 h-3.5 text-[#6E5696]" />
+            <span>Copilot</span>
           </button>
-          <AnimatePresence>
-            {showLang && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="absolute right-0 top-full mt-3 glass-card rounded-[20px] p-1.5 z-50 min-w-[200px] shadow-premium border-white/10 bg-black/90 backdrop-blur-3xl"
-              >
-                {languageOptions.map(lang => (
-                  <button key={lang.code}
-                    onClick={() => { setLanguage(lang.code); setShowLang(false) }}
-                    className={`w-full text-left px-4 py-3 rounded-xl text-xs flex items-center justify-between transition-all ${language === lang.code ? 'bg-primary/10 text-primary font-black' : 'hover:bg-white/5 text-muted hover:text-white'}`}
-                  >
-                    <span>{lang.nativeLabel}</span>
-                    <span className="text-[10px] opacity-40 uppercase tracking-widest">{lang.code}</span>
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+        )}
+
+        {/* Language */}
+        <div className="hidden xl:flex items-center gap-1 border border-[#E0D4B7] rounded-[10px] px-2 py-1.5 bg-[#F4EBD5]">
+          <Globe className="w-3.5 h-3.5 text-[#7D6D5F]" />
+          <label htmlFor="header-lang" className="sr-only">
+            Language
+          </label>
+          <select
+            id="header-lang"
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as typeof language)}
+            className="text-xs font-medium text-[#625346] bg-transparent outline-none cursor-pointer"
+          >
+            {languageOptions.map((opt) => (
+              <option key={opt.code} value={opt.code}>
+                {opt.nativeLabel}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* Notifications */}
+        {/* Notifications Popover */}
         <div className="relative">
-          <button 
-            onClick={() => { setShowAlerts(!showAlerts); setShowLang(false); setShowUser(false) }}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 relative ${showAlerts ? 'bg-primary text-black' : 'bg-white/5 text-muted hover:text-white hover:bg-white/10 border border-white/5'}`}
+          <button
+            type="button"
+            onClick={() => {
+              setAlertsOpen((o) => !o)
+              setUserMenuOpen(false)
+            }}
+            aria-label={`Notifications (${unreadAlertCount} unread)`}
+            className="relative p-2 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
             {unreadAlertCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 rounded-full bg-danger text-[10px] font-black flex items-center justify-center px-1 text-white border-2 border-background animate-pulse shadow-gold">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FBF6E6] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
                 {unreadAlertCount}
               </span>
             )}
           </button>
-          <AnimatePresence>
-            {showAlerts && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="absolute right-0 top-full mt-3 glass-card rounded-[24px] z-50 w-[360px] shadow-premium border-white/10 bg-black/90 backdrop-blur-3xl overflow-hidden"
-              >
-                <div className="p-5 border-b border-white/5 flex items-center justify-between">
-                  <h3 className="text-sm font-black uppercase tracking-widest text-white">Alert Signals</h3>
-                  <span className="text-[10px] font-black text-danger uppercase tracking-widest bg-danger/10 px-2 py-1 rounded-lg">Real-Time</span>
-                </div>
-                <div className="max-h-[400px] overflow-y-auto scrollbar-none">
-                  {recentAlerts.length === 0 ? (
-                    <div className="p-10 text-center">
-                       <ShieldCheck className="w-10 h-10 text-muted/20 mx-auto mb-4" />
-                       <p className="text-xs text-muted font-bold">Network Secure. No active alerts.</p>
-                    </div>
-                  ) : (
-                    recentAlerts.map(a => (
-                      <div key={a.id} className="p-5 hover:bg-white/5 transition-all border-b border-white/[0.02] group cursor-pointer">
-                        <div className="flex items-start gap-4">
-                           <div className="w-2 h-2 rounded-full mt-1.5 bg-danger shadow-gold" />
-                           <div>
-                              <p className="text-[13px] font-bold text-white/90 leading-tight mb-2 group-hover:text-primary transition-colors">{a.message}</p>
-                              <p className="text-[10px] text-muted font-black uppercase tracking-[0.2em]">
-                                {new Date(a.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} • MISSION HUB
-                              </p>
-                           </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <button 
-                  onClick={() => navigate('/dashboard/alerts')}
-                  className="w-full p-4 text-[10px] font-black uppercase tracking-[0.3em] text-primary hover:bg-primary/5 transition-all border-t border-white/5"
+
+          {alertsOpen && (
+            <div className="absolute right-0 mt-2 w-80 bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl shadow-elevated z-50 p-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#E0D4B7]">
+                <span className="text-xs font-bold text-[#625346]">Operational Alerts</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAlertsOpen(false)
+                    navigate('/dashboard/alerts')
+                  }}
+                  className="text-xs font-semibold text-[#6E5696] hover:underline"
                 >
-                  Enter Alert Command Center
+                  View all
                 </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </div>
+              <div className="max-h-64 overflow-y-auto divide-y divide-[#E0D4B7]/70">
+                {alerts.slice(0, 5).map((al) => (
+                  <button
+                    key={al.id}
+                    type="button"
+                    onClick={() => {
+                      markAlertRead(al.id)
+                      setAlertsOpen(false)
+                      navigate(al.actionRoute)
+                    }}
+                    className={`w-full text-left py-2.5 px-2 hover:bg-[#EEE8F7] transition-colors rounded-lg ${
+                      al.read ? 'opacity-65' : ''
+                    }`}
+                  >
+                    <p className="text-xs font-semibold text-[#625346] line-clamp-1">{al.title}</p>
+                    <p className="text-xs text-[#7D6D5F] line-clamp-2 mt-0.5">{al.message}</p>
+                  </button>
+                ))}
+                {alerts.length === 0 && (
+                  <p className="text-xs text-[#7D6D5F] py-6 text-center">No active operational alerts.</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* User Profile Dropdown */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setUserMenuOpen((o) => !o)
+              setAlertsOpen(false)
+            }}
+            aria-label="User account menu"
+            className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] hover:bg-[#EEE8F7] transition-colors"
+          >
+            <div className="w-6 h-6 rounded-[8px] bg-[#E8C65A] border border-[#C9A63B] text-[#625346] flex items-center justify-center">
+              <User className="w-3.5 h-3.5" />
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-xs font-semibold text-[#625346] leading-none max-w-[110px] truncate">
+                {displayName}
+              </p>
+              <p className="text-[11px] text-[#7D6D5F] capitalize leading-tight mt-0.5">
+                {activeRole.replace('_', ' ')}
+              </p>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-[#7D6D5F]" />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl shadow-elevated z-50 p-2">
+              <div className="px-2.5 py-2 border-b border-[#E0D4B7]">
+                <p className="text-xs font-semibold text-[#625346] truncate">{displayName}</p>
+                <p className="text-xs text-[#7D6D5F] truncate">{activeOrganization.name}</p>
+              </div>
+              {canAccessRoute(activeRole, '/dashboard/settings') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    navigate('/dashboard/settings')
+                  }}
+                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg mt-1"
+                >
+                  Workspace Settings
+                </button>
+              )}
+              {canAccessRoute(activeRole, '/dashboard/admin') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    navigate('/dashboard/admin')
+                  }}
+                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
+                >
+                  Admin Console
+                </button>
+              )}
+              {canAccessRoute(activeRole, '/driver') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserMenuOpen(false)
+                    navigate('/driver')
+                  }}
+                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
+                >
+                  Switch to Driver App
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  setUserMenuOpen(false)
+                  await signOut()
+                  navigate('/auth', { replace: true })
+                }}
+                className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[#B84E42] hover:bg-[#D9786C]/20 rounded-lg mt-1 border-t border-[#E0D4B7]"
+              >
+                Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

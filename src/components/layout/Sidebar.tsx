@@ -1,175 +1,211 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import React from 'react'
+import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, Map, Navigation, Truck, Users, Fuel,
-  Wrench, Bell, FileText, Settings, ChevronLeft, ChevronRight,
-  Smartphone, CreditCard, Zap, LogOut, User, BarChart3, ShieldCheck
+  Activity,
+  AlertTriangle,
+  BarChart3,
+  Compass,
+  CreditCard,
+  FileSpreadsheet,
+  Fuel,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Route,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  Smartphone,
+  Truck,
+  Users,
+  Wrench,
+  X,
 } from 'lucide-react'
-import { cn } from '../../lib/utils'
 import { useFleet } from '../../hooks/useFleet'
-import { useTranslation } from '../../i18n/useTranslation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '../../hooks/useAuth'
+import { canAccessRoute } from '../../utils/rbac'
 
-interface SidebarProps { open: boolean; onToggle: () => void }
+interface NavItem {
+  to: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  end?: boolean
+  badge?: number
+}
 
-export default function Sidebar({ open, onToggle }: SidebarProps) {
-  const location = useLocation()
-  const { unreadAlertCount, userRole } = useFleet()
-  const { t } = useTranslation()
+export default function Sidebar({
+  open,
+  onClose,
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { unreadAlertCount, predictions, riskAssessments, environment, activeRole } = useFleet()
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
 
-  const adminNav = [
-    { icon: LayoutDashboard, label: t('nav.dashboard'),    path: '/dashboard' },
-    { icon: Map,             label: t('nav.map'),           path: '/dashboard/map' },
-    { icon: Navigation,      label: t('nav.trips'),         path: '/dashboard/trips' },
-    { icon: Truck,           label: t('nav.fleet'),         path: '/dashboard/fleet' },
-    { icon: Users,           label: t('nav.drivers'),       path: '/dashboard/drivers' },
-    { icon: Fuel,            label: t('nav.fuel'),          path: '/dashboard/fuel' },
-    { icon: Wrench,          label: t('nav.maintenance'),   path: '/dashboard/maintenance' },
-    { icon: Bell,            label: t('nav.alerts'),        path: '/dashboard/alerts', badge: unreadAlertCount },
-    { icon: BarChart3,       label: t('nav.reports'),       path: '/dashboard/reports' },
-    { icon: CreditCard,      label: t('nav.subscription'),  path: '/dashboard/subscription' },
-    { icon: Settings,        label: t('nav.settings'),      path: '/dashboard/settings' },
+  const criticalMaintCount = predictions.filter(
+    (p) => !p.insufficientData && p.status !== 'resolved' && (p.priority === 'critical' || p.priority === 'high'),
+  ).length
+  const elevatedRiskCount = riskAssessments.filter(
+    (r) => r.severity === 'critical' || r.severity === 'high',
+  ).length
+
+  const groups: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'Operations',
+      items: [
+        { to: '/dashboard', label: 'Command Centre', icon: LayoutDashboard, end: true },
+        { to: '/dashboard/map', label: 'Live Operations Map', icon: MapPin },
+        { to: '/dashboard/fleet', label: 'Fleet & Digital Twins', icon: Truck },
+        { to: '/dashboard/trips', label: 'Trip Intelligence', icon: Route },
+      ],
+    },
+    {
+      title: 'Intelligence',
+      items: [
+        { to: '/dashboard/maintenance', label: 'Predictive Maintenance', icon: Wrench, badge: criticalMaintCount || undefined },
+        { to: '/dashboard/risk', label: 'Fleet Risk Radar', icon: ShieldAlert, badge: elevatedRiskCount || undefined },
+        { to: '/dashboard/drivers', label: 'Driver Intelligence', icon: Users },
+        { to: '/dashboard/roads', label: 'Corridor Stress', icon: Compass },
+      ],
+    },
+    {
+      title: 'Finance & Reporting',
+      items: [
+        { to: '/dashboard/fuel', label: 'Fuel Intelligence', icon: Fuel },
+        { to: '/dashboard/financials', label: 'Financial Intelligence', icon: BarChart3 },
+        { to: '/dashboard/reports', label: 'Reports & Exports', icon: FileSpreadsheet },
+        { to: '/dashboard/alerts', label: 'Alerts Feed', icon: AlertTriangle, badge: unreadAlertCount || undefined },
+      ],
+    },
+    {
+      title: 'Platform',
+      items: [
+        { to: '/driver', label: 'Driver Mobile App', icon: Smartphone },
+        { to: '/dashboard/admin', label: 'Admin Console', icon: ShieldCheck },
+        { to: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
+        { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+      ],
+    },
   ]
 
-  const driverNav = [
-    { icon: Smartphone, label: t('nav.driver_app'), path: '/driver' },
-    { icon: Navigation, label: t('nav.trips'),      path: '/dashboard/trips' },
-    { icon: Fuel,       label: t('nav.fuel'),       path: '/dashboard/fuel' },
-    { icon: Settings,   label: t('nav.settings'),   path: '/dashboard/settings' },
-  ]
+  const visibleGroups = groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => canAccessRoute(activeRole, item.to)),
+    }))
+    .filter((group) => group.items.length > 0)
 
-  const navItems = userRole === 'driver' ? driverNav : adminNav
-  const isActive = (path: string) => path === '/dashboard' ? location.pathname === '/dashboard' : location.pathname.startsWith(path)
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/auth', { replace: true })
+  }
 
   return (
-    <aside className={cn(
-      'relative h-screen flex flex-col transition-all duration-500 ease-[0.16, 1, 0.3, 1] border-r border-white/5 flex-shrink-0 z-40 bg-[#080808] scrollbar-custom overflow-hidden',
-      open ? 'w-[260px]' : 'w-[80px]'
-    )}>
-      {/* Sidebar Gradient Background */}
-      <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-primary/5 to-transparent pointer-events-none" />
-
-      {/* Logo Section */}
-      <div className={cn(
-        'relative flex items-center h-20 px-6 flex-shrink-0',
-        !open && 'justify-center px-0'
-      )}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-[12px] flex items-center justify-center bg-black border border-primary/20 shadow-gold group cursor-pointer hover:scale-110 transition-transform">
-             <Truck className="w-6 h-6 text-primary shadow-gold" />
-          </div>
-          <AnimatePresence>
-            {open && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="min-w-0"
-              >
-                <h1 className="font-display font-black text-lg text-white leading-none tracking-tighter">DriveMitra</h1>
-                <p className="text-[9px] text-primary/60 mt-1 font-black uppercase tracking-[0.2em]">
-                  {userRole === 'admin' ? 'Elite Commander' : 'Active Pilot'}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto scrollbar-none">
-        {navItems.map(({ icon: Icon, label, path, badge }) => {
-          const active = isActive(path)
-          return (
-            <NavLink key={path} to={path}
-              className={cn(
-                'flex items-center gap-4 px-3 py-3 rounded-[12px] transition-all duration-300 relative group overflow-hidden',
-                !open && 'justify-center px-0',
-                active ? 'bg-primary/10 text-primary shadow-[inset_0_0_20px_rgba(245,197,24,0.05)]' : 'text-secondary-text hover:text-white hover:bg-white/5'
-              )}>
-              {/* Active Indicator Bar */}
-              {active && (
-                <motion.div 
-                  layoutId="activeIndicator"
-                  className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary rounded-r-full"
-                />
-              )}
-              
-              <div className="relative flex-shrink-0">
-                <Icon className={cn('transition-all duration-300', active ? 'w-5 h-5 shadow-gold scale-110' : 'w-5 h-5 opacity-60 group-hover:opacity-100')} />
-                {badge && badge > 0 && (
-                  <span className="absolute -top-2 -right-2 min-w-[16px] h-4 rounded-full bg-danger text-[9px] font-black flex items-center justify-center px-1 text-white border-2 border-[#0A0A0A] shadow-lg">
-                    {badge > 99 ? '99+' : badge}
-                  </span>
-                )}
-              </div>
-
-              <AnimatePresence>
-                {open && (
-                  <motion.span 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="truncate font-bold text-[13px] tracking-tight"
-                  >
-                    {label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-
-              {/* Tooltip for collapsed mode */}
-              {!open && (
-                <div className="absolute left-20 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-all -translate-x-2 group-hover:translate-x-0 z-50 bg-[#111] border border-white/5 shadow-2xl">
-                  {label}
-                </div>
-              )}
-            </NavLink>
-          )
-        })}
-      </nav>
-
-      {/* Branding / Badge Area */}
+    <>
       {open && (
-        <div className="px-5 mb-4">
-           <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex items-center gap-3 group hover:border-primary/20 transition-all cursor-default">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
-                 <ShieldCheck className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Enterprise</p>
-                 <p className="text-[11px] text-muted font-bold">Priority Support</p>
-              </div>
-           </div>
-        </div>
+        <div
+          className="fixed inset-0 z-40 bg-[#625346]/25 backdrop-blur-[1px] lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
       )}
 
-      {/* User Area */}
-      <div className="p-4 border-t border-white/5 bg-black/40">
-        <div className={cn(
-          'flex items-center gap-3 p-3 rounded-2xl hover:bg-white/5 transition-colors group cursor-pointer',
-          !open && 'justify-center'
-        )}>
-          <div className="w-10 h-10 rounded-full border border-white/10 overflow-hidden bg-white/5 flex-shrink-0 relative">
-            <User className="w-full h-full p-2 text-muted" />
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-success border-2 border-black rounded-full" />
-          </div>
-          {open && (
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-black text-white truncate mb-0.5">Kishore Reddy</p>
-              <p className="text-[10px] text-muted font-bold truncate uppercase tracking-widest">Fleet Director</p>
-            </div>
-          )}
-          {open && <LogOut className="w-4 h-4 text-muted hover:text-danger hover:scale-110 transition-all" />}
-        </div>
-      </div>
-
-      {/* Collapse Toggle */}
-      <button 
-        onClick={onToggle}
-        className="absolute -right-0 top-1/2 -translate-y-1/2 w-8 h-12 bg-[#111] border-l border-y border-white/10 rounded-l-xl flex items-center justify-center hover:bg-white/5 transition-all text-muted group opacity-0 hover:opacity-100"
-        style={{ right: '-1px' }}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[276px] bg-[#EEE8F7] border-r border-[#D4C7E6] flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 shrink-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-      </button>
-    </aside>
+        <div className="h-16 px-5 border-b border-[#D4C7E6] flex items-center justify-between shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2.5 text-left"
+          >
+            <div className="w-8 h-8 rounded-[10px] bg-[#E8C65A] border border-[#C9A63B] text-[#625346] flex items-center justify-center shrink-0 shadow-subtle">
+              <Activity className="w-4 h-4 text-[#625346]" />
+            </div>
+            <div>
+              <span className="font-bold text-base text-[#625346] block leading-none">
+                DriveMitra
+              </span>
+              <span className="text-[11px] text-[#7D6D5F] font-medium capitalize mt-0.5 block">
+                {environment} workspace
+              </span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation menu"
+            className="lg:hidden p-1.5 rounded-lg text-[#625346] hover:bg-[#DFD3F2]"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto scrollbar-custom px-3 py-4 space-y-5" aria-label="Dashboard navigation">
+          {visibleGroups.map((group) => (
+            <div key={group.title}>
+              <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#7D6D5F]">
+                {group.title}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `flex items-center justify-between gap-2 px-2.5 py-2 rounded-[10px] text-[13.5px] transition-colors whitespace-nowrap ${
+                          isActive
+                            ? 'bg-[#E8C65A]/45 text-[#625346] font-semibold border border-[#C9A63B] shadow-subtle'
+                            : 'text-[#625346] font-medium border border-transparent hover:bg-[#F7F0D9]/80'
+                        }`
+                      }
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <span className="flex items-center gap-2.5 min-w-0">
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#625346]' : 'text-[#6E5696]'}`} />
+                            <span className="truncate">{item.label}</span>
+                          </span>
+                          {typeof item.badge === 'number' && item.badge > 0 && (
+                            <span
+                              className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-[6px] border ${
+                                isActive
+                                  ? 'bg-[#FBF6E6] text-[#625346] border-[#C9A63B]'
+                                  : 'bg-[#F4EBD5] text-[#625346] border-[#D4C7E6]'
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-[#D4C7E6] shrink-0">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium text-[#625346] hover:bg-[#D9786C]/20 transition-colors"
+          >
+            <LogOut className="w-4 h-4 shrink-0 text-[#B84E42]" />
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </aside>
+    </>
   )
 }
