@@ -1,16 +1,19 @@
 import React, { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Activity, ArrowRight, Globe, KeyRound, ShieldCheck, Smartphone, Truck } from 'lucide-react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowRight, Globe, KeyRound, Layers, ShieldCheck, Smartphone } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth, validateEmailFormat } from '../hooks/useAuth'
 import { useFleet } from '../hooks/useFleet'
 import { useTranslation } from '../i18n/useTranslation'
 import { languageOptions } from '../i18n/translations'
+import { canAccessRoute, getDefaultHomeForRole } from '../utils/rbac'
+import { BrandLogo } from '../components/ui/BrandLogo'
 import type { OperatingEnvironment, OrganizationRole } from '../types/fleet'
 
 export default function Auth() {
   const navigate = useNavigate()
-  const { signIn, signUp, signInWithOtp, verifyOtp, enterDemoSession, isCloudAuthReady } = useAuth()
+  const location = useLocation()
+  const { signIn, signUp, signInWithOtp, verifyOtp, enterDemoSession } = useAuth()
   const { setEnvironment, setActiveRole } = useFleet()
   const { language, setLanguage } = useTranslation()
 
@@ -23,8 +26,18 @@ export default function Auth() {
   const [fullName, setFullName] = useState('')
   const [otpToken, setOtpToken] = useState('')
   const [otpSent, setOtpSent] = useState(false)
+  const [issuedOtpPreview, setIssuedOtpPreview] = useState<string | null>(null)
   const [fieldError, setFieldError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const requestedFrom = (location.state as { from?: string } | null)?.from
+
+  const resolveSafeDestination = (role: OrganizationRole, preferred: string) => {
+    if (requestedFrom && canAccessRoute(role, requestedFrom) && (requestedFrom.startsWith('/dashboard') || requestedFrom.startsWith('/driver'))) {
+      return requestedFrom
+    }
+    return canAccessRoute(role, preferred) ? preferred : getDefaultHomeForRole(role)
+  }
 
   const handleLaunchEnvironment = (targetPath: '/dashboard' | '/driver') => {
     setEnvironment(selectedEnv)
@@ -42,7 +55,7 @@ export default function Auth() {
       isDemo: selectedEnv !== 'production',
     })
     toast.success(`Entered ${selectedEnv.toUpperCase()} workspace as ${roleToUse.replace('_', ' ')}`)
-    navigate(targetPath)
+    navigate(resolveSafeDestination(roleToUse, targetPath))
   }
 
   const handleCredentialSubmit = async (e: React.FormEvent) => {
@@ -57,13 +70,18 @@ export default function Auth() {
       setSubmitting(true)
       try {
         if (!otpSent) {
-          const { error } = await signInWithOtp(email)
+          const { error, otpCode } = await signInWithOtp(email)
           if (error) {
             setFieldError(error.message)
             toast.error(error.message)
           } else {
             setOtpSent(true)
-            toast.success('6-digit OTP verification code sent to your email.')
+            setIssuedOtpPreview(otpCode ?? null)
+            toast.success(
+              otpCode
+                ? `Verification code generated: ${otpCode}`
+                : '6-digit verification code generated.',
+            )
           }
         } else {
           const { error } = await verifyOtp(email, otpToken)
@@ -72,8 +90,10 @@ export default function Auth() {
             toast.error(error.message)
           } else {
             setEnvironment('production')
-            toast.success('OTP verified. Entering Production environment.')
-            navigate('/dashboard')
+            setActiveRole('fleet_manager')
+            setIssuedOtpPreview(null)
+            toast.success('OTP verified. Entering workspace.')
+            navigate(resolveSafeDestination('fleet_manager', '/dashboard'))
           }
         }
       } finally {
@@ -104,8 +124,9 @@ export default function Auth() {
           toast.error(error.message)
         } else {
           setEnvironment('production')
-          toast.success('Signed in to Production environment.')
-          navigate('/dashboard')
+          setActiveRole('fleet_manager')
+          toast.success('Signed in to Production workspace.')
+          navigate(resolveSafeDestination('fleet_manager', '/dashboard'))
         }
       } else {
         const { error } = await signUp(email, password, fullName)
@@ -113,7 +134,7 @@ export default function Auth() {
           setFieldError(error.message)
           toast.error(error.message)
         } else {
-          toast.success('Account created. Check your inbox to verify your email.')
+          toast.success('Organization account created locally. Sign in with your credentials.')
           setAuthTab('signin')
         }
       }
@@ -123,19 +144,19 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F0D9] flex flex-col">
-      <header className="bg-[#FBF6E6] border-b border-[#E0D4B7] px-6 h-16 flex items-center justify-between gap-4">
-        <Link to="/" className="font-extrabold text-lg text-[#625346] whitespace-nowrap">
-          DriveMitra
+    <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
+      <header className="bg-[#FFFFFF] border-b border-[#E5E5E5] px-6 h-16 flex items-center justify-between gap-4">
+        <Link to="/" aria-label="DriveMitra" className="flex items-center shrink-0">
+          <BrandLogo size="header" />
         </Link>
         <div className="flex items-center gap-3">
-          <Globe className="w-4 h-4 text-[#7D6D5F]" />
+          <Globe className="w-4 h-4 text-[#958777]" />
           <label htmlFor="auth-lang" className="sr-only">Language</label>
           <select
             id="auth-lang"
             value={language}
             onChange={(e) => setLanguage(e.target.value as typeof language)}
-            className="text-xs font-medium text-[#625346] bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] px-2.5 py-1.5 outline-none"
+            className="text-xs font-medium text-[#625346] bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 outline-none"
           >
             {languageOptions.map((opt) => (
               <option key={opt.code} value={opt.code}>
@@ -148,12 +169,10 @@ export default function Auth() {
 
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Context Card - Pale Lavender Luxury Panel */}
-          <div className="lg:col-span-5 bg-[#EEE8F7] border border-[#D4C7E6] text-[#625346] rounded-2xl p-8 shadow-card flex flex-col justify-between">
+          {/* Left Context Card - Pale Lavender Panel */}
+          <div className="lg:col-span-5 bg-[#EEE8F7] border border-[#DDD3ED] text-[#625346] rounded-2xl p-8 shadow-card flex flex-col justify-between">
             <div>
-              <div className="w-10 h-10 rounded-[10px] bg-[#E8C65A] border border-[#C9A63B] flex items-center justify-center mb-6">
-                <Activity className="w-5 h-5 text-[#625346]" />
-              </div>
+              <BrandLogo size="lg" className="mb-5 border border-[#DDD3ED] shadow-subtle" />
               <h1 className="text-2xl font-bold text-[#625346]">
                 DriveMitra Workspace Access
               </h1>
@@ -162,25 +181,25 @@ export default function Auth() {
               </p>
             </div>
 
-            <div className="mt-8 space-y-3 text-xs text-[#625346] border-t border-[#D4C7E6] pt-6">
+            <div className="mt-8 space-y-3 text-xs text-[#625346] border-t border-[#DDD3ED] pt-6">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#4D6E4A] shrink-0" />
-                <span>Organization-scoped Row Level Security (RLS)</span>
+                <span>Organization-scoped role-based access & tenant isolation</span>
               </div>
               <div className="flex items-center gap-2">
-                <Truck className="w-4 h-4 text-[#6E5696] shrink-0" />
+                <Layers className="w-4 h-4 text-[#6E5696] shrink-0" />
                 <span>ICE, CNG, and EV Commercial Fleet Digital Twins</span>
               </div>
               <div className="flex items-center gap-2">
                 <Smartphone className="w-4 h-4 text-[#6E5696] shrink-0" />
-                <span>Dedicated Driver Mobile App with offline recovery</span>
+                <span>Runs standalone in your browser with local persistence</span>
               </div>
             </div>
           </div>
 
           {/* Right Authentication Panel */}
           <div className="lg:col-span-7 enterprise-card p-8">
-            <div className="flex flex-wrap items-center gap-1 p-1 bg-[#EEE8F7] rounded-[10px] border border-[#D4C7E6] mb-6" role="tablist">
+            <div className="flex flex-wrap items-center gap-1 p-1 bg-[#EEE8F7] rounded-[10px] border border-[#DDD3ED] mb-6" role="tablist">
               {[
                 { id: 'workspace', label: 'Demo & Pilot' },
                 { id: 'signin', label: 'Sign In' },
@@ -197,7 +216,7 @@ export default function Auth() {
                     setFieldError(null)
                   }}
                   className={`flex-1 py-2 px-3 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
-                    authTab === t.id ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+                    authTab === t.id ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle border border-[#DDD3ED]' : 'text-[#958777] hover:text-[#625346]'
                   }`}
                 >
                   {t.label}
@@ -217,12 +236,12 @@ export default function Auth() {
                         onClick={() => setSelectedEnv(env)}
                         className={`p-3 rounded-[10px] border text-left transition-colors ${
                           selectedEnv === env
-                            ? 'border-[#C9A63B] bg-[#E8C65A]/45 text-[#625346] shadow-subtle'
-                            : 'border-[#E0D4B7] bg-[#FBF6E6] text-[#625346] hover:bg-[#EEE8F7]'
+                            ? 'border-[#D8B442] bg-[#E8C65A]/45 text-[#625346] shadow-subtle'
+                            : 'border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7]'
                         }`}
                       >
                         <span className="text-xs font-bold uppercase block">{env}</span>
-                        <span className="text-[11px] text-[#7D6D5F] block mt-0.5">
+                        <span className="text-[11px] text-[#958777] block mt-0.5">
                           {env === 'demo' ? '2 sample orgs' : env === 'pilot' ? 'Field evaluation' : 'Clean org slate'}
                         </span>
                       </button>
@@ -269,18 +288,23 @@ export default function Auth() {
               </div>
             ) : (
               <form onSubmit={handleCredentialSubmit} noValidate className="space-y-4">
-                {!isCloudAuthReady && (
-                  <div className="p-3 rounded-[10px] bg-[#E8C65A]/25 border border-[#C9A63B] text-xs text-[#625346]">
-                    Cloud Supabase Auth variables are not configured in this preview environment. Submissions validate locally and recommend Instant Demo & Pilot Access.
-                  </div>
-                )}
-
                 {fieldError && (
                   <div
                     role="alert"
-                    className="p-3 rounded-[10px] bg-[#D9786C]/22 border border-[#D9786C] text-xs font-semibold text-[#625346]"
+                    className="p-3 rounded-[10px] bg-[#FCECEB] border border-[#D9786C] text-xs font-semibold text-[#625346]"
                   >
                     {fieldError}
+                  </div>
+                )}
+
+                {authTab === 'otp' && otpSent && issuedOtpPreview && (
+                  <div className="p-3 rounded-[10px] bg-[#EEE8F7] border border-[#B8A3D9] text-xs text-[#625346] flex items-center justify-between gap-3">
+                    <span>
+                      Local OTP verification code for <strong>{email.trim().toLowerCase()}</strong>:
+                    </span>
+                    <span className="font-mono font-bold text-sm px-2 py-0.5 rounded bg-[#FFFFFF] border border-[#DDD3ED] tracking-widest">
+                      {issuedOtpPreview}
+                    </span>
                   </div>
                 )}
 
@@ -319,12 +343,29 @@ export default function Auth() {
 
                 {authTab === 'otp' ? (
                   otpSent && (
-                    <div>
-                      <label htmlFor="auth-otp" className="dm-label">6-Digit Email Verification Code</label>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="auth-otp" className="dm-label mb-0">6-Digit Verification Code</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOtpSent(false)
+                            setOtpToken('')
+                            setIssuedOtpPreview(null)
+                            setFieldError(null)
+                          }}
+                          className="text-[11px] font-semibold text-[#6E5696] hover:underline"
+                        >
+                          Change email
+                        </button>
+                      </div>
                       <input
                         id="auth-otp"
                         value={otpToken}
-                        onChange={(e) => setOtpToken(e.target.value)}
+                        onChange={(e) => {
+                          setOtpToken(e.target.value)
+                          setFieldError(null)
+                        }}
                         placeholder="123456"
                         maxLength={6}
                         className="dm-input font-mono tracking-widest"
@@ -354,7 +395,7 @@ export default function Auth() {
                   {submitting ? (
                     'Authenticating...'
                   ) : authTab === 'signin' ? (
-                    'Sign In to Production'
+                    'Sign In to Workspace'
                   ) : authTab === 'signup' ? (
                     'Create Organization Account'
                   ) : otpSent ? (
@@ -369,8 +410,8 @@ export default function Auth() {
                     </>
                   )}
                 </button>
-                <p className="text-xs text-[#7D6D5F]">
-                  Supabase authentication is used for Production accounts when configured in environment variables.
+                <p className="text-xs text-[#958777]">
+                  Accounts, credentials, and workspace sessions persist locally in your browser—no backend server or environment variables required.
                 </p>
               </form>
             )}

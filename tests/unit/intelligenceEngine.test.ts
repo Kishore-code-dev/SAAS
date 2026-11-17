@@ -228,4 +228,67 @@ describe('intelligenceEngine unit suite', () => {
       'Reg,Notes\nTN 58 AB 4321,"Brake, ""front"" check"',
     )
   })
+
+  it('excludes inaccurate GPS (>25m) and disabled motion sensor events from automatic driver penalties', () => {
+    const inaccurateEvent = {
+      ...SAMPLE_DRIVER_EVENTS[0],
+      id: 'ev-bad-gps',
+      gpsAccuracyMeters: 42,
+      disputeStatus: 'none' as const,
+    }
+    const gpsEval = evaluateDriverSafety({
+      driver: SAMPLE_DRIVER_KAVERI,
+      events: [inaccurateEvent],
+      trips: [],
+      corridors: [SAMPLE_CORRIDOR_MADURAI],
+      vehicles: [SAMPLE_VEHICLE_ICE],
+    })
+    expect(gpsEval.brakingScore).toBe(95)
+    expect(gpsEval.roadAdjustedNote).toContain('excluded from automatic penalty')
+
+    const motionRestrictedEval = evaluateDriverSafety({
+      driver: SAMPLE_DRIVER_KAVERI,
+      events: [SAMPLE_DRIVER_EVENTS[0]],
+      trips: [],
+      corridors: [SAMPLE_CORRIDOR_MADURAI],
+      vehicles: [
+        {
+          ...SAMPLE_VEHICLE_ICE,
+          telemetry: { ...SAMPLE_VEHICLE_ICE.telemetry, motionPermissionGranted: false },
+        },
+      ],
+    })
+    expect(motionRestrictedEval.brakingScore).toBe(95)
+    expect(motionRestrictedEval.roadAdjustedNote).toContain('Motion sensor restricted')
+  })
+
+  it('preserves manager-verified fuel status when re-analyzing transactions', () => {
+    const verifiedDup = SAMPLE_FUEL_TXS.map((tx) =>
+      tx.id === 'f-ice-dup' ? { ...tx, verificationStatus: 'verified' as const } : tx,
+    )
+    const analyzed = analyzeFuelTransactions(verifiedDup, [SAMPLE_VEHICLE_ICE])
+    const dup = analyzed.find((tx) => tx.id === 'f-ice-dup')
+    expect(dup?.verificationStatus).toBe('verified')
+    expect(dup?.anomalyFlags.some((f) => f.toLowerCase().includes('duplicate'))).toBe(true)
+  })
+
+  it('maintains exact sum parity between vehicleCostBreakdown and fleet totals across 7d, 30d, and 90d windows', () => {
+    for (const period of ['7d', '30d', '90d'] as const) {
+      const fin = computeFinancialIntelligence({
+        vehicles: [SAMPLE_VEHICLE_ICE, SAMPLE_VEHICLE_EV],
+        fuelTransactions: SAMPLE_FUEL_TXS,
+        maintenanceRecords: SAMPLE_MAINTENANCE,
+        predictions: [],
+        trips: [],
+        period,
+        nowMs: FIXED_NOW_MS,
+      })
+      const fuelSum = fin.vehicleCostBreakdown.reduce((s, r) => s + r.fuelSpendInr, 0)
+      const maintSum = fin.vehicleCostBreakdown.reduce((s, r) => s + r.maintenanceSpendInr, 0)
+      const totalSum = fin.vehicleCostBreakdown.reduce((s, r) => s + r.totalSpendInr, 0)
+      expect(fin.fuelExpenditureInr).toBe(fuelSum)
+      expect(fin.maintenanceExpenditureInr).toBe(maintSum)
+      expect(fin.operatingExpenditureInr).toBe(totalSum)
+    }
+  })
 })

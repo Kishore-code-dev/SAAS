@@ -37,34 +37,34 @@ export function SeverityText({
 }) {
   const styleMap: Record<string, { classes: string; icon: React.ComponentType<{ className?: string }>; iconColor: string }> = {
     critical: {
-      classes: 'text-[#625346] bg-[#D9786C]/22 border-[#D9786C]',
+      classes: 'text-[#625346] bg-[#FCECEB] border-[#E7A8A0]',
       icon: AlertOctagon,
       iconColor: 'text-[#B84E42]',
     },
     offline: {
-      classes: 'text-[#625346] bg-[#D9786C]/22 border-[#D9786C]',
+      classes: 'text-[#625346] bg-[#FCECEB] border-[#E7A8A0]',
       icon: AlertOctagon,
       iconColor: 'text-[#B84E42]',
     },
     high: {
-      classes: 'text-[#625346] bg-[#E8C65A]/30 border-[#C9A63B]',
+      classes: 'text-[#625346] bg-[#FDF3E7] border-[#E8C290]',
       icon: AlertTriangle,
-      iconColor: 'text-[#8F6D15]',
+      iconColor: 'text-[#A56021]',
     },
     'at-risk': {
-      classes: 'text-[#625346] bg-[#E8C65A]/30 border-[#C9A63B]',
+      classes: 'text-[#625346] bg-[#FDF3E7] border-[#E8C290]',
       icon: AlertTriangle,
-      iconColor: 'text-[#8F6D15]',
+      iconColor: 'text-[#A56021]',
     },
     stale: {
-      classes: 'text-[#625346] bg-[#E8C65A]/30 border-[#C9A63B]',
+      classes: 'text-[#625346] bg-[#FDF3E7] border-[#E8C290]',
       icon: AlertTriangle,
-      iconColor: 'text-[#8F6D15]',
+      iconColor: 'text-[#A56021]',
     },
     delayed: {
-      classes: 'text-[#625346] bg-[#E8C65A]/30 border-[#C9A63B]',
+      classes: 'text-[#625346] bg-[#FDF3E7] border-[#E8C290]',
       icon: AlertTriangle,
-      iconColor: 'text-[#8F6D15]',
+      iconColor: 'text-[#A56021]',
     },
     moderate: {
       classes: 'text-[#625346] bg-[#EEE8F7] border-[#B8A3D9]',
@@ -77,24 +77,24 @@ export function SeverityText({
       iconColor: 'text-[#6E5696]',
     },
     normal: {
-      classes: 'text-[#625346] bg-[#789A75]/22 border-[#789A75]',
+      classes: 'text-[#625346] bg-[#EDF4EC] border-[#B8D0B5]',
       icon: CheckCircle2,
       iconColor: 'text-[#4D6E4A]',
     },
     healthy: {
-      classes: 'text-[#625346] bg-[#789A75]/22 border-[#789A75]',
+      classes: 'text-[#625346] bg-[#EDF4EC] border-[#B8D0B5]',
       icon: CheckCircle2,
       iconColor: 'text-[#4D6E4A]',
     },
     live: {
-      classes: 'text-[#625346] bg-[#789A75]/22 border-[#789A75]',
+      classes: 'text-[#625346] bg-[#EDF4EC] border-[#B8D0B5]',
       icon: CheckCircle2,
       iconColor: 'text-[#4D6E4A]',
     },
     low: {
-      classes: 'text-[#625346] bg-[#F4EBD5] border-[#E0D4B7]',
+      classes: 'text-[#625346] bg-[#FAFAFA] border-[#E5E5E5]',
       icon: Info,
-      iconColor: 'text-[#7D6D5F]',
+      iconColor: 'text-[#958777]',
     },
   }
 
@@ -103,7 +103,7 @@ export function SeverityText({
   const display = label ?? severity.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[8px] text-xs font-semibold border whitespace-nowrap ${entry.classes}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap ${entry.classes}`}
     >
       <Icon className={`w-3 h-3 shrink-0 ${entry.iconColor}`} />
       <span>{display}</span>
@@ -129,22 +129,22 @@ export function EnterpriseModal({
   if (!open) return null
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#625346]/25 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-[#625346]/20 backdrop-blur-[2px] flex items-center justify-center p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
-      <div className={`bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl shadow-elevated w-full ${maxWidthClass} p-6 my-auto animate-fade-in-up`}>
-        <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#E0D4B7]">
+      <div className={`bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated w-full ${maxWidthClass} p-6 my-auto animate-fade-in-up`}>
+        <div className="flex items-start justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
           <div>
             <h2 className="text-lg font-bold text-[#625346]">{title}</h2>
-            {subtitle && <p className="text-xs text-[#7D6D5F] mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-xs text-[#958777] mt-0.5">{subtitle}</p>}
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label={`Close ${title}`}
-            className="p-1.5 rounded-lg text-[#7D6D5F] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors"
+            className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -169,7 +169,7 @@ export function EmptySectionState({
   return (
     <div className="enterprise-card p-10 text-center">
       <h3 className="text-base font-bold text-[#625346]">{title}</h3>
-      <p className="text-sm text-[#7D6D5F] mt-1 max-w-md mx-auto">{description}</p>
+      <p className="text-sm text-[#958777] mt-1 max-w-md mx-auto">{description}</p>
       {actionLabel && onAction && (
         <button type="button" onClick={onAction} className="btn-primary mt-5">
           {actionLabel}
@@ -190,12 +190,12 @@ export function AccessDeniedState({
 }) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <div className="enterprise-card max-w-md w-full p-8 text-center border-[#D4C7E6]">
+      <div className="enterprise-card max-w-md w-full p-8 text-center border-[#E5E5E5]">
         <div className="w-12 h-12 rounded-xl bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center mx-auto mb-4">
           <ShieldAlert className="w-6 h-6" />
         </div>
         <h2 className="text-xl font-bold text-[#625346]">Access Restricted</h2>
-        <p className="text-sm text-[#7D6D5F] mt-2">
+        <p className="text-sm text-[#958777] mt-2">
           Your active role (<span className="font-semibold text-[#625346] capitalize">{roleLabel}</span>) is not authorized to open{' '}
           <span className="font-semibold text-[#625346]">{targetPath}</span>.
         </p>

@@ -6,16 +6,16 @@ export default function NotFound() {
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-[#F7F0D9] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#FFFFFF] flex items-center justify-center p-6">
       <div className="enterprise-card max-w-lg w-full p-8 text-center">
-        <div className="w-12 h-12 rounded-xl bg-[#E8C65A]/30 border border-[#C9A63B] text-[#8F6D15] flex items-center justify-center mx-auto mb-4">
+        <div className="w-12 h-12 rounded-xl bg-[#E8C65A]/30 border border-[#D8B442] text-[#A56021] flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="w-6 h-6" />
         </div>
-        <p className="text-xs font-semibold text-[#7D6D5F] uppercase tracking-wide">404 · Route Not Found</p>
+        <p className="text-xs font-semibold text-[#958777] uppercase tracking-wide">404 · Route Not Found</p>
         <h1 className="dm-section-title mt-1">
           Requested page is unavailable
         </h1>
-        <p className="text-sm text-[#7D6D5F] mt-2">
+        <p className="text-sm text-[#958777] mt-2">
           The requested fleet route does not exist or may have moved to the Command Centre structure.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">

@@ -50,6 +50,7 @@ export default function VehicleDetails() {
     decommissionVehicle,
     updateVehicle,
     scheduleMaintenance,
+    nowTick,
   } = useFleet()
 
   const [activeTab, setActiveTab] = useState<DigitalTwinTab>('Overview')
@@ -91,7 +92,7 @@ export default function VehicleDetails() {
   const canScheduleMaint = canPerformAction(activeRole, 'schedule_maintenance')
 
   const assignedDriver = drivers.find((d) => d.id === vehicle.assignedDriverId)
-  const freshness = classifyTelemetryFreshness(vehicle.telemetry.lastUpdatedAt, vehicle.telemetry.connectionState)
+  const freshness = classifyTelemetryFreshness(vehicle.telemetry.lastUpdatedAt, vehicle.telemetry.connectionState, nowTick)
   const vehicleTrips = trips.filter((t) => t.vehicleId === vehicle.id)
   const vehicleFuel = fuelTransactions.filter((f) => f.vehicleId === vehicle.id)
   const vehicleMaint = maintenanceRecords.filter((m) => m.vehicleId === vehicle.id)
@@ -158,7 +159,7 @@ export default function VehicleDetails() {
           <button
             type="button"
             onClick={() => navigate('/dashboard/fleet')}
-            className="text-xs font-semibold text-[#7D6D5F] hover:text-[#625346] inline-flex items-center gap-1.5 mb-2"
+            className="text-xs font-semibold text-[#958777] hover:text-[#625346] inline-flex items-center gap-1.5 mb-2"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             All Fleet Assets
@@ -169,7 +170,7 @@ export default function VehicleDetails() {
             <SeverityText severity={freshness.freshness} label={freshness.label} />
             {vehicle.decommissioned && <SeverityText severity="moderate" label="Archived" />}
           </div>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {vehicle.make} {vehicle.model} ({vehicle.year}) · {vehicle.category} · {vehicle.powertrain} ({vehicle.fuelType}) · {vehicle.cityName}
           </p>
         </div>
@@ -214,7 +215,7 @@ export default function VehicleDetails() {
       </div>
 
       {/* 10 Digital Twin Tabs */}
-      <div className="border-b border-[#E0D4B7] overflow-x-auto">
+      <div className="border-b border-[#E5E5E5] overflow-x-auto">
         <div className="flex items-center gap-1 min-w-max" role="tablist" aria-label="Vehicle Digital Twin Sections">
           {TABS.map((tab) => (
             <button
@@ -226,7 +227,7 @@ export default function VehicleDetails() {
               className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab
                   ? 'border-[#6E5696] text-[#625346]'
-                  : 'border-transparent text-[#7D6D5F] hover:text-[#625346]'
+                  : 'border-transparent text-[#958777] hover:text-[#625346]'
               }`}
             >
               {tab}
@@ -241,28 +242,28 @@ export default function VehicleDetails() {
           <div className="enterprise-card p-5 space-y-3">
             <h2 className="dm-card-title text-sm">Registration & Compliance</h2>
             <dl className="space-y-2 text-xs">
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Registration No.</dt><dd className="tabular-nums font-semibold">{vehicle.registrationNumber}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">RC Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.registrationExpiry)}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Insurance Provider</dt><dd className="font-medium">{vehicle.insuranceProvider}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Insurance Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.insuranceExpiry)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Registration No.</dt><dd className="tabular-nums font-semibold">{vehicle.registrationNumber}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">RC Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.registrationExpiry)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Insurance Provider</dt><dd className="font-medium">{vehicle.insuranceProvider}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Insurance Expiry</dt><dd className="tabular-nums">{formatShortDate(vehicle.insuranceExpiry)}</dd></div>
             </dl>
           </div>
           <div className="enterprise-card p-5 space-y-3">
             <h2 className="dm-card-title text-sm">Utilization & Service</h2>
             <dl className="space-y-2 text-xs">
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Odometer</dt><dd className="tabular-nums font-semibold">{vehicle.odometerKm.toLocaleString('en-IN')} km</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Daily Avg Usage</dt><dd className="tabular-nums">{vehicle.dailyAvgKm} km/day</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Last Service Date</dt><dd className="tabular-nums">{formatShortDate(vehicle.lastServiceDate)}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Next Service Due</dt><dd className="tabular-nums">{formatShortDate(vehicle.nextServiceDueDate)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Odometer</dt><dd className="tabular-nums font-semibold">{vehicle.odometerKm.toLocaleString('en-IN')} km</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Daily Avg Usage</dt><dd className="tabular-nums">{vehicle.dailyAvgKm} km/day</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Last Service Date</dt><dd className="tabular-nums">{formatShortDate(vehicle.lastServiceDate)}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Next Service Due</dt><dd className="tabular-nums">{formatShortDate(vehicle.nextServiceDueDate)}</dd></div>
             </dl>
           </div>
           <div className="enterprise-card p-5 space-y-3">
             <h2 className="dm-card-title text-sm">Assignment & Health</h2>
             <dl className="space-y-2 text-xs">
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Assigned Driver</dt><dd className="font-semibold">{assignedDriver?.name ?? 'Unassigned'}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Corridor Base</dt><dd>{vehicle.cityName}</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">{vehicle.powertrain === 'EV' ? 'Battery SOC' : 'Fuel Level'}</dt><dd className="tabular-nums">{vehicle.fuelOrSocPct}%</dd></div>
-              <div className="flex justify-between"><dt className="text-[#7D6D5F]">Composite Health</dt><dd className="tabular-nums font-bold">{vehicle.healthScore}%</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Assigned Driver</dt><dd className="font-semibold">{assignedDriver?.name ?? 'Unassigned'}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Corridor Base</dt><dd>{vehicle.cityName}</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">{vehicle.powertrain === 'EV' ? 'Battery SOC' : 'Fuel Level'}</dt><dd className="tabular-nums">{vehicle.fuelOrSocPct}%</dd></div>
+              <div className="flex justify-between"><dt className="text-[#958777]">Composite Health</dt><dd className="tabular-nums font-bold">{vehicle.healthScore}%</dd></div>
             </dl>
           </div>
         </div>
@@ -270,31 +271,31 @@ export default function VehicleDetails() {
 
       {activeTab === 'Telemetry' && (
         <div className="enterprise-card p-6 space-y-5">
-          <div className="flex items-start gap-3 p-4 rounded-[10px] bg-[#EEE8F7] border border-[#D4C7E6] text-xs text-[#625346]">
+          <div className="flex items-start gap-3 p-4 rounded-[10px] bg-[#EEE8F7] border border-[#DDD3ED] text-xs text-[#625346]">
             <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
             <p>{TELEMETRY_SCOPE_DISCLOSURE}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
-              <span className="text-[#7D6D5F] block">Telemetry Freshness</span>
+            <div className="p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px]">
+              <span className="text-[#958777] block">Telemetry Freshness</span>
               <div className="mt-1.5"><SeverityText severity={freshness.freshness} label={freshness.label} /></div>
             </div>
-            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
-              <span className="text-[#7D6D5F] block">GPS Accuracy</span>
+            <div className="p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px]">
+              <span className="text-[#958777] block">GPS Accuracy</span>
               <span className="tabular-nums text-base font-bold text-[#625346] mt-1 block">±{vehicle.telemetry.gpsAccuracyMeters} m</span>
             </div>
-            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
-              <span className="text-[#7D6D5F] block">Signal Quality</span>
+            <div className="p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px]">
+              <span className="text-[#958777] block">Signal Quality</span>
               <span className="tabular-nums text-base font-bold text-[#625346] mt-1 block">{vehicle.telemetry.signalQualityPct}%</span>
             </div>
-            <div className="p-4 bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px]">
-              <span className="text-[#7D6D5F] block">Motion Permission</span>
+            <div className="p-4 bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px]">
+              <span className="text-[#958777] block">Motion Permission</span>
               <span className="font-semibold text-[#625346] mt-1 block">
                 {vehicle.telemetry.motionPermissionGranted ? 'Granted' : 'Missing / Restricted'}
               </span>
             </div>
           </div>
-          <p className="text-xs text-[#7D6D5F] tabular-nums">
+          <p className="text-xs text-[#958777] tabular-nums">
             Last coordinates: {vehicle.telemetry.location.lat.toFixed(4)}, {vehicle.telemetry.location.lng.toFixed(4)} ({vehicle.telemetry.cityLabel}) · Updated {formatDateTime(vehicle.telemetry.lastUpdatedAt, activeOrganization.timezone)}
           </p>
         </div>
@@ -317,7 +318,7 @@ export default function VehicleDetails() {
                 </tr>
               ))}
               {vehicleTrips.length === 0 && (
-                <tr><td colSpan={5} className="text-center text-[#7D6D5F] py-8">No trips logged for this vehicle.</td></tr>
+                <tr><td colSpan={5} className="text-center text-[#958777] py-8">No trips logged for this vehicle.</td></tr>
               )}
             </tbody>
           </table>
@@ -329,17 +330,17 @@ export default function VehicleDetails() {
           <p className="text-sm font-semibold text-[#625346]">
             Current Driver: {assignedDriver ? `${assignedDriver.name} (Safety Score ${assignedDriver.safetyScore}/100)` : 'Unassigned'}
           </p>
-          <div className="divide-y divide-[#E0D4B7]/70">
+          <div className="divide-y divide-[#E5E5E5]/70">
             {vehicleEvents.map((ev) => (
               <div key={ev.id} className="py-3 flex items-center justify-between gap-4 text-xs">
                 <div>
                   <p className="font-semibold text-[#625346] capitalize">{ev.eventType.replace('_', ' ')} · {ev.locationLabel}</p>
-                  <p className="text-[#7D6D5F]">Speed {ev.speedKmh} km/h · GPS ±{ev.gpsAccuracyMeters}m · {formatDateTime(ev.timestamp)}</p>
+                  <p className="text-[#958777]">Speed {ev.speedKmh} km/h · GPS ±{ev.gpsAccuracyMeters}m · {formatDateTime(ev.timestamp)}</p>
                 </div>
                 <SeverityText severity={ev.disputeStatus === 'accepted_dismissed' ? 'normal' : ev.severity === 'high' ? 'high' : 'moderate'} label={ev.disputeStatus === 'none' ? ev.severity : ev.disputeStatus} />
               </div>
             ))}
-            {vehicleEvents.length === 0 && <p className="text-xs text-[#7D6D5F]">No driving behavior events recorded.</p>}
+            {vehicleEvents.length === 0 && <p className="text-xs text-[#958777]">No driving behavior events recorded.</p>}
           </div>
         </div>
       )}
@@ -353,14 +354,14 @@ export default function VehicleDetails() {
                 <SeverityText severity={comp.status} />
               </div>
               <p className="text-2xl font-bold text-[#625346] tabular-nums">{comp.healthScore}%</p>
-              <div className="w-full h-1.5 bg-[#E0D4B7] rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${comp.healthScore <= 45 ? 'bg-[#D9786C]' : comp.healthScore <= 72 ? 'bg-[#E8C65A]' : 'bg-[#789A75]'}`}
                   style={{ width: `${comp.healthScore}%` }}
                 />
               </div>
-              <p className="text-xs text-[#7D6D5F]">{comp.notes}</p>
-              <p className="text-[11px] tabular-nums text-[#7D6D5F]">
+              <p className="text-xs text-[#958777]">{comp.notes}</p>
+              <p className="text-[11px] tabular-nums text-[#958777]">
                 Wear {comp.wearRatePer1000Km}/1000km · Last serviced {comp.lastServicedAt}
               </p>
             </div>
@@ -379,14 +380,14 @@ export default function VehicleDetails() {
                 <tr key={m.id}>
                   <td className="font-semibold">{m.serviceType}</td>
                   <td>{m.componentName}</td>
-                  <td className="text-[#7D6D5F]">{m.serviceCenter}</td>
+                  <td className="text-[#958777]">{m.serviceCenter}</td>
                   <td className="tabular-nums text-xs">{formatShortDate(m.performedAt)}</td>
                   <td className="tabular-nums">{formatInr(m.costInr)}</td>
                   <td><SeverityText severity={m.status === 'completed' ? 'normal' : 'high'} label={m.status} /></td>
                 </tr>
               ))}
               {vehicleMaint.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-[#7D6D5F] py-8">No maintenance records logged yet.</td></tr>
+                <tr><td colSpan={6} className="text-center text-[#958777] py-8">No maintenance records logged yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -406,12 +407,12 @@ export default function VehicleDetails() {
                   <td className="tabular-nums">{f.litersOrKwh} {vehicle.powertrain === 'EV' ? 'kWh' : 'L'}</td>
                   <td className="tabular-nums font-semibold">{formatInr(f.amountInr)}</td>
                   <td className="tabular-nums">{f.odometerKm.toLocaleString('en-IN')} km</td>
-                  <td className="text-xs text-[#7D6D5F]">{f.entrySource.replace(/_/g, ' ')}</td>
+                  <td className="text-xs text-[#958777]">{f.entrySource.replace(/_/g, ' ')}</td>
                   <td><SeverityText severity={f.verificationStatus === 'needs_review' ? 'high' : 'normal'} label={f.verificationStatus.replace('_', ' ')} /></td>
                 </tr>
               ))}
               {vehicleFuel.length === 0 && (
-                <tr><td colSpan={6} className="text-center text-[#7D6D5F] py-8">No fuel or charging transactions logged.</td></tr>
+                <tr><td colSpan={6} className="text-center text-[#958777] py-8">No fuel or charging transactions logged.</td></tr>
               )}
             </tbody>
           </table>
@@ -421,19 +422,19 @@ export default function VehicleDetails() {
       {activeTab === 'Financials' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="enterprise-card p-5">
-            <span className="text-xs text-[#7D6D5F]">Recorded Fuel / Energy</span>
+            <span className="text-xs text-[#958777]">Recorded Fuel / Energy</span>
             <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{formatInr(totalFuelSpend)}</p>
           </div>
           <div className="enterprise-card p-5">
-            <span className="text-xs text-[#7D6D5F]">Recorded Maintenance</span>
+            <span className="text-xs text-[#958777]">Recorded Maintenance</span>
             <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{formatInr(totalMaintSpend)}</p>
           </div>
           <div className="enterprise-card p-5">
-            <span className="text-xs text-[#7D6D5F]">Logged Trip Distance</span>
+            <span className="text-xs text-[#958777]">Logged Trip Distance</span>
             <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{totalLoggedKm.toFixed(1)} km</p>
           </div>
           <div className="enterprise-card p-5">
-            <span className="text-xs text-[#7D6D5F]">Monthly Revenue Baseline</span>
+            <span className="text-xs text-[#958777]">Monthly Revenue Baseline</span>
             <p className="text-xl font-bold text-[#625346] tabular-nums mt-1 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#789A75]" />
               {formatInr(vehicle.monthlyRevenueInr)}
@@ -453,7 +454,7 @@ export default function VehicleDetails() {
                   ) : (
                     <>
                       <SeverityText severity={pred.priority} />
-                      <span className="text-xs text-[#7D6D5F] tabular-nums">
+                      <span className="text-xs text-[#958777] tabular-nums">
                         {pred.earliestWindowDays}–{pred.latestWindowDays}d window · {Math.round(pred.confidenceScore * 100)}% conf.
                       </span>
                     </>
@@ -462,12 +463,12 @@ export default function VehicleDetails() {
                 <h3 className="font-bold text-base text-[#625346]">
                   {pred.componentName}: {pred.predictedIssue}
                 </h3>
-                <p className="text-xs text-[#7D6D5F]">{pred.evidenceSummary}</p>
+                <p className="text-xs text-[#958777]">{pred.evidenceSummary}</p>
                 <p className="text-xs text-[#625346] font-medium">Action: {pred.recommendedAction}</p>
               </div>
               <div className="text-right space-y-2">
                 {!pred.insufficientData && (
-                  <p className="text-xs text-[#7D6D5F]">
+                  <p className="text-xs text-[#958777]">
                     Preventive {formatInr(pred.repairCostInr)} vs Delay {formatInr(pred.delayCostInr)}
                   </p>
                 )}
@@ -506,14 +507,14 @@ export default function VehicleDetails() {
       {activeTab === 'Activity History' && (
         <div className="enterprise-card p-5 space-y-4">
           <h2 className="dm-card-title text-sm">Inspections & Audit Events</h2>
-          <div className="divide-y divide-[#E0D4B7]/70">
+          <div className="divide-y divide-[#E5E5E5]/70">
             {vehicleInspections.map((ins) => (
               <div key={ins.id} className="py-3 flex items-center justify-between gap-4 text-xs">
                 <div>
                   <p className="font-semibold text-[#625346]">
                     Pre-trip Inspection · Tyres: {ins.tyreCondition} · Brakes: {ins.brakeFeel}
                   </p>
-                  <p className="text-[#7D6D5F]">{ins.notes || 'No issues reported'} · {formatDateTime(ins.timestamp)}</p>
+                  <p className="text-[#958777]">{ins.notes || 'No issues reported'} · {formatDateTime(ins.timestamp)}</p>
                 </div>
                 <SeverityText severity={ins.passed ? 'normal' : 'high'} label={ins.passed ? 'Passed' : 'Flags Reported'} />
               </div>
@@ -521,11 +522,11 @@ export default function VehicleDetails() {
             {vehicleLogs.map((l) => (
               <div key={l.id} className="py-3 text-xs">
                 <p className="font-semibold text-[#625346]">{l.summary}</p>
-                <p className="text-[#7D6D5F]">{l.actorName} · {formatDateTime(l.timestamp)}</p>
+                <p className="text-[#958777]">{l.actorName} · {formatDateTime(l.timestamp)}</p>
               </div>
             ))}
             {vehicleInspections.length === 0 && vehicleLogs.length === 0 && (
-              <p className="text-xs text-[#7D6D5F]">No inspection or audit logs recorded yet.</p>
+              <p className="text-xs text-[#958777]">No inspection or audit logs recorded yet.</p>
             )}
           </div>
         </div>
@@ -617,7 +618,7 @@ export default function VehicleDetails() {
               />
             </div>
           </div>
-          <div className="flex justify-end gap-3 pt-2 border-t border-[#E0D4B7]">
+          <div className="flex justify-end gap-3 pt-2 border-t border-[#E5E5E5]">
             <button type="button" onClick={() => setEditOpen(false)} className="btn-secondary">Cancel</button>
             <button type="submit" className="btn-accent">Save Specifications</button>
           </div>

@@ -169,7 +169,8 @@ ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "subscriptions_member_read" ON subscriptions
   FOR SELECT USING (is_org_member(organization_id));
 CREATE POLICY "subscriptions_admin_write" ON subscriptions
-  FOR ALL USING (has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[]));
+  FOR ALL USING (has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[]))
+  WITH CHECK (has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[]));
 
 -- Vehicles
 CREATE TABLE IF NOT EXISTS vehicles (
@@ -242,8 +243,28 @@ CREATE TABLE IF NOT EXISTS vehicle_components (
 );
 
 ALTER TABLE vehicle_components ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "vehicle_components_org" ON vehicle_components FOR ALL USING (
-  EXISTS (SELECT 1 FROM vehicles v WHERE v.id = vehicle_components.vehicle_id AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id)) OR v.user_id = auth.uid()))
+CREATE POLICY "vehicle_components_org_read" ON vehicle_components FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = vehicle_components.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+);
+CREATE POLICY "vehicle_components_maint_write" ON vehicle_components FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = vehicle_components.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = vehicle_components.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
 );
 
 -- Trips
@@ -308,7 +329,13 @@ CREATE TABLE IF NOT EXISTS telemetry_points (
 
 CREATE INDEX IF NOT EXISTS idx_telemetry_vehicle_time ON telemetry_points(vehicle_id, recorded_at DESC);
 ALTER TABLE telemetry_points ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "telemetry_org_isolation" ON telemetry_points FOR ALL USING (is_org_member(organization_id));
+CREATE POLICY "telemetry_org_read" ON telemetry_points FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "telemetry_driver_or_manager_insert" ON telemetry_points FOR INSERT WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','driver']::app_role[])
+);
+CREATE POLICY "telemetry_admin_delete" ON telemetry_points FOR DELETE USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[])
+);
 
 -- Driver Behavior Events (with dispute workflow)
 CREATE TABLE IF NOT EXISTS driver_events (
@@ -330,7 +357,20 @@ CREATE TABLE IF NOT EXISTS driver_events (
 );
 
 ALTER TABLE driver_events ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "driver_events_org_isolation" ON driver_events FOR ALL USING (is_org_member(organization_id));
+CREATE POLICY "driver_events_org_read" ON driver_events FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "driver_events_insert" ON driver_events FOR INSERT WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','driver']::app_role[])
+);
+CREATE POLICY "driver_events_manager_or_driver_dispute" ON driver_events FOR UPDATE USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+  OR (has_org_role(organization_id, ARRAY['driver']::app_role[]) AND dispute_status = 'none')
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+  OR (has_org_role(organization_id, ARRAY['driver']::app_role[]) AND dispute_status = 'disputed')
+);
+CREATE POLICY "driver_events_admin_delete" ON driver_events FOR DELETE USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[])
+);
 
 -- Fuel Transactions
 CREATE TABLE IF NOT EXISTS fuel_transactions (
@@ -421,12 +461,26 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
 
 ALTER TABLE ai_predictions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "ai_predictions_org_read" ON ai_predictions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM vehicles v WHERE v.id = ai_predictions.vehicle_id AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id)) OR v.user_id = auth.uid()))
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = ai_predictions.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
 );
 CREATE POLICY "ai_predictions_maint_write" ON ai_predictions FOR ALL USING (
   EXISTS (
-    SELECT 1 FROM vehicles v WHERE v.id = ai_predictions.vehicle_id
-    AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])) OR v.user_id = auth.uid())
+    SELECT 1 FROM vehicles v
+    WHERE v.id = ai_predictions.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = ai_predictions.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
   )
 );
 
@@ -450,12 +504,26 @@ CREATE TABLE IF NOT EXISTS maintenance_history (
 
 ALTER TABLE maintenance_history ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "maintenance_history_org_read" ON maintenance_history FOR SELECT USING (
-  EXISTS (SELECT 1 FROM vehicles v WHERE v.id = maintenance_history.vehicle_id AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id)) OR v.user_id = auth.uid()))
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = maintenance_history.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
 );
 CREATE POLICY "maintenance_history_maint_write" ON maintenance_history FOR ALL USING (
   EXISTS (
-    SELECT 1 FROM vehicles v WHERE v.id = maintenance_history.vehicle_id
-    AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])) OR v.user_id = auth.uid())
+    SELECT 1 FROM vehicles v
+    WHERE v.id = maintenance_history.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = maintenance_history.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
   )
 );
 
@@ -476,8 +544,28 @@ CREATE TABLE IF NOT EXISTS driver_analytics (
 );
 
 ALTER TABLE driver_analytics ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "driver_analytics_org" ON driver_analytics FOR ALL USING (
-  EXISTS (SELECT 1 FROM vehicles v WHERE v.id = driver_analytics.vehicle_id AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id)) OR v.user_id = auth.uid()))
+CREATE POLICY "driver_analytics_org_read" ON driver_analytics FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = driver_analytics.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND is_org_member(v.organization_id))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+);
+CREATE POLICY "driver_analytics_manager_write" ON driver_analytics FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = driver_analytics.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
+) WITH CHECK (
+  EXISTS (
+    SELECT 1 FROM vehicles v
+    WHERE v.id = driver_analytics.vehicle_id
+      AND ((v.organization_id IS NOT NULL AND has_org_role(v.organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[]))
+        OR (v.organization_id IS NULL AND v.user_id = auth.uid()))
+  )
 );
 
 -- Risk Assessments
@@ -496,7 +584,12 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
 );
 
 ALTER TABLE risk_assessments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "risk_assessments_org_isolation" ON risk_assessments FOR ALL USING (is_org_member(organization_id));
+CREATE POLICY "risk_assessments_org_read" ON risk_assessments FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "risk_assessments_ops_write" ON risk_assessments FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+);
 
 -- Audit Logs
 CREATE TABLE IF NOT EXISTS audit_logs (

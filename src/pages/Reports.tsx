@@ -176,7 +176,7 @@ export default function Reports() {
       <div className="flex flex-wrap items-center justify-between gap-4 no-print">
         <div>
           <h1 className="dm-page-title">Reports & Exports</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · 8 standardized CSV & printable executive report categories
           </p>
         </div>
@@ -221,25 +221,25 @@ export default function Reports() {
             type="button"
             onClick={() => setSelectedCategoryId(cat.id)}
             className={`enterprise-card p-4 text-left transition-colors ${
-              selectedCategoryId === cat.id ? 'border-[#B8A3D9] bg-[#EEE8F7]' : 'hover:bg-[#FBF6E6]'
+              selectedCategoryId === cat.id ? 'border-[#B8A3D9] bg-[#EEE8F7]' : 'hover:bg-[#FFFFFF]'
             }`}
           >
             <h2 className="font-bold text-sm text-[#625346]">{cat.title}</h2>
-            <p className="text-xs text-[#7D6D5F] mt-1 line-clamp-2">{cat.description}</p>
+            <p className="text-xs text-[#958777] mt-1 line-clamp-2">{cat.description}</p>
           </button>
         ))}
       </div>
 
       {/* Live Printable Preview Table */}
       <div className="enterprise-card overflow-hidden">
-        <div className="px-5 py-4 bg-[#FBF6E6] border-b border-[#E0D4B7] flex items-center justify-between">
+        <div className="px-5 py-4 bg-[#FFFFFF] border-b border-[#E5E5E5] flex items-center justify-between">
           <div>
             <h2 className="dm-card-title">{activeCategory.title}</h2>
-            <p className="text-xs text-[#7D6D5F]">
+            <p className="text-xs text-[#958777]">
               {activeOrganization.name} · Period {reportingPeriod.toUpperCase()} · Operating Spend {formatInr(financialSummary.operatingExpenditureInr)}
             </p>
           </div>
-          <span className="text-xs font-semibold text-[#7D6D5F] tabular-nums">{preview.rows.length} rows</span>
+          <span className="text-xs font-semibold text-[#958777] tabular-nums">{preview.rows.length} rows</span>
         </div>
         <div className="overflow-x-auto">
           <table className="dm-table">
@@ -260,7 +260,7 @@ export default function Reports() {
               ))}
               {preview.rows.length === 0 && (
                 <tr>
-                  <td colSpan={preview.headers.length} className="text-center text-[#7D6D5F] py-8">
+                  <td colSpan={preview.headers.length} className="text-center text-[#958777] py-8">
                     No records available for selected filters.
                   </td>
                 </tr>
@@ -275,22 +275,22 @@ export default function Reports() {
         <h2 className="dm-card-title text-sm mb-3">
           Report Generation History ({reports.length})
         </h2>
-        <div className="divide-y divide-[#E0D4B7]/70 text-xs">
+        <div className="divide-y divide-[#E5E5E5]/70 text-xs">
           {reports.map((rep) => (
             <div key={rep.id} className="py-2.5 flex items-center justify-between gap-4">
               <div>
                 <p className="font-semibold text-[#625346]">{rep.title}</p>
-                <p className="text-[#7D6D5F]">
+                <p className="text-[#958777]">
                   {rep.format} · {rep.rowCount} rows · Period {rep.period.toUpperCase()} · {rep.generatedBy}
                 </p>
               </div>
-              <span className="tabular-nums text-[#7D6D5F]">
+              <span className="tabular-nums text-[#958777]">
                 {formatDateTime(rep.generatedAt, activeOrganization.timezone)}
               </span>
             </div>
           ))}
           {reports.length === 0 && (
-            <p className="text-[#7D6D5F] py-4 text-center">No exports generated yet in this organization.</p>
+            <p className="text-[#958777] py-4 text-center">No exports generated yet in this organization.</p>
           )}
         </div>
       </div>

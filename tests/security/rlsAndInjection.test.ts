@@ -92,7 +92,7 @@ describe('Security: AI Copilot RBAC, Prompt Injection, SQL Probe, & Cross-Org Is
     expect(maintFuelRes.reason).toBe('rbac')
   })
 
-  it('answers valid org-scoped operational queries with numeric citations', () => {
+  it('answers valid org-scoped operational queries with numeric citations and handles two-vehicle comparison', () => {
     const res = queryFleetCopilot({
       ...baseInput,
       query: 'What predictive maintenance failures need immediate repair?',
@@ -100,6 +100,32 @@ describe('Security: AI Copilot RBAC, Prompt Injection, SQL Probe, & Cross-Org Is
     expect(res.blocked).toBe(false)
     expect(res.answer).toContain('TN 58 AB 4321')
     expect(res.citations.length).toBeGreaterThan(0)
+
+    const secondVeh = {
+      ...SAMPLE_VEHICLE_ICE,
+      id: 'veh-kav-2',
+      registrationNumber: 'TN 58 CD 9999',
+      healthScore: 84,
+      odometerKm: 52000,
+    }
+    const cmpRes = queryFleetCopilot({
+      ...baseInput,
+      vehicles: [SAMPLE_VEHICLE_ICE, secondVeh],
+      query: 'Compare TN 58 AB 4321 and TN 58 CD 9999',
+    })
+    expect(cmpRes.blocked).toBe(false)
+    expect(cmpRes.answer).toContain('TN 58 AB 4321')
+    expect(cmpRes.answer).toContain('TN 58 CD 9999')
+  })
+
+  it('refuses unsupported external telemetry fields honestly without fabricating values', () => {
+    const unsupported = queryFleetCopilot({
+      ...baseInput,
+      query: 'What is the current tyre pressure and coolant temp on TN 58 AB 4321?',
+    })
+    expect(unsupported.blocked).toBe(false)
+    expect(unsupported.reason).toBe('insufficient_data')
+    expect(unsupported.answer).toContain('does not capture')
   })
 })
 
@@ -128,6 +154,18 @@ describe('Security Static Audit: Supabase PostgreSQL Schema & RLS Hardening', ()
     // No UPDATE or DELETE policies on audit_logs (append-only)
     expect(schemaSql).toContain('CREATE POLICY "audit_logs_org_insert" ON audit_logs')
     expect(schemaSql).not.toMatch(/CREATE POLICY .* ON audit_logs FOR (UPDATE|DELETE|ALL)/i)
+  })
+
+  it('enforces least-privilege RLS on vehicle_components, telemetry_points, driver_events, and legacy null-org guards', () => {
+    expect(schemaSql).toContain('v.organization_id IS NULL AND v.user_id = auth.uid()')
+    expect(schemaSql).toContain('CREATE POLICY "vehicle_components_maint_write" ON vehicle_components')
+    expect(schemaSql).toContain('CREATE POLICY "telemetry_driver_or_manager_insert" ON telemetry_points')
+    expect(schemaSql).toContain('CREATE POLICY "telemetry_admin_delete" ON telemetry_points')
+    expect(schemaSql).toContain('CREATE POLICY "driver_events_manager_or_driver_dispute" ON driver_events')
+    expect(schemaSql).toContain('CREATE POLICY "subscriptions_admin_write" ON subscriptions')
+    expect(schemaSql).not.toMatch(/CREATE POLICY "components_org_all" ON vehicle_components FOR ALL/)
+    expect(schemaSql).not.toMatch(/CREATE POLICY "telemetry_org_all" ON telemetry_points FOR ALL/)
+    expect(schemaSql).not.toMatch(/CREATE POLICY "driver_events_org_all" ON driver_events FOR ALL/)
   })
 
   it('enforces active-only unique vehicle registration and protects historical records via delete trigger', () => {

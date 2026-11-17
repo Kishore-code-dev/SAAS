@@ -109,7 +109,7 @@ export default function FuelLogs() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Fuel & Energy Intelligence</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Distinguishes manual driver entries from automated feeds with duplicate & variance review
           </p>
         </div>
@@ -136,19 +136,19 @@ export default function FuelLogs() {
       {/* KPI Strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Total Fuel & Charging Spend</span>
+          <span className="text-xs font-semibold text-[#958777]">Total Fuel & Charging Spend</span>
           <p className="dm-kpi-value mt-1.5">{formatInr(totalSpend)}</p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Total Volume (L / kWh)</span>
+          <span className="text-xs font-semibold text-[#958777]">Total Volume (L / kWh)</span>
           <p className="dm-kpi-value mt-1.5">{totalUnits.toFixed(1)}</p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Observed Avg Efficiency</span>
+          <span className="text-xs font-semibold text-[#958777]">Observed Avg Efficiency</span>
           <p className="dm-kpi-value mt-1.5">{avgEfficiency} km/unit</p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Flagged for Review</span>
+          <span className="text-xs font-semibold text-[#958777]">Flagged for Review</span>
           <p className="dm-kpi-value mt-1.5 flex items-center gap-2">
             <span className={`w-2.5 h-2.5 rounded-full ${reviewCount > 0 ? 'bg-[#E8C65A]' : 'bg-[#789A75]'}`} />
             {reviewCount}
@@ -157,7 +157,7 @@ export default function FuelLogs() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="p-1.5 flex flex-wrap items-center gap-1 w-fit bg-[#EEE8F7] border border-[#D4C7E6] rounded-[10px]">
+      <div className="p-1.5 flex flex-wrap items-center gap-1 w-fit bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px]">
         {([
           { id: 'all', label: 'All Entries' },
           { id: 'needs_review', label: 'Needs Review' },
@@ -169,7 +169,7 @@ export default function FuelLogs() {
             type="button"
             onClick={() => setFilterStatus(tab.id)}
             className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
-              filterStatus === tab.id ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+              filterStatus === tab.id ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
             }`}
           >
             {tab.label}
@@ -209,11 +209,11 @@ export default function FuelLogs() {
                         <span className="font-bold text-[#625346] block tabular-nums">
                           {vehicle?.registrationNumber ?? tx.vehicleId}
                         </span>
-                        <span className="text-xs text-[#7D6D5F]">{driver?.name ?? 'Driver'}</span>
+                        <span className="text-xs text-[#958777]">{driver?.name ?? 'Driver'}</span>
                       </td>
                       <td>
                         <span className="font-medium text-[#625346] block">{tx.station}</span>
-                        <span className="text-xs text-[#7D6D5F] capitalize">
+                        <span className="text-xs text-[#958777] capitalize">
                           {tx.entrySource.replace(/_/g, ' ')} · {tx.paymentMethod.replace(/_/g, ' ').toUpperCase()}
                         </span>
                       </td>
@@ -226,9 +226,9 @@ export default function FuelLogs() {
                       <td className="tabular-nums text-xs">
                         <span className="block">{tx.odometerKm.toLocaleString('en-IN')} km</span>
                         {tx.efficiencyKmPerUnit ? (
-                          <span className="text-[#7D6D5F]">{tx.efficiencyKmPerUnit} km/unit (₹{tx.costPerKmInr}/km)</span>
+                          <span className="text-[#958777]">{tx.efficiencyKmPerUnit} km/unit (₹{tx.costPerKmInr}/km)</span>
                         ) : (
-                          <span className="text-[#7D6D5F]">Baseline pending next fill</span>
+                          <span className="text-[#958777]">Baseline pending next fill</span>
                         )}
                       </td>
                       <td>
@@ -237,11 +237,11 @@ export default function FuelLogs() {
                           label={tx.verificationStatus.replace('_', ' ')}
                         />
                         {tx.anomalyFlags.map((flag) => (
-                          <p key={flag} className="text-[11px] text-[#8F6D15] mt-1 max-w-[230px] font-medium">
+                          <p key={flag} className="text-[11px] text-[#A56021] mt-1 max-w-[230px] font-medium">
                             {flag}
                           </p>
                         ))}
-                        <span className="text-[11px] text-[#7D6D5F] tabular-nums block mt-0.5">
+                        <span className="text-[11px] text-[#958777] tabular-nums block mt-0.5">
                           {formatDateTime(tx.timestamp, activeOrganization.timezone)}
                         </span>
                       </td>
@@ -270,13 +270,13 @@ export default function FuelLogs() {
                                 }}
                                 className="btn-secondary text-xs px-2.5 py-1"
                               >
-                                <Flag className="w-3.5 h-3.5 text-[#8F6D15]" />
+                                <Flag className="w-3.5 h-3.5 text-[#A56021]" />
                                 Review
                               </button>
                             )}
                           </div>
                         ) : (
-                          <span className="text-xs text-[#7D6D5F]">Read-only</span>
+                          <span className="text-xs text-[#958777]">Read-only</span>
                         )}
                       </td>
                     </tr>

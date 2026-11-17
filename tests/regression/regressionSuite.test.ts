@@ -23,9 +23,10 @@ import {
 } from '../fixtures/fleetFixtures'
 
 describe('Regression Suite (BUG-001 to BUG-012)', () => {
-  it('BUG-001: Supabase client rejects unconfigured placeholder fallback cleanly without blank crashes', () => {
+  it('BUG-001: Auth & client layer operates standalone in-browser with zero environment variables or crashes', () => {
     const clientCode = readFileSync(resolve(process.cwd(), 'src/integrations/supabase/client.ts'), 'utf-8')
-    expect(clientCode).toContain('isSupabaseConfigured')
+    expect(clientCode).toContain('isLocalStandaloneMode')
+    expect(clientCode).not.toContain('import.meta.env')
     expect(validateEmailFormat('admin@kaveri.in')).toBe(true)
     expect(validateEmailFormat('invalid-email')).toBe(false)
   })
@@ -146,11 +147,12 @@ describe('Regression Suite (BUG-001 to BUG-012)', () => {
     expect(settingsCode).toContain('activeOrganization.timezone')
   })
 
-  it('BUG-011 & BUG-012: Pure Butter Cream + Lavender palette enforced with zero pure white or black surfaces', () => {
+  it('BUG-011 & BUG-012: Pure White 60-30-10 + Pale Lavender + Cocoa palette enforced with zero butter cream or black surfaces', () => {
     const indexCss = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf-8')
-    expect(indexCss).toContain('#F7F0D9')
+    expect(indexCss).toContain('#FFFFFF')
     expect(indexCss).toContain('#EEE8F7')
     expect(indexCss).toContain('#625346')
-    expect(indexCss).not.toMatch(/#FFFFFF|#000000/i)
+    expect(indexCss).toContain('#958777')
+    expect(indexCss).not.toMatch(/#F7F0D9|#F4EBD5|#FBF6E6|#000000/i)
   })
 })

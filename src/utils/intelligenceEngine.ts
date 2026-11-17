@@ -575,19 +575,23 @@ export function evaluateDriverSafety(params: {
   const vehicle = vehicles.find((v) => v.id === driver.assignedVehicleId)
   const corridor = corridors.find((c) => c.id === vehicle?.corridorId)
   const roadStress = corridor?.roadStressIndex ?? 0.55
+  const motionRestricted = vehicle?.telemetry.motionPermissionGranted === false
 
-  // Mitigate braking/cornering penalties slightly on high-stress pothole routes & mount warnings
+  // Zero automatic penalty when GPS accuracy > 25m or smartphone motion sensor is restricted
   const penaltyFor = (type: DriverBehaviorEvent['eventType']) =>
     activeEvents
       .filter((e) => e.eventType === type)
       .reduce((sum, e) => {
         const base = e.severity === 'high' ? 8 : e.severity === 'medium' ? 5 : 2
-        const gpsMitigation = e.gpsAccuracyMeters > 25 ? 0.5 : 1
+        const gpsMitigation = e.gpsAccuracyMeters > 25 ? 0 : 1
+        const isMotionType = type === 'harsh_braking' || type === 'rapid_acceleration' || type === 'sharp_cornering'
+        const motionSensorMitigation = motionRestricted && isMotionType ? 0 : 1
         const mountMitigation = e.mountStabilityWarning ? 0.45 : 1
         const roadMitigation = type === 'harsh_braking' || type === 'sharp_cornering' ? Math.max(0.65, 1 - roadStress * 0.25) : 1
-        return sum + base * gpsMitigation * mountMitigation * roadMitigation
+        return sum + base * gpsMitigation * motionSensorMitigation * mountMitigation * roadMitigation
       }, 0)
 
+  const excludedGpsCount = activeEvents.filter((e) => e.gpsAccuracyMeters > 25).length
   const speedingScore = Math.max(25, Math.min(99, Math.round(96 - penaltyFor('overspeeding'))))
   const brakingScore = Math.max(25, Math.min(99, Math.round(95 - penaltyFor('harsh_braking'))))
   const accelerationScore = Math.max(25, Math.min(99, Math.round(96 - penaltyFor('rapid_acceleration'))))
@@ -621,6 +625,16 @@ export function evaluateDriverSafety(params: {
     )
   }
 
+  const fairnessNotes: string[] = [
+    `Adjusted for ${corridor?.name ?? 'regional'} road stress (${roadStress.toFixed(2)}), GPS accuracy, and phone mount stability.`,
+  ]
+  if (excludedGpsCount > 0) {
+    fairnessNotes.push(`${excludedGpsCount} inaccurate GPS (>25m) event(s) excluded from automatic penalty.`)
+  }
+  if (motionRestricted) {
+    fairnessNotes.push('Motion sensor restricted on device; automatic harsh braking/cornering penalties suspended.')
+  }
+
   return {
     overallScore,
     speedingScore,
@@ -630,7 +644,7 @@ export function evaluateDriverSafety(params: {
     fatigueComplianceScore,
     activeEventCount: activeEvents.length,
     disputedEventCount,
-    roadAdjustedNote: `Adjusted for ${corridor?.name ?? 'regional'} road stress (${roadStress.toFixed(2)}), GPS accuracy, and phone mount stability.`,
+    roadAdjustedNote: fairnessNotes.join(' '),
     coachingRecommendations,
   }
 }
@@ -689,7 +703,11 @@ export function analyzeFuelTransactions(
       prevByVehicle.set(tx.vehicleId, tx)
 
       const verificationStatus: FuelTransaction['verificationStatus'] =
-        flags.length > 0 ? 'needs_review' : tx.verificationStatus
+        tx.verificationStatus === 'verified'
+          ? 'verified'
+          : flags.length > 0
+            ? 'needs_review'
+            : tx.verificationStatus
 
       return {
         ...tx,
@@ -886,6 +904,7 @@ export function computeFinancialIntelligence(params: {
   predictions: AIPrediction[]
   trips: Trip[]
   period: ReportingPeriod
+  nowMs?: number
 }): {
   fuelExpenditureInr: number
   maintenanceExpenditureInr: number
@@ -916,26 +935,61 @@ export function computeFinancialIntelligence(params: {
   methodologyNotes: string[]
 } {
   const { vehicles, fuelTransactions, maintenanceRecords, predictions, trips, period } = params
-  const periodFactor = period === '7d' ? 0.35 : period === '30d' ? 1 : 2.6
+  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
+  const allTimestamps = [
+    ...fuelTransactions.map((t) => new Date(t.timestamp).getTime()),
+    ...maintenanceRecords.map((m) => new Date(m.performedAt).getTime()),
+    ...trips.map((t) => new Date(t.startTime).getTime()),
+  ].filter((ms) => Number.isFinite(ms))
+  const anchorMs = params.nowMs ?? (allTimestamps.length > 0 ? Math.max(...allTimestamps) : Date.now())
+  const windowStartMs = anchorMs - days * 86400000
+  const windowEndMs = anchorMs + 30 * 86400000
+
+  const inWindow = (iso: string) => {
+    const ms = new Date(iso).getTime()
+    if (Number.isNaN(ms)) return true
+    return ms >= windowStartMs && ms <= windowEndMs
+  }
 
   const activeVehicles = vehicles.filter((v) => !v.decommissioned)
-  const fuelExpenditureInr = Math.round(
-    fuelTransactions.reduce((sum, tx) => sum + tx.amountInr, 0) * (period === '7d' ? 0.65 : period === '30d' ? 1 : 2.8),
-  )
-  const maintenanceExpenditureInr = Math.round(
-    maintenanceRecords.reduce((sum, m) => sum + m.costInr, 0) * (period === '7d' ? 0.45 : period === '30d' ? 1 : 2.4),
-  )
+  const activeVehicleIds = new Set(activeVehicles.map((v) => v.id))
+  const windowFuel = fuelTransactions.filter((tx) => activeVehicleIds.has(tx.vehicleId) && inWindow(tx.timestamp))
+  const windowMaint = maintenanceRecords.filter((m) => activeVehicleIds.has(m.vehicleId) && inWindow(m.performedAt))
+  const windowTrips = trips.filter((t) => activeVehicleIds.has(t.vehicleId) && inWindow(t.startTime))
 
-  const baseTripKm = trips.reduce((sum, t) => sum + t.distanceKm, 0)
-  const projectedDailyKm = activeVehicles.reduce((sum, v) => sum + v.dailyAvgKm, 0)
-  const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
-  const totalDistanceKm = Math.max(1, Math.round(Math.max(baseTripKm, projectedDailyKm * (days * 0.72))))
+  const vehicleCostBreakdown = activeVehicles.map((v) => {
+    const fuelSpendInr = Math.round(
+      windowFuel.filter((tx) => tx.vehicleId === v.id).reduce((s, tx) => s + tx.amountInr, 0),
+    )
+    const maintenanceSpendInr = Math.round(
+      windowMaint.filter((m) => m.vehicleId === v.id).reduce((s, m) => s + m.costInr, 0),
+    )
+    const vTripsKm = windowTrips.filter((t) => t.vehicleId === v.id).reduce((s, t) => s + t.distanceKm, 0)
+    const vDistance = Math.max(120, Math.round(Math.max(vTripsKm, v.dailyAvgKm * (days * 0.72))))
+    const totalSpendInr = fuelSpendInr + maintenanceSpendInr
+    return {
+      vehicleId: v.id,
+      registrationNumber: v.registrationNumber,
+      powertrain: v.powertrain,
+      fuelSpendInr,
+      maintenanceSpendInr,
+      totalSpendInr,
+      distanceKm: vDistance,
+      costPerKmInr: Number((totalSpendInr / vDistance).toFixed(2)),
+    }
+  })
 
+  const fuelExpenditureInr = vehicleCostBreakdown.reduce((sum, row) => sum + row.fuelSpendInr, 0)
+  const maintenanceExpenditureInr = vehicleCostBreakdown.reduce((sum, row) => sum + row.maintenanceSpendInr, 0)
   const operatingExpenditureInr = fuelExpenditureInr + maintenanceExpenditureInr
+
+  const baseTripKm = windowTrips.reduce((sum, t) => sum + t.distanceKm, 0)
+  const projectedDailyKm = activeVehicles.reduce((sum, v) => sum + v.dailyAvgKm, 0)
+  const totalDistanceKm = Math.max(1, Math.round(Math.max(baseTripKm, projectedDailyKm * (days * 0.72))))
   const costPerKmInr = Number((operatingExpenditureInr / totalDistanceKm).toFixed(2))
 
   const openHighPredictions = predictions.filter(
-    (p) => p.status !== 'resolved' && (p.priority === 'critical' || p.priority === 'high'),
+    (p) => p.status !== 'resolved' && !p.insufficientData && (p.priority === 'critical' || p.priority === 'high'),
   )
   // Consolidate per-vehicle maximum exposure to avoid double-counting overlapping breakdown downtime on one vehicle
   const topByVehicle = new Map<string, AIPrediction>()
@@ -951,7 +1005,7 @@ export function computeFinancialIntelligence(params: {
     consolidatedPredictions.reduce(
       (sum, p) => sum + Math.max(0, p.delayCostInr - p.repairCostInr * 2),
       0,
-    ) * (periodFactor > 1 ? 1.2 : 1),
+    ),
   )
 
   const estimatedPotentialSavingsInr = consolidatedPredictions.reduce(
@@ -963,28 +1017,6 @@ export function computeFinancialIntelligence(params: {
     (v) => v.operationStatus === 'moving' || v.operationStatus === 'idle' || v.operationStatus === 'delayed',
   ).length
   const utilizationPct = activeVehicles.length > 0 ? Math.round((movingOrIdle / activeVehicles.length) * 100) : 0
-
-  const vehicleCostBreakdown = activeVehicles.map((v) => {
-    const vFuel = fuelTransactions
-      .filter((tx) => tx.vehicleId === v.id)
-      .reduce((s, tx) => s + tx.amountInr, 0)
-    const vMaint = maintenanceRecords
-      .filter((m) => m.vehicleId === v.id)
-      .reduce((s, m) => s + m.costInr, 0)
-    const vTripsKm = trips.filter((t) => t.vehicleId === v.id).reduce((s, t) => s + t.distanceKm, 0)
-    const vDistance = Math.max(120, Math.round(Math.max(vTripsKm, v.dailyAvgKm * (days * 0.72))))
-    const totalSpendInr = Math.round((vFuel + vMaint) * (period === '90d' ? 2.6 : 1))
-    return {
-      vehicleId: v.id,
-      registrationNumber: v.registrationNumber,
-      powertrain: v.powertrain,
-      fuelSpendInr: Math.round(vFuel * (period === '90d' ? 2.6 : 1)),
-      maintenanceSpendInr: Math.round(vMaint * (period === '90d' ? 2.6 : 1)),
-      totalSpendInr,
-      distanceKm: vDistance,
-      costPerKmInr: Number((totalSpendInr / vDistance).toFixed(2)),
-    }
-  })
 
   const iceRows = vehicleCostBreakdown.filter((r) => r.powertrain === 'ICE')
   const evRows = vehicleCostBreakdown.filter((r) => r.powertrain === 'EV')
@@ -1018,7 +1050,8 @@ export function computeFinancialIntelligence(params: {
     },
     vehicleCostBreakdown,
     methodologyNotes: [
-      'Cost per km = (Recorded Fuel/Charging Spend + Recorded Maintenance Spend) / Distance Logged for the selected reporting window.',
+      `Cost per km = (Fuel/Charging Spend + Maintenance Spend logged in ${period.toUpperCase()} window) / Distance Logged or Scheduled Baseline.`,
+      'Fleet totals match the exact sum of active vehicle breakdown rows with zero synthetic period multipliers.',
       'Estimated Potential Savings = Per-vehicle highest open high/critical exposure ((Projected Reactive Breakdown Cost + Estimated Daily Revenue Loss during Downtime) − Preventive Repair Cost), consolidated to prevent double-counting overlapping shop visits.',
       'EV vs ICE operating comparison isolates energy/fuel and service costs per kilometer; capital depreciation and battery lease terms are excluded unless configured.',
     ],

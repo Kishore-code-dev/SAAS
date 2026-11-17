@@ -1,7 +1,19 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import type { Session, User } from '@supabase/supabase-js'
-import { isSupabaseConfigured, supabase } from '../integrations/supabase/client'
+import React, { createContext, useContext, useState } from 'react'
 import type { OrganizationRole } from '../types/fleet'
+import {
+  authenticateLocalAccount,
+  issueLocalOtpChallenge,
+  type LocalAccountRecord,
+  type LocalAuthSession,
+  type LocalAuthUser,
+  type LocalOtpChallenge,
+  registerLocalAccount,
+  toLocalAuthUser,
+  validateEmailFormat,
+  verifyLocalOtpChallenge,
+} from '../utils/localAuth'
+
+export { validateEmailFormat }
 
 export interface DemoSessionProfile {
   fullName: string
@@ -10,176 +22,106 @@ export interface DemoSessionProfile {
   isDemo: boolean
 }
 
-export function validateEmailFormat(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
-}
-
 interface AuthContextType {
-  user: User | null
-  session: Session | null
+  user: LocalAuthUser | null
+  session: LocalAuthSession | null
   demoProfile: DemoSessionProfile | null
   loading: boolean
   isAuthenticated: boolean
-  isCloudAuthReady: boolean
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signInWithOtp: (email: string) => Promise<{ error: Error | null }>
+  signInWithOtp: (email: string) => Promise<{ error: Error | null; otpCode?: string }>
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>
   enterDemoSession: (profile: DemoSessionProfile) => void
   signOut: () => Promise<void>
 }
 
 const DEMO_PROFILE_KEY = 'dm_demo_profile_v2'
+const LOCAL_ACCOUNTS_KEY = 'dm_local_accounts_v1'
+const LOCAL_SESSION_KEY = 'dm_local_session_v1'
+const LOCAL_OTP_KEY = 'dm_local_otp_v1'
+
+function readJsonStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [session, setSession] = useState<Session | null>(null)
-  const [demoProfile, setDemoProfile] = useState<DemoSessionProfile | null>(() => {
-    try {
-      const raw = localStorage.getItem(DEMO_PROFILE_KEY)
-      return raw ? (JSON.parse(raw) as DemoSessionProfile) : null
-    } catch {
-      return null
-    }
-  })
-  const [loading, setLoading] = useState(() => isSupabaseConfigured)
+  const [session, setSession] = useState<LocalAuthSession | null>(() =>
+    readJsonStorage<LocalAuthSession | null>(LOCAL_SESSION_KEY, null),
+  )
+  const [user, setUser] = useState<LocalAuthUser | null>(() => session?.user ?? null)
+  const [demoProfile, setDemoProfile] = useState<DemoSessionProfile | null>(() =>
+    readJsonStorage<DemoSessionProfile | null>(DEMO_PROFILE_KEY, null),
+  )
+  const [loading] = useState(false)
 
-  useEffect(() => {
-    if (!isSupabaseConfigured) {
-      return
+  const persistLocalSession = (nextUser: LocalAuthUser) => {
+    const nextSession: LocalAuthSession = {
+      access_token: `local-session-${Date.now()}`,
+      user: nextUser,
+      issuedAt: new Date().toISOString(),
     }
-    let mounted = true
-    supabase.auth
-      .getSession()
-      .then(({ data: { session: currentSession } }) => {
-        if (!mounted) return
-        setSession(currentSession)
-        setUser(currentSession?.user ?? null)
-        setLoading(false)
-      })
-      .catch(() => {
-        if (mounted) setLoading(false)
-      })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!mounted) return
-      setSession(nextSession)
-      setUser(nextSession?.user ?? null)
-      setLoading(false)
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+    setSession(nextSession)
+    setUser(nextUser)
+    setDemoProfile(null)
+    localStorage.removeItem(DEMO_PROFILE_KEY)
+    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(nextSession))
+  }
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    if (!validateEmailFormat(cleanEmail)) {
-      return { error: new Error('Enter a valid work email address.') }
+    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
+    const res = registerLocalAccount(accounts, { email, password, fullName })
+    if (res.error || !res.account) {
+      return { error: new Error(res.error ?? 'Unable to create account.') }
     }
-    if (!password || password.length < 8) {
-      return { error: new Error('Password must be at least 8 characters long.') }
-    }
-    if (!fullName.trim()) {
-      return { error: new Error('Full name is required to create a workspace.') }
-    }
-    if (!isSupabaseConfigured) {
-      return {
-        error: new Error(
-          'Cloud account signup requires configured Supabase credentials. Use Instant Demo Access below to evaluate the platform.',
-        ),
-      }
-    }
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: { data: { full_name: fullName.trim() } },
-      })
-      return { error: error ? new Error(error.message) : null }
-    } catch {
-      return { error: new Error('Unable to reach authentication service. Please verify network connectivity.') }
-    }
+    localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(res.accounts))
+    return { error: null }
   }
 
   const signIn = async (email: string, password: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    if (!validateEmailFormat(cleanEmail)) {
-      return { error: new Error('Enter a valid work email address.') }
+    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
+    const res = authenticateLocalAccount(accounts, { email, password })
+    if (res.error || !res.account) {
+      return { error: new Error(res.error ?? 'Invalid email or password.') }
     }
-    if (!password || password.length < 6) {
-      return { error: new Error('Enter your password (minimum 6 characters).') }
-    }
-    if (!isSupabaseConfigured) {
-      return {
-        error: new Error(
-          'Live credential sign-in requires configured Supabase credentials. Use Instant Demo Access below to evaluate any role.',
-        ),
-      }
-    }
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
-      if (error) {
-        return { error: new Error('Invalid email or password.') }
-      }
-      return { error: null }
-    } catch {
-      return { error: new Error('Authentication service unavailable. Please retry or use Instant Demo Access.') }
-    }
+    persistLocalSession(toLocalAuthUser(res.account))
+    return { error: null }
   }
 
   const signInWithOtp = async (email: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    if (!validateEmailFormat(cleanEmail)) {
-      return { error: new Error('Enter a valid work email address.') }
+    const challenges = readJsonStorage<LocalOtpChallenge[]>(LOCAL_OTP_KEY, [])
+    const res = issueLocalOtpChallenge(challenges, email)
+    if (res.error || !res.challenge) {
+      return { error: new Error(res.error ?? 'Unable to generate verification code.') }
     }
-    if (!isSupabaseConfigured) {
-      return {
-        error: new Error(
-          'Email OTP verification requires configured Supabase Auth. Use Instant Demo Access for offline evaluation.',
-        ),
-      }
-    }
-    try {
-      const { error } = await supabase.auth.signInWithOtp({ email: cleanEmail })
-      return { error: error ? new Error(error.message) : null }
-    } catch {
-      return { error: new Error('Unable to send OTP verification email right now.') }
-    }
+    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(res.challenges))
+    return { error: null, otpCode: res.challenge.code }
   }
 
   const verifyOtp = async (email: string, token: string) => {
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanToken = token.trim()
-    if (!validateEmailFormat(cleanEmail)) {
-      return { error: new Error('Enter a valid email address.') }
+    const challenges = readJsonStorage<LocalOtpChallenge[]>(LOCAL_OTP_KEY, [])
+    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
+    const res = verifyLocalOtpChallenge(challenges, accounts, { email, token })
+    if (res.error || !res.user) {
+      return { error: new Error(res.error ?? 'Invalid or expired verification code.') }
     }
-    if (!/^\d{6}$/.test(cleanToken)) {
-      return { error: new Error('Enter the 6-digit verification code sent to your email.') }
-    }
-    if (!isSupabaseConfigured) {
-      return { error: new Error('Supabase Auth is not configured for OTP verification.') }
-    }
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: cleanEmail,
-        token: cleanToken,
-        type: 'email',
-      })
-      return { error: error ? new Error('Invalid or expired verification code.') : null }
-    } catch {
-      return { error: new Error('OTP verification failed. Request a new code.') }
-    }
+    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(res.challenges))
+    persistLocalSession(res.user)
+    return { error: null }
   }
 
   const enterDemoSession = (profile: DemoSessionProfile) => {
     setDemoProfile(profile)
+    setUser(null)
+    setSession(null)
+    localStorage.removeItem(LOCAL_SESSION_KEY)
     localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(profile))
   }
 
@@ -188,13 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setSession(null)
     localStorage.removeItem(DEMO_PROFILE_KEY)
-    if (isSupabaseConfigured) {
-      try {
-        await supabase.auth.signOut()
-      } catch {
-        // Ignore network errors when signing out offline/demo
-      }
-    }
+    localStorage.removeItem(LOCAL_SESSION_KEY)
+    localStorage.removeItem('dm_active_role_v2')
+    localStorage.removeItem('dm_active_org_v2')
+    window.dispatchEvent(new Event('dm-auth-signout'))
   }
 
   const isAuthenticated = Boolean(user || demoProfile)
@@ -207,7 +146,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         demoProfile,
         loading,
         isAuthenticated,
-        isCloudAuthReady: isSupabaseConfigured,
         signUp,
         signIn,
         signInWithOtp,

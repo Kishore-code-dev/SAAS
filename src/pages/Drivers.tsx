@@ -116,7 +116,7 @@ export default function Drivers() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Driver Intelligence</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Explainable safety scoring with road-stress context and dispute resolution
           </p>
         </div>
@@ -146,7 +146,7 @@ export default function Drivers() {
                   <p className="text-sm font-bold text-[#625346]">
                     Onboarding Review: {pending.name}
                   </p>
-                  <p className="text-xs text-[#7D6D5F] tabular-nums">
+                  <p className="text-xs text-[#958777] tabular-nums">
                     License {pending.licenseNumber} · {pending.mobile}
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export default function Drivers() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Driver Roster List */}
-          <div className="lg:col-span-5 enterprise-card divide-y divide-[#E0D4B7]/70 overflow-hidden">
+          <div className="lg:col-span-5 enterprise-card divide-y divide-[#E5E5E5]/70 overflow-hidden">
             {activeRoster.map((drv) => {
               const vehicle = vehicles.find((v) => v.id === drv.assignedVehicleId)
               const evaluation = evaluateDriverSafety({
@@ -208,13 +208,13 @@ export default function Drivers() {
                   key={drv.id}
                   type="button"
                   onClick={() => setSelectedDriverId(drv.id)}
-                  className={`w-full p-4 text-left transition-colors hover:bg-[#FBF6E6] flex items-center justify-between gap-3 ${
+                  className={`w-full p-4 text-left transition-colors hover:bg-[#FFFFFF] flex items-center justify-between gap-3 ${
                     selected ? 'bg-[#EEE8F7]' : ''
                   }`}
                 >
                   <div>
                     <p className="font-semibold text-sm text-[#625346]">{drv.name}</p>
-                    <p className="text-xs text-[#7D6D5F] mt-0.5">
+                    <p className="text-xs text-[#958777] mt-0.5">
                       {vehicle ? vehicle.registrationNumber : 'Unassigned'} · {drv.totalTrips} trips
                     </p>
                   </div>
@@ -231,7 +231,7 @@ export default function Drivers() {
                       />
                       {evaluation.overallScore}
                     </span>
-                    <span className="text-[11px] text-[#7D6D5F] block">Safety Score</span>
+                    <span className="text-[11px] text-[#958777] block">Safety Score</span>
                   </div>
                 </button>
               )
@@ -241,10 +241,10 @@ export default function Drivers() {
           {/* Driver Intelligence Profile & Event Disputes */}
           {selectedDriver && selectedEvaluation && (
             <div className="lg:col-span-7 enterprise-card p-6 space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E0D4B7]">
+              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
                 <div>
                   <h2 className="dm-section-title">{selectedDriver.name}</h2>
-                  <p className="text-xs text-[#7D6D5F] mt-0.5 tabular-nums">
+                  <p className="text-xs text-[#958777] mt-0.5 tabular-nums">
                     {selectedDriver.licenseNumber} · Valid till {selectedDriver.licenseExpiry} · {selectedDriver.mobile}
                   </p>
                 </div>
@@ -255,11 +255,11 @@ export default function Drivers() {
               </div>
 
               {/* Road/GPS Fairness Context */}
-              <div className="bg-[#EEE8F7] border border-[#D4C7E6] rounded-[10px] p-3.5 flex items-start gap-2.5 text-xs text-[#625346]">
+              <div className="bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px] p-3.5 flex items-start gap-2.5 text-xs text-[#625346]">
                 <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-[#625346]">Corridor & Sensor Context</p>
-                  <p className="mt-0.5 text-[#7D6D5F]">{selectedEvaluation.roadAdjustedNote}</p>
+                  <p className="mt-0.5 text-[#958777]">{selectedEvaluation.roadAdjustedNote}</p>
                 </div>
               </div>
 
@@ -272,8 +272,8 @@ export default function Drivers() {
                   { label: 'Cornering', val: selectedEvaluation.corneringScore },
                   { label: 'Fatigue / Hours', val: selectedEvaluation.fatigueComplianceScore },
                 ].map((metric) => (
-                  <div key={metric.label} className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                    <span className="text-[#7D6D5F] block">{metric.label}</span>
+                  <div key={metric.label} className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                    <span className="text-[#958777] block">{metric.label}</span>
                     <span className="text-lg font-bold text-[#625346] tabular-nums mt-0.5 block">
                       {metric.val}
                     </span>
@@ -296,7 +296,7 @@ export default function Drivers() {
                 <h3 className="text-xs font-bold text-[#625346] mb-2.5">
                   Telemetry Behavior Events & Dispute Resolution ({selectedDriverEvents.length})
                 </h3>
-                <div className="divide-y divide-[#E0D4B7]/70 border border-[#E0D4B7] bg-[#FBF6E6]/80 rounded-[10px]">
+                <div className="divide-y divide-[#E5E5E5]/70 border border-[#E5E5E5] bg-[#FFFFFF]/80 rounded-[10px]">
                   {selectedDriverEvents.map((ev) => (
                     <div key={ev.id} className="p-3.5 space-y-2 text-xs">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -307,16 +307,16 @@ export default function Drivers() {
                           />
                           <span className="font-medium text-[#625346]">{ev.locationLabel}</span>
                           {ev.mountStabilityWarning && (
-                            <span className="text-[#8F6D15] font-semibold">· Phone mount jitter detected</span>
+                            <span className="text-[#A56021] font-semibold">· Phone mount jitter detected</span>
                           )}
                         </div>
-                        <span className="text-[#7D6D5F] tabular-nums">
+                        <span className="text-[#958777] tabular-nums">
                           {ev.speedKmh} km/h · GPS ±{ev.gpsAccuracyMeters}m
                         </span>
                       </div>
 
                       {ev.disputeStatus === 'disputed' && (
-                        <div className="bg-[#E8C65A]/25 border border-[#C9A63B] rounded-[8px] p-2.5 text-[#625346]">
+                        <div className="bg-[#E8C65A]/25 border border-[#D8B442] rounded-[8px] p-2.5 text-[#625346]">
                           <p className="font-semibold">Driver Dispute Submitted:</p>
                           <p className="mt-0.5">{ev.disputeReason}</p>
                           {canResolveDispute && (
@@ -353,12 +353,12 @@ export default function Drivers() {
                       )}
 
                       {ev.disputeStatus === 'rejected_upheld' && (
-                        <p className="text-[#7D6D5F]">
+                        <p className="text-[#958777]">
                           Dispute reviewed and upheld ({ev.disputeResolutionNote}).
                         </p>
                       )}
 
-                      <div className="flex items-center justify-between text-[#7D6D5F]">
+                      <div className="flex items-center justify-between text-[#958777]">
                         <span className="tabular-nums">{formatDateTime(ev.timestamp, activeOrganization.timezone)}</span>
                         {ev.disputeStatus === 'none' && canDispute && (
                           <button
@@ -377,7 +377,7 @@ export default function Drivers() {
                     </div>
                   ))}
                   {selectedDriverEvents.length === 0 && (
-                    <p className="p-6 text-center text-xs text-[#7D6D5F]">
+                    <p className="p-6 text-center text-xs text-[#958777]">
                       No behavior events logged for this driver.
                     </p>
                   )}

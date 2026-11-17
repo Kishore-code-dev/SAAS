@@ -408,3 +408,101 @@ test('computeVehicleComponentPrediction refuses to fabricate forecast when odome
   assert.equal(prediction.predictedFailureDate, 'Insufficient data')
 })
 
+test('evaluateDriverSafety suspends penalties on inaccurate GPS (>25m) or restricted motion permission', () => {
+  const highGpsNoiseEvent: DriverBehaviorEvent = {
+    id: 'ev-gps',
+    organizationId: 'org-1',
+    driverId: 'drv-1',
+    vehicleId: 'veh-1',
+    tripId: 'trp-1',
+    eventType: 'harsh_braking',
+    severity: 'high',
+    speedKmh: 50,
+    roadStressContext: 0.78,
+    gpsAccuracyMeters: 40,
+    mountStabilityWarning: false,
+    timestamp: new Date(nowMs - 100000).toISOString(),
+    locationLabel: 'NH44 Madurai',
+    disputeStatus: 'none',
+  }
+  const gpsEval = evaluateDriverSafety({
+    driver: sampleDriver,
+    events: [highGpsNoiseEvent],
+    trips: [],
+    corridors: [sampleCorridor],
+    vehicles: [sampleVehicle],
+  })
+  assert.equal(gpsEval.brakingScore, 95)
+
+  const motionRestrictedVehicle: Vehicle = {
+    ...sampleVehicle,
+    telemetry: { ...sampleVehicle.telemetry, motionPermissionGranted: false },
+  }
+  const motionEval = evaluateDriverSafety({
+    driver: sampleDriver,
+    events: [{ ...highGpsNoiseEvent, id: 'ev-ok-gps', gpsAccuracyMeters: 8 }],
+    trips: [],
+    corridors: [sampleCorridor],
+    vehicles: [motionRestrictedVehicle],
+  })
+  assert.equal(motionEval.brakingScore, 95)
+})
+
+test('analyzeFuelTransactions preserves verified status and computeFinancialIntelligence sums match breakdown across periods', () => {
+  const verifiedDuplicate: FuelTransaction[] = [
+    {
+      id: 'f-1',
+      organizationId: 'org-1',
+      environment: 'demo',
+      vehicleId: 'veh-1',
+      driverId: 'drv-1',
+      amountInr: 4000,
+      litersOrKwh: 44,
+      unitPriceInr: 90.9,
+      odometerKm: 145000,
+      station: 'Indian Oil Madurai',
+      location: { lat: 9.92, lng: 78.12 },
+      timestamp: '2026-06-15T06:00:00.000Z',
+      paymentMethod: 'upi',
+      entrySource: 'manual_driver_entry',
+      verificationStatus: 'verified',
+      anomalyFlags: [],
+    },
+    {
+      id: 'f-2',
+      organizationId: 'org-1',
+      environment: 'demo',
+      vehicleId: 'veh-1',
+      driverId: 'drv-1',
+      amountInr: 4000,
+      litersOrKwh: 44,
+      unitPriceInr: 90.9,
+      odometerKm: 145020,
+      station: 'Indian Oil Madurai',
+      location: { lat: 9.92, lng: 78.12 },
+      timestamp: '2026-06-15T06:30:00.000Z',
+      paymentMethod: 'upi',
+      entrySource: 'manual_driver_entry',
+      verificationStatus: 'verified',
+      anomalyFlags: [],
+    },
+  ]
+
+  const analyzed = analyzeFuelTransactions(verifiedDuplicate, [sampleVehicle])
+  assert.equal(analyzed.find((t) => t.id === 'f-2')?.verificationStatus, 'verified')
+
+  for (const period of ['7d', '30d', '90d'] as const) {
+    const fin = computeFinancialIntelligence({
+      vehicles: [sampleVehicle],
+      fuelTransactions: analyzed,
+      maintenanceRecords: [],
+      predictions: [],
+      trips: [],
+      period,
+      nowMs,
+    })
+    const sumTotal = fin.vehicleCostBreakdown.reduce((s, r) => s + r.totalSpendInr, 0)
+    assert.equal(fin.operatingExpenditureInr, sumTotal)
+  }
+})
+

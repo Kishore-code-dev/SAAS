@@ -97,7 +97,21 @@ describe('RBAC permission & route matrix', () => {
 
     expect(canPerformAction('driver', 'start_own_trip')).toBe(true)
     expect(canPerformAction('driver', 'log_fuel')).toBe(true)
+    expect(canPerformAction('driver', 'update_telemetry')).toBe(true)
     expect(canPerformAction('driver', 'use_copilot')).toBe(false)
     expect(canPerformAction('driver', 'decommission_vehicle')).toBe(false)
+  })
+
+  it('strictly separates org_admin from platform_admin super-governance actions', () => {
+    expect(canPerformAction('org_admin', 'manage_members')).toBe(true)
+    expect(canPerformAction('org_admin', 'create_organization')).toBe(false)
+    expect(canPerformAction('org_admin', 'update_global_settings')).toBe(false)
+    expect(() => assertRolePermission('org_admin', 'create_organization')).toThrow(/not authorized/i)
+    expect(() => assertRolePermission('org_admin', 'update_global_settings')).toThrow(/not authorized/i)
+
+    expect(canPerformAction('platform_admin', 'create_organization')).toBe(true)
+    expect(canPerformAction('platform_admin', 'update_global_settings')).toBe(true)
+    expect(canPerformAction('finance', 'update_telemetry')).toBe(false)
+    expect(canPerformAction('maintenance', 'update_telemetry')).toBe(false)
   })
 })

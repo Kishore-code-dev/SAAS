@@ -1,29 +1,29 @@
 import React from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
-  Activity,
   AlertTriangle,
   BarChart3,
   Compass,
+  Cpu,
   CreditCard,
   FileSpreadsheet,
   Fuel,
+  Layers,
   LayoutDashboard,
   LogOut,
   MapPin,
-  Route,
+  Navigation,
   Settings,
   ShieldAlert,
   ShieldCheck,
   Smartphone,
-  Truck,
   Users,
-  Wrench,
   X,
 } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { useAuth } from '../../hooks/useAuth'
 import { canAccessRoute } from '../../utils/rbac'
+import { BrandLogo } from '../ui/BrandLogo'
 
 interface NavItem {
   to: string
@@ -57,14 +57,14 @@ export default function Sidebar({
       items: [
         { to: '/dashboard', label: 'Command Centre', icon: LayoutDashboard, end: true },
         { to: '/dashboard/map', label: 'Live Operations Map', icon: MapPin },
-        { to: '/dashboard/fleet', label: 'Fleet & Digital Twins', icon: Truck },
-        { to: '/dashboard/trips', label: 'Trip Intelligence', icon: Route },
+        { to: '/dashboard/fleet', label: 'Fleet & Digital Twins', icon: Layers },
+        { to: '/dashboard/trips', label: 'Trip Intelligence', icon: Navigation },
       ],
     },
     {
       title: 'Intelligence',
       items: [
-        { to: '/dashboard/maintenance', label: 'Predictive Maintenance', icon: Wrench, badge: criticalMaintCount || undefined },
+        { to: '/dashboard/maintenance', label: 'Predictive Maintenance', icon: Cpu, badge: criticalMaintCount || undefined },
         { to: '/dashboard/risk', label: 'Fleet Risk Radar', icon: ShieldAlert, badge: elevatedRiskCount || undefined },
         { to: '/dashboard/drivers', label: 'Driver Intelligence', icon: Users },
         { to: '/dashboard/roads', label: 'Corridor Stress', icon: Compass },
@@ -106,32 +106,31 @@ export default function Sidebar({
     <>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-[#625346]/25 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-[#625346]/20 backdrop-blur-[1px] lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[276px] bg-[#EEE8F7] border-r border-[#D4C7E6] flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 shrink-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-[268px] bg-[#EEE8F7] border-r border-[#DDD3ED] flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 shrink-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="h-16 px-5 border-b border-[#D4C7E6] flex items-center justify-between shrink-0">
+        <div className="h-16 px-5 border-b border-[#DDD3ED] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
+            aria-label="DriveMitra Command Centre"
             className="flex items-center gap-2.5 text-left"
           >
-            <div className="w-8 h-8 rounded-[10px] bg-[#E8C65A] border border-[#C9A63B] text-[#625346] flex items-center justify-center shrink-0 shadow-subtle">
-              <Activity className="w-4 h-4 text-[#625346]" />
-            </div>
+            <BrandLogo size="md" className="border border-[#DDD3ED] shadow-subtle" />
             <div>
-              <span className="font-bold text-base text-[#625346] block leading-none">
-                DriveMitra
+              <span className="text-xs font-bold text-[#625346] capitalize block leading-tight">
+                {environment}
               </span>
-              <span className="text-[11px] text-[#7D6D5F] font-medium capitalize mt-0.5 block">
-                {environment} workspace
+              <span className="text-[11px] text-[#958777] font-medium block">
+                workspace
               </span>
             </div>
           </button>
@@ -139,7 +138,7 @@ export default function Sidebar({
             type="button"
             onClick={onClose}
             aria-label="Close navigation menu"
-            className="lg:hidden p-1.5 rounded-lg text-[#625346] hover:bg-[#DFD3F2]"
+            className="lg:hidden p-1.5 rounded-lg text-[#625346] hover:bg-[#E2D8F3]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -148,7 +147,7 @@ export default function Sidebar({
         <nav className="flex-1 overflow-y-auto scrollbar-custom px-3 py-4 space-y-5" aria-label="Dashboard navigation">
           {visibleGroups.map((group) => (
             <div key={group.title}>
-              <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#7D6D5F]">
+              <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#958777]">
                 {group.title}
               </p>
               <div className="space-y-0.5">
@@ -163,23 +162,23 @@ export default function Sidebar({
                       className={({ isActive }) =>
                         `flex items-center justify-between gap-2 px-2.5 py-2 rounded-[10px] text-[13.5px] transition-colors whitespace-nowrap ${
                           isActive
-                            ? 'bg-[#E8C65A]/45 text-[#625346] font-semibold border border-[#C9A63B] shadow-subtle'
-                            : 'text-[#625346] font-medium border border-transparent hover:bg-[#F7F0D9]/80'
+                            ? 'bg-[#E1D7F2] text-[#6E5696] font-semibold border border-[#B8A3D9] shadow-subtle'
+                            : 'text-[#625346] font-medium border border-transparent hover:bg-[#FFFFFF]/70'
                         }`
                       }
                     >
                       {({ isActive }) => (
                         <>
                           <span className="flex items-center gap-2.5 min-w-0">
-                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#625346]' : 'text-[#6E5696]'}`} />
+                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#6E5696]' : 'text-[#958777]'}`} />
                             <span className="truncate">{item.label}</span>
                           </span>
                           {typeof item.badge === 'number' && item.badge > 0 && (
                             <span
                               className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-[6px] border ${
                                 isActive
-                                  ? 'bg-[#FBF6E6] text-[#625346] border-[#C9A63B]'
-                                  : 'bg-[#F4EBD5] text-[#625346] border-[#D4C7E6]'
+                                  ? 'bg-[#FFFFFF] text-[#6E5696] border-[#B8A3D9]'
+                                  : 'bg-[#FFFFFF] text-[#625346] border-[#DDD3ED]'
                               }`}
                             >
                               {item.badge}
@@ -195,11 +194,11 @@ export default function Sidebar({
           ))}
         </nav>
 
-        <div className="p-3 border-t border-[#D4C7E6] shrink-0">
+        <div className="p-3 border-t border-[#DDD3ED] shrink-0">
           <button
             type="button"
             onClick={handleSignOut}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium text-[#625346] hover:bg-[#D9786C]/20 transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium text-[#625346] hover:bg-[#FCECEB] transition-colors"
           >
             <LogOut className="w-4 h-4 shrink-0 text-[#B84E42]" />
             <span>Sign Out</span>

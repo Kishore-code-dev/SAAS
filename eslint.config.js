@@ -26,6 +26,7 @@ export default defineConfig([
           allowConstantExport: true,
           allowExportNames: [
             'useAuth',
+            'validateEmailFormat',
             'useFleet',
             'useTranslation',
             'formatInr',

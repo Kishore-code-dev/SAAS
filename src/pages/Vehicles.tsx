@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArchiveRestore, ArrowRight, Plus, Search, Truck } from 'lucide-react'
+import { ArchiveRestore, ArrowRight, Layers, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
 import { classifyTelemetryFreshness } from '../utils/intelligenceEngine'
@@ -22,6 +22,7 @@ export default function Vehicles() {
     searchTerm,
     setSearchTerm,
     restoreVehicle,
+    nowTick,
   } = useFleet()
 
   const [lifecycleTab, setLifecycleTab] = useState<'active' | 'archived'>('active')
@@ -78,7 +79,7 @@ export default function Vehicles() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Fleet & Vehicle Digital Twins</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · {vehicles.length} active, {archivedVehicles.length} archived (Plan limit {activeOrganization.vehicleLimit})
           </p>
         </div>
@@ -93,7 +94,7 @@ export default function Vehicles() {
       {/* Filters & Sorting */}
       <div className="enterprise-card p-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
             {(['active', 'archived'] as const).map((tab) => (
               <button
                 key={tab}
@@ -103,7 +104,7 @@ export default function Vehicles() {
                   setPage(1)
                 }}
                 className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
-                  lifecycleTab === tab ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+                  lifecycleTab === tab ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle border border-[#DDD3ED]' : 'text-[#958777] hover:text-[#625346]'
                 }`}
               >
                 {tab === 'active' ? `Active (${vehicles.length})` : `Archived (${archivedVehicles.length})`}
@@ -111,7 +112,7 @@ export default function Vehicles() {
             ))}
           </div>
 
-          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
             {(['all', 'healthy', 'at-risk', 'critical'] as const).map((st) => (
               <button
                 key={st}
@@ -121,7 +122,7 @@ export default function Vehicles() {
                   setPage(1)
                 }}
                 className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
-                  healthFilter === st ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+                  healthFilter === st ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle border border-[#DDD3ED]' : 'text-[#958777] hover:text-[#625346]'
                 }`}
               >
                 {st.replace('-', ' ')}
@@ -129,7 +130,7 @@ export default function Vehicles() {
             ))}
           </div>
 
-          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+          <div className="flex items-center bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
             {(['all', 'ICE', 'EV'] as const).map((pt) => (
               <button
                 key={pt}
@@ -139,7 +140,7 @@ export default function Vehicles() {
                   setPage(1)
                 }}
                 className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
-                  powertrainFilter === pt ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle border border-[#D4C7E6]' : 'text-[#7D6D5F] hover:text-[#625346]'
+                  powertrainFilter === pt ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle border border-[#DDD3ED]' : 'text-[#958777] hover:text-[#625346]'
                 }`}
               >
                 {pt === 'all' ? 'All Powertrains' : pt}
@@ -162,7 +163,7 @@ export default function Vehicles() {
           </select>
 
           <div className="relative w-full sm:w-56">
-            <Search className="w-4 h-4 text-[#7D6D5F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-4 h-4 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="search"
               value={searchTerm}
@@ -208,15 +209,15 @@ export default function Vehicles() {
               <tbody>
                 {pagedVehicles.map((v) => {
                   const driver = drivers.find((d) => d.id === v.assignedDriverId)
-                  const freshness = classifyTelemetryFreshness(v.telemetry.lastUpdatedAt, v.telemetry.connectionState)
+                  const freshness = classifyTelemetryFreshness(v.telemetry.lastUpdatedAt, v.telemetry.connectionState, nowTick)
                   const openPreds = predictions.filter((p) => !p.insufficientData && p.vehicleId === v.id && p.status !== 'resolved')
                   const healthState = v.healthScore <= 49 ? 'critical' : v.healthScore <= 74 ? 'at-risk' : 'healthy'
                   return (
                     <tr key={v.id}>
                       <td>
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-[8px] bg-[#EEE8F7] border border-[#D4C7E6] text-[#6E5696] flex items-center justify-center shrink-0">
-                            <Truck className="w-4 h-4" />
+                          <div className="w-8 h-8 rounded-[8px] bg-[#EEE8F7] border border-[#DDD3ED] text-[#6E5696] flex items-center justify-center shrink-0">
+                            <Layers className="w-4 h-4" />
                           </div>
                           <div>
                             <button
@@ -226,7 +227,7 @@ export default function Vehicles() {
                             >
                               {v.registrationNumber}
                             </button>
-                            <span className="text-xs text-[#7D6D5F]">
+                            <span className="text-xs text-[#958777]">
                               {v.make} {v.model} ({v.year}) · {v.cityName}
                             </span>
                           </div>
@@ -234,7 +235,7 @@ export default function Vehicles() {
                       </td>
                       <td>
                         <span className="text-xs font-semibold text-[#625346]">{v.powertrain}</span>
-                        <span className="text-xs text-[#7D6D5F] block">{v.fuelType}</span>
+                        <span className="text-xs text-[#958777] block">{v.fuelType}</span>
                       </td>
                       <td className="text-[#625346]">{driver?.name ?? 'Unassigned'}</td>
                       <td className="tabular-nums text-[#625346] whitespace-nowrap">
@@ -281,7 +282,7 @@ export default function Vehicles() {
           </div>
 
           {totalPages > 1 && (
-            <div className="px-4 py-3 bg-[#FBF6E6] border-t border-[#E0D4B7] flex items-center justify-between text-xs text-[#7D6D5F]">
+            <div className="px-4 py-3 bg-[#FFFFFF] border-t border-[#E5E5E5] flex items-center justify-between text-xs text-[#958777]">
               <span>
                 Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length}
               </span>

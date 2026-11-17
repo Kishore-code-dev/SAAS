@@ -65,7 +65,7 @@ export default function Settings() {
     <div className="space-y-6 max-w-4xl">
       <div>
         <h1 className="dm-page-title">Workspace Settings</h1>
-        <p className="text-sm text-[#7D6D5F] mt-1">
+        <p className="text-sm text-[#958777] mt-1">
           Configure organization timezone, localization, alert thresholds, and telemetry privacy controls
         </p>
       </div>
@@ -132,7 +132,7 @@ export default function Settings() {
       {/* Localization */}
       <div className="enterprise-card p-6 space-y-4">
         <h2 className="dm-card-title">Interface Localization</h2>
-        <p className="text-xs text-[#7D6D5F]">Select preferred display language across Command Centre and Driver Companion App.</p>
+        <p className="text-xs text-[#958777]">Select preferred display language across Command Centre and Driver Companion App.</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {languageOptions.map((opt) => (
             <button
@@ -145,11 +145,11 @@ export default function Settings() {
               className={`p-3 rounded-[10px] border text-left transition-colors ${
                 language === opt.code
                   ? 'border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] shadow-subtle'
-                  : 'border-[#E0D4B7] bg-[#FBF6E6] text-[#625346] hover:bg-[#EEE8F7]/60'
+                  : 'border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7]/60'
               }`}
             >
               <span className="text-xs font-bold block">{opt.nativeLabel}</span>
-              <span className="text-[11px] block text-[#7D6D5F]">
+              <span className="text-[11px] block text-[#958777]">
                 {opt.label}
               </span>
             </button>
@@ -194,11 +194,11 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="space-y-3 pt-2 border-t border-[#E0D4B7] text-sm">
+        <div className="space-y-3 pt-2 border-t border-[#E5E5E5] text-sm">
           <label className="flex items-center justify-between gap-4 cursor-pointer">
             <div>
               <span className="font-medium text-[#625346] block">Critical Failure Alert Notifications</span>
-              <span className="text-xs text-[#7D6D5F]">Immediate banner & inbox alerting for high/critical component windows</span>
+              <span className="text-xs text-[#958777]">Immediate banner & inbox alerting for high/critical component windows</span>
             </div>
             <input
               type="checkbox"
@@ -215,7 +215,7 @@ export default function Settings() {
           <label className="flex items-center justify-between gap-4 cursor-pointer">
             <div>
               <span className="font-medium text-[#625346] block">Daily Fleet Digest Summary</span>
-              <span className="text-xs text-[#7D6D5F]">Automated end-of-day operational and fuel exception summary</span>
+              <span className="text-xs text-[#958777]">Automated end-of-day operational and fuel exception summary</span>
             </div>
             <input
               type="checkbox"
@@ -232,7 +232,7 @@ export default function Settings() {
           <label className="flex items-center justify-between gap-4 cursor-pointer">
             <div>
               <span className="font-medium text-[#625346] block">Trip-Scoped Driver Location Sharing</span>
-              <span className="text-xs text-[#7D6D5F]">Restrict smartphone GPS transmission strictly to active shift trips</span>
+              <span className="text-xs text-[#958777]">Restrict smartphone GPS transmission strictly to active shift trips</span>
             </div>
             <input
               type="checkbox"

@@ -402,14 +402,3 @@ export interface ReportHistoryItem {
   format: 'CSV' | 'PDF'
   rowCount: number
 }
-
-export interface DemoRequestSubmission {
-  id: string
-  fullName: string
-  workEmail: string
-  companyName: string
-  fleetSize: string
-  phone: string
-  notes: string
-  submittedAt: string
-}

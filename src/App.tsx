@@ -2,12 +2,12 @@ import React, { lazy, Suspense } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
-import { Truck } from 'lucide-react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { FleetProvider, useFleet } from './hooks/useFleet'
 import { I18nProvider } from './i18n/useTranslation'
 import Layout from './components/layout/Layout'
 import { AccessDeniedState } from './components/ui/EnterprisePrimitives'
+import { BrandLogo } from './components/ui/BrandLogo'
 import { canAccessRoute, getDefaultHomeForRole } from './utils/rbac'
 
 const Landing = lazy(() => import('./pages/Landing'))
@@ -37,16 +37,13 @@ const queryClient = new QueryClient({
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-[#F7F0D9] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#FFFFFF] flex items-center justify-center p-6">
       <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 rounded-xl bg-[#EEE8F7] border border-[#B8A3D9] text-[#625346] flex items-center justify-center shadow-card">
-          <Truck className="w-6 h-6 text-[#6E5696]" />
-        </div>
+        <BrandLogo size="xl" className="border border-[#DDD3ED] shadow-card" />
         <div className="text-center">
-          <p className="font-bold text-lg text-[#625346]">DriveMitra</p>
-          <p className="text-xs text-[#7D6D5F] mt-1">Loading fleet workspace...</p>
+          <p className="text-xs text-[#958777]">Loading fleet workspace...</p>
         </div>
-        <div className="w-40 h-1.5 rounded-full overflow-hidden bg-[#E0D4B7]">
+        <div className="w-40 h-1.5 rounded-full overflow-hidden bg-[#E5E5E5]">
           <div className="h-full bg-[#E8C65A] animate-progress-flow w-full" />
         </div>
       </div>
@@ -72,7 +69,7 @@ export function RoleProtectedRoute({ children }: { children: React.ReactNode }) 
   if (!canAccessRoute(activeRole, location.pathname)) {
     const fallback = getDefaultHomeForRole(activeRole)
     return (
-      <div className="min-h-screen bg-[#F7F0D9]">
+      <div className="min-h-screen bg-[#FFFFFF]">
         <AccessDeniedState
           roleLabel={activeRole.replace('_', ' ')}
           targetPath={location.pathname}
@@ -191,8 +188,8 @@ export default function App() {
                 theme="light"
                 toastOptions={{
                   style: {
-                    background: '#FBF6E6',
-                    border: '1px solid #D4C7E6',
+                    background: '#FFFFFF',
+                    border: '1px solid #E5E5E5',
                     color: '#625346',
                     borderRadius: '10px',
                     fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',

@@ -10,7 +10,7 @@ export default function RoadIntelligence() {
     <div className="space-y-6">
       <div>
         <h1 className="dm-page-title">Corridor Stress & Climate Intelligence</h1>
-        <p className="text-sm text-[#7D6D5F] mt-1">
+        <p className="text-sm text-[#958777] mt-1">
           {activeOrganization.name} · Regional road stress and thermal multipliers applied in predictive wear models
         </p>
       </div>
@@ -27,32 +27,32 @@ export default function RoadIntelligence() {
           )
           const sev = cor.roadStressIndex >= 0.7 ? 'critical' : cor.roadStressIndex >= 0.6 ? 'high' : 'normal'
           return (
-            <div key={cor.id} className="enterprise-card p-5 space-y-3 hover:bg-[#FBF6E6] transition-colors">
+            <div key={cor.id} className="enterprise-card p-5 space-y-3 hover:bg-[#FFFFFF] transition-colors">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="dm-card-title">{cor.name}</h2>
-                  <p className="text-xs text-[#7D6D5F]">{cor.region}</p>
+                  <p className="text-xs text-[#958777]">{cor.region}</p>
                 </div>
                 <SeverityText severity={sev} label={cor.potholeDensity} />
               </div>
 
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E0D4B7] text-xs">
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E5E5E5] text-xs">
                 <div>
-                  <span className="text-[#7D6D5F] block">Road Stress Index</span>
+                  <span className="text-[#958777] block">Road Stress Index</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums">
                     {cor.roadStressIndex.toFixed(2)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#7D6D5F] block">Ambient Temp</span>
+                  <span className="text-[#958777] block">Ambient Temp</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums inline-flex items-center gap-1">
-                    <Thermometer className="w-3.5 h-3.5 text-[#8F6D15]" />
+                    <Thermometer className="w-3.5 h-3.5 text-[#A56021]" />
                     {cor.avgAmbientTempC}°C
                   </span>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-[#E0D4B7] flex items-center justify-between text-xs text-[#7D6D5F]">
+              <div className="pt-2 border-t border-[#E5E5E5] flex items-center justify-between text-xs text-[#958777]">
                 <span className="inline-flex items-center gap-1">
                   <Compass className="w-3.5 h-3.5 text-[#6E5696]" />
                   {activeOnCorridor.length} vehicle(s)

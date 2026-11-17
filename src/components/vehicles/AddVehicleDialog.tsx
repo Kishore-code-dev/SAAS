@@ -268,7 +268,7 @@ export default function AddVehicleDialog({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E0D4B7]">
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-[#E5E5E5]">
           <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
           <button type="submit" className="btn-primary">Register Vehicle</button>
         </div>

@@ -36,7 +36,7 @@ export default function AlertsPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Operational Alerts</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Real-time maintenance, telemetry, driver, and fuel exceptions
           </p>
         </div>
@@ -60,14 +60,14 @@ export default function AlertsPage() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="p-1.5 flex items-center gap-1 w-fit bg-[#EEE8F7] border border-[#D4C7E6] rounded-[10px]">
+        <div className="p-1.5 flex items-center gap-1 w-fit bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px]">
           {(['all', 'unread', 'critical'] as const).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setFilter(tab)}
               className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors ${
-                filter === tab ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+                filter === tab ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               {tab === 'critical' ? 'Critical & High' : tab}
@@ -76,7 +76,7 @@ export default function AlertsPage() {
         </div>
 
         <div className="relative w-full sm:w-72">
-          <Search className="w-3.5 h-3.5 text-[#7D6D5F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <Search className="w-3.5 h-3.5 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="search"
             value={searchQuery}
@@ -110,17 +110,17 @@ export default function AlertsPage() {
                     <span className="font-bold text-[#625346] tabular-nums">
                       {vehicle?.registrationNumber ?? al.vehicleId}
                     </span>
-                    <span className="text-[#7D6D5F]">·</span>
-                    <span className="capitalize text-[#7D6D5F]">{al.category.replace('_', ' ')}</span>
+                    <span className="text-[#958777]">·</span>
+                    <span className="capitalize text-[#958777]">{al.category.replace('_', ' ')}</span>
                     {al.source && (
-                      <span className="px-2 py-0.5 rounded bg-[#EEE8F7] border border-[#D4C7E6] text-[#625346] font-semibold text-[11px]">
+                      <span className="px-2 py-0.5 rounded bg-[#EEE8F7] border border-[#DDD3ED] text-[#625346] font-semibold text-[11px]">
                         Source: {al.source}
                       </span>
                     )}
                   </div>
                   <h2 className="dm-card-title">{al.title}</h2>
-                  <p className="text-xs text-[#7D6D5F]">{al.message}</p>
-                  <p className="text-[11px] tabular-nums text-[#7D6D5F]">
+                  <p className="text-xs text-[#958777]">{al.message}</p>
+                  <p className="text-[11px] tabular-nums text-[#958777]">
                     {formatDateTime(al.timestamp, activeOrganization.timezone)}
                   </p>
                 </div>

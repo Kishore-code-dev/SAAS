@@ -26,6 +26,7 @@ export type FleetAction =
   | 'manage_subscription'
   | 'update_org_settings'
   | 'update_global_settings'
+  | 'update_telemetry'
   | 'export_reports'
   | 'use_copilot'
 
@@ -56,11 +57,11 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'manage_subscription',
     'update_org_settings',
     'update_global_settings',
+    'update_telemetry',
     'export_reports',
     'use_copilot',
   ]),
   org_admin: new Set<FleetAction>([
-    'create_organization',
     'manage_members',
     'add_vehicle',
     'edit_vehicle',
@@ -84,7 +85,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'acknowledge_alert',
     'manage_subscription',
     'update_org_settings',
-    'update_global_settings',
+    'update_telemetry',
     'export_reports',
     'use_copilot',
   ]),
@@ -110,6 +111,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'report_issue',
     'acknowledge_alert',
     'update_org_settings',
+    'update_telemetry',
     'export_reports',
     'use_copilot',
   ]),
@@ -136,6 +138,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'submit_inspection',
     'report_issue',
     'dispute_driver_event',
+    'update_telemetry',
   ]),
 }
 

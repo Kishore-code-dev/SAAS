@@ -41,7 +41,7 @@ export default function RiskRadar() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Fleet Risk Radar</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Unified cross-system risk prioritization with insufficient-data safeguards
           </p>
         </div>
@@ -60,11 +60,11 @@ export default function RiskRadar() {
             type="button"
             onClick={() => setSeverityFilter(severityFilter === bucket.key ? 'all' : bucket.key)}
             className={`enterprise-card p-4 text-left transition-colors ${
-              severityFilter === bucket.key ? 'border-[#B8A3D9] bg-[#EEE8F7]' : 'hover:bg-[#FBF6E6]'
+              severityFilter === bucket.key ? 'border-[#B8A3D9] bg-[#EEE8F7]' : 'hover:bg-[#FFFFFF]'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[#7D6D5F]">{bucket.label} Risk</span>
+              <span className="text-xs font-semibold text-[#958777]">{bucket.label} Risk</span>
               <ShieldAlert className="w-4 h-4 text-[#6E5696]" />
             </div>
             <p className="dm-kpi-value mt-2 flex items-center gap-2">
@@ -77,7 +77,7 @@ export default function RiskRadar() {
 
       {/* Category & Sort Controls */}
       <div className="enterprise-card p-3.5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+        <div className="flex flex-wrap items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
           {([
             { id: 'all', label: 'All Categories' },
             { id: 'maintenance', label: 'Maintenance' },
@@ -91,7 +91,7 @@ export default function RiskRadar() {
               type="button"
               onClick={() => setCategoryFilter(cat.id)}
               className={`px-3 py-1 rounded-[8px] text-xs font-semibold transition-colors whitespace-nowrap ${
-                categoryFilter === cat.id ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+                categoryFilter === cat.id ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               {cat.label}
@@ -100,7 +100,7 @@ export default function RiskRadar() {
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          <label htmlFor="risk-sort" className="text-[#7D6D5F] font-medium">Sort:</label>
+          <label htmlFor="risk-sort" className="text-[#958777] font-medium">Sort:</label>
           <select
             id="risk-sort"
             value={sortBy}
@@ -133,13 +133,13 @@ export default function RiskRadar() {
                 <div className="flex flex-wrap items-center gap-2 text-xs">
                   <SeverityText severity={item.severity} />
                   <span className="font-bold text-[#625346] tabular-nums">{item.vehicleRegistration}</span>
-                  <span className="text-[#7D6D5F]">·</span>
+                  <span className="text-[#958777]">·</span>
                   <span className="capitalize text-[#625346] font-medium">{item.category.replace('_', ' ')}</span>
-                  <span className="text-[#7D6D5F]">·</span>
-                  <span className="text-[#7D6D5F] tabular-nums">Confidence {item.confidencePct}%</span>
+                  <span className="text-[#958777]">·</span>
+                  <span className="text-[#958777] tabular-nums">Confidence {item.confidencePct}%</span>
                   {item.insufficientData && (
                     <>
-                      <span className="text-[#7D6D5F]">·</span>
+                      <span className="text-[#958777]">·</span>
                       <span className="text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9] px-2 py-0.5 rounded font-semibold">
                         Insufficient Live Telemetry
                       </span>
@@ -147,11 +147,11 @@ export default function RiskRadar() {
                   )}
                 </div>
                 <h2 className="dm-card-title">{item.title}</h2>
-                <p className="text-xs text-[#7D6D5F]">{item.evidence}</p>
+                <p className="text-xs text-[#958777]">{item.evidence}</p>
                 <p className="text-xs text-[#625346] font-medium">
                   Recommended Action: {item.recommendedAction}
                 </p>
-                <p className="text-[11px] text-[#7D6D5F] tabular-nums">
+                <p className="text-[11px] text-[#958777] tabular-nums">
                   Assessed {formatDateTime(item.timestamp, activeOrganization.timezone)}
                 </p>
               </div>

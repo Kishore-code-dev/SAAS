@@ -99,14 +99,14 @@ export default function AdminConsole() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Administration Console</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Environment {environment.toUpperCase()} · Multi-tenant governance & audit controls
           </p>
         </div>
       </div>
 
       {/* 10 Admin Module Tabs */}
-      <div className="border-b border-[#E0D4B7] overflow-x-auto">
+      <div className="border-b border-[#E5E5E5] overflow-x-auto">
         <div className="flex items-center gap-1 min-w-max" role="tablist">
           {ADMIN_TABS.map((t) => (
             <button
@@ -116,7 +116,7 @@ export default function AdminConsole() {
               aria-selected={tab === t}
               onClick={() => setTab(t)}
               className={`px-3.5 py-2.5 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap ${
-                tab === t ? 'border-[#6E5696] text-[#625346]' : 'border-transparent text-[#7D6D5F] hover:text-[#625346]'
+                tab === t ? 'border-[#6E5696] text-[#625346]' : 'border-transparent text-[#958777] hover:text-[#625346]'
               }`}
             >
               {t}
@@ -145,7 +145,7 @@ export default function AdminConsole() {
                   <tr key={org.id}>
                     <td className="font-semibold text-[#625346]">{org.name}</td>
                     <td className="tabular-nums text-xs">{org.code}</td>
-                    <td className="text-xs text-[#7D6D5F]">{org.city}, {org.state}</td>
+                    <td className="text-xs text-[#958777]">{org.city}, {org.state}</td>
                     <td className="capitalize font-medium">{org.planId}</td>
                     <td className="tabular-nums text-xs">{org.vehicleLimit} / {org.driverLimit}</td>
                     <td className="text-right">
@@ -188,7 +188,7 @@ export default function AdminConsole() {
                     <td>
                       <select
                         value={m.role}
-                        disabled={!canManageMembers}
+                        disabled={!canManageMembers || (m.role === 'platform_admin' && activeRole !== 'platform_admin')}
                         aria-label={`Role for ${m.fullName}`}
                         onChange={(e) => {
                           try {
@@ -200,7 +200,9 @@ export default function AdminConsole() {
                         }}
                         className="dm-input py-1 text-xs w-auto disabled:opacity-60"
                       >
-                        <option value="platform_admin">Platform Admin</option>
+                        {(activeRole === 'platform_admin' || m.role === 'platform_admin') && (
+                          <option value="platform_admin">Platform Admin</option>
+                        )}
                         <option value="org_admin">Org Admin</option>
                         <option value="fleet_manager">Fleet Manager</option>
                         <option value="maintenance">Maintenance</option>
@@ -209,7 +211,7 @@ export default function AdminConsole() {
                       </select>
                     </td>
                     <td><SeverityText severity="normal" label={m.status} /></td>
-                    <td className="tabular-nums text-xs text-[#7D6D5F]">{formatDateTime(m.lastActiveAt)}</td>
+                    <td className="tabular-nums text-xs text-[#958777]">{formatDateTime(m.lastActiveAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -222,7 +224,7 @@ export default function AdminConsole() {
         <div className="enterprise-card p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-[#625346]">{vehicles.length} Active Vehicles in {activeOrganization.name}</p>
-            <p className="text-xs text-[#7D6D5F] mt-1">Manage vehicle digital twins, driver assignments, and decommissioning.</p>
+            <p className="text-xs text-[#958777] mt-1">Manage vehicle digital twins, driver assignments, and decommissioning.</p>
           </div>
           <button type="button" onClick={() => navigate('/dashboard/fleet')} className="btn-primary text-xs">
             Open Fleet Directory
@@ -234,7 +236,7 @@ export default function AdminConsole() {
         <div className="enterprise-card p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-[#625346]">{drivers.length} Drivers Registered</p>
-            <p className="text-xs text-[#7D6D5F] mt-1">Includes onboarding approval queue and behavior event dispute resolution.</p>
+            <p className="text-xs text-[#958777] mt-1">Includes onboarding approval queue and behavior event dispute resolution.</p>
           </div>
           <button type="button" onClick={() => navigate('/dashboard/drivers')} className="btn-primary text-xs">
             Open Driver Intelligence
@@ -247,7 +249,7 @@ export default function AdminConsole() {
           {SUBSCRIPTION_PLANS.map((p) => (
             <div key={p.id} className="enterprise-card p-5">
               <p className="font-bold text-[#625346]">{p.name}</p>
-              <p className="text-xs text-[#7D6D5F] mt-1">Limit: {p.vehicleLimit} vehicles · {p.driverLimit} drivers</p>
+              <p className="text-xs text-[#958777] mt-1">Limit: {p.vehicleLimit} vehicles · {p.driverLimit} drivers</p>
               <button type="button" onClick={() => navigate('/dashboard/subscription')} className="btn-secondary text-xs mt-4">
                 Manage Plan
               </button>
@@ -260,7 +262,7 @@ export default function AdminConsole() {
         <div className="enterprise-card p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-[#625346]">{predictions.length} Active Component Predictions</p>
-            <p className="text-xs text-[#7D6D5F] mt-1">Deterministic wear model outputs with confidence intervals and delay-cost tracking.</p>
+            <p className="text-xs text-[#958777] mt-1">Deterministic wear model outputs with confidence intervals and delay-cost tracking.</p>
           </div>
           <button type="button" onClick={() => navigate('/dashboard/maintenance')} className="btn-primary text-xs">
             Inspect Predictions
@@ -271,21 +273,21 @@ export default function AdminConsole() {
       {tab === 'Model Monitoring' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="enterprise-card p-4">
-            <span className="text-xs text-[#7D6D5F]">Active Model Version</span>
+            <span className="text-xs text-[#958777]">Active Model Version</span>
             <p className="text-sm font-bold text-[#625346] mt-1">{INTELLIGENCE_MODEL_VERSION}</p>
           </div>
           <div className="enterprise-card p-4">
-            <span className="text-xs text-[#7D6D5F]">Mean Confidence</span>
+            <span className="text-xs text-[#958777]">Mean Confidence</span>
             <p className="text-2xl font-bold text-[#6E5696] tabular-nums mt-1">{avgConfidence}%</p>
           </div>
           <div className="enterprise-card p-4">
-            <span className="text-xs text-[#7D6D5F]">Open Predictions</span>
+            <span className="text-xs text-[#958777]">Open Predictions</span>
             <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1">
               {predictions.filter((p) => p.status === 'open').length}
             </p>
           </div>
           <div className="enterprise-card p-4">
-            <span className="text-xs text-[#7D6D5F]">Resolved Predictions</span>
+            <span className="text-xs text-[#958777]">Resolved Predictions</span>
             <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#789A75]" />
               {predictions.filter((p) => p.status === 'resolved').length}
@@ -298,7 +300,7 @@ export default function AdminConsole() {
         <div className="enterprise-card p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-[#625346]">{alerts.length} Organization Alerts</p>
-            <p className="text-xs text-[#7D6D5F] mt-1">{alerts.filter((a) => !a.acknowledged).length} awaiting acknowledgement.</p>
+            <p className="text-xs text-[#958777] mt-1">{alerts.filter((a) => !a.acknowledged).length} awaiting acknowledgement.</p>
           </div>
           <button type="button" onClick={() => navigate('/dashboard/alerts')} className="btn-primary text-xs">
             Open Alerts Feed
@@ -316,14 +318,14 @@ export default function AdminConsole() {
               {auditLogs.map((l) => (
                 <tr key={l.id}>
                   <td className="font-semibold">{l.actorName}</td>
-                  <td className="text-xs capitalize text-[#7D6D5F]">{l.actorRole.replace('_', ' ')}</td>
+                  <td className="text-xs capitalize text-[#958777]">{l.actorRole.replace('_', ' ')}</td>
                   <td className="text-xs">{l.action}</td>
                   <td className="text-xs text-[#625346]">{l.summary}</td>
-                  <td className="tabular-nums text-xs text-[#7D6D5F]">{formatDateTime(l.timestamp, activeOrganization.timezone)}</td>
+                  <td className="tabular-nums text-xs text-[#958777]">{formatDateTime(l.timestamp, activeOrganization.timezone)}</td>
                 </tr>
               ))}
               {auditLogs.length === 0 && (
-                <tr><td colSpan={5} className="text-center text-[#7D6D5F] py-8">No audit logs recorded yet.</td></tr>
+                <tr><td colSpan={5} className="text-center text-[#958777] py-8">No audit logs recorded yet.</td></tr>
               )}
             </tbody>
           </table>

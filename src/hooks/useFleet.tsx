@@ -3,7 +3,6 @@ import type {
   AIPrediction,
   AuditLogEntry,
   ComponentCategory,
-  DemoRequestSubmission,
   Driver,
   DriverBehaviorEvent,
   FuelTransaction,
@@ -32,6 +31,7 @@ import {
   analyzeFuelTransactions,
   buildFleetRiskAssessments,
   computeFinancialIntelligence,
+  evaluateDriverSafety,
   generateFleetPredictions,
   isStaleOutOfOrderTimestamp,
   isValidCoordinate,
@@ -40,13 +40,14 @@ import {
   validateVehiclePayload,
 } from '../utils/intelligenceEngine'
 import { assertRolePermission } from '../utils/rbac'
+import { getCorridorSeedLocation } from '../utils/fleetTracking'
 
 const STORAGE_PREFIX = 'dm_env_v2_'
+const PRED_OVERRIDES_PREFIX = 'dm_pred_overrides_v2_'
 const ACTIVE_ENV_KEY = 'dm_active_env_v2'
 const ACTIVE_ORG_KEY = 'dm_active_org_v2'
 const ACTIVE_ROLE_KEY = 'dm_active_role_v2'
 const SETTINGS_KEY = 'dm_workspace_settings_v2'
-const DEMO_REQUESTS_KEY = 'dm_demo_requests_v2'
 
 export interface WorkspaceSettings {
   aiConfidenceThreshold: number
@@ -85,6 +86,26 @@ function loadDataset(env: OperatingEnvironment): EnvironmentDataset {
 function saveDataset(env: OperatingEnvironment, dataset: EnvironmentDataset) {
   try {
     localStorage.setItem(`${STORAGE_PREFIX}${env}`, JSON.stringify(dataset))
+  } catch {
+    // Ignore storage quota errors
+  }
+}
+
+function loadPredictionOverrides(env: OperatingEnvironment): Record<string, AIPrediction['status']> {
+  try {
+    const raw = localStorage.getItem(`${PRED_OVERRIDES_PREFIX}${env}`)
+    return raw ? (JSON.parse(raw) as Record<string, AIPrediction['status']>) : {}
+  } catch {
+    return {}
+  }
+}
+
+function savePredictionOverrides(
+  env: OperatingEnvironment,
+  overrides: Record<string, AIPrediction['status']>,
+) {
+  try {
+    localStorage.setItem(`${PRED_OVERRIDES_PREFIX}${env}`, JSON.stringify(overrides))
   } catch {
     // Ignore storage quota errors
   }
@@ -146,6 +167,7 @@ export interface FleetContextValue {
   updateSettings: (patch: Partial<WorkspaceSettings>) => void
   updateOrganizationProfile: (patch: Partial<Pick<Organization, 'name' | 'city' | 'state' | 'timezone'>>) => void
   unreadAlertCount: number
+  nowTick: number
   currentDriverId: string
   setCurrentDriverId: (driverId: string) => void
   currentDriverTrip: Trip | undefined
@@ -185,8 +207,6 @@ export interface FleetContextValue {
   acknowledgeAlert: (alertId: string) => void
   updateSubscriptionPlan: (planId: SubscriptionPlanId) => void
   recordReportGeneration: (entry: Omit<ReportHistoryItem, 'id' | 'organizationId' | 'environment' | 'generatedAt'>) => void
-  demoRequests: DemoRequestSubmission[]
-  submitDemoRequest: (payload: Omit<DemoRequestSubmission, 'id' | 'submittedAt'>) => DemoRequestSubmission
   updateTelemetryState: (vehicleId: string, patch: Partial<Vehicle['telemetry']>) => void
 }
 
@@ -213,7 +233,9 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const [reportingPeriod, setReportingPeriod] = useState<ReportingPeriod>('30d')
   const [searchTerm, setSearchTerm] = useState('')
   const [simulationActive, setSimulationActive] = useState(true)
-  const [predictionStatusOverrides, setPredictionStatusOverrides] = useState<Record<string, AIPrediction['status']>>({})
+  const [predictionStatusOverrides, setPredictionStatusOverrides] = useState<Record<string, AIPrediction['status']>>(() =>
+    loadPredictionOverrides(environment),
+  )
   const [predictionTick, setPredictionTick] = useState<number>(() => Date.now())
   const [currentDriverId, setCurrentDriverId] = useState<string>('d-k1')
   const [settings, setSettings] = useState<WorkspaceSettings>(() => {
@@ -225,14 +247,16 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     }
   })
 
-  const [demoRequests, setDemoRequests] = useState<DemoRequestSubmission[]>(() => {
-    try {
-      const raw = localStorage.getItem(DEMO_REQUESTS_KEY)
-      return raw ? (JSON.parse(raw) as DemoRequestSubmission[]) : []
-    } catch {
-      return []
-    }
-  })
+  const updatePredictionOverrides = useCallback(
+    (updater: (prev: Record<string, AIPrediction['status']>) => Record<string, AIPrediction['status']>) => {
+      setPredictionStatusOverrides((prev) => {
+        const next = updater(prev)
+        savePredictionOverrides(environment, next)
+        return next
+      })
+    },
+    [environment],
+  )
 
   const commitDataset = useCallback(
     (updater: (prev: EnvironmentDataset) => EnvironmentDataset) => {
@@ -250,6 +274,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem(ACTIVE_ENV_KEY, nextEnv)
     const loaded = loadDataset(nextEnv)
     setDataset(loaded)
+    setPredictionStatusOverrides(loadPredictionOverrides(nextEnv))
     const firstOrgId = loaded.organizations[0]?.id ?? 'org-prod-default'
     setActiveOrgState(firstOrgId)
     localStorage.setItem(ACTIVE_ORG_KEY, firstOrgId)
@@ -266,6 +291,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     setActiveOrgState(firstOrgId)
     localStorage.setItem(ACTIVE_ORG_KEY, firstOrgId)
     setPredictionStatusOverrides({})
+    savePredictionOverrides(environment, {})
     setPredictionTick(Date.now())
   }, [environment])
 
@@ -304,6 +330,22 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const setActiveRole = useCallback((role: OrganizationRole) => {
     setActiveRoleState(role)
     localStorage.setItem(ACTIVE_ROLE_KEY, role)
+  }, [])
+
+  useEffect(() => {
+    const handleAuthSignOut = () => {
+      setActiveRoleState('fleet_manager')
+      localStorage.removeItem(ACTIVE_ROLE_KEY)
+    }
+    window.addEventListener('dm-auth-signout', handleAuthSignOut)
+    return () => window.removeEventListener('dm-auth-signout', handleAuthSignOut)
+  }, [])
+
+  useEffect(() => {
+    const freshnessTimer = window.setInterval(() => {
+      setPredictionTick(Date.now())
+    }, 15000)
+    return () => window.clearInterval(freshnessTimer)
   }, [])
 
   useEffect(() => {
@@ -386,11 +428,6 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     [orgAllVehicles],
   )
 
-  const drivers = useMemo(
-    () => dataset.drivers.filter((d) => d.organizationId === activeOrganization.id),
-    [dataset.drivers, activeOrganization.id],
-  )
-
   const driverEvents = useMemo(
     () => dataset.driverEvents.filter((e) => e.organizationId === activeOrganization.id),
     [dataset.driverEvents, activeOrganization.id],
@@ -400,6 +437,30 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     () => dataset.trips.filter((t) => t.organizationId === activeOrganization.id),
     [dataset.trips, activeOrganization.id],
   )
+
+  const drivers = useMemo(() => {
+    const orgDrivers = dataset.drivers.filter((d) => d.organizationId === activeOrganization.id)
+    return orgDrivers.map((drv) => {
+      const evaluation = evaluateDriverSafety({
+        driver: drv,
+        events: driverEvents,
+        trips,
+        corridors: REGIONAL_CORRIDORS,
+        vehicles,
+      })
+      return {
+        ...drv,
+        safetyScore: evaluation.overallScore,
+        speedingScore: evaluation.speedingScore,
+        brakingScore: evaluation.brakingScore,
+        accelerationScore: evaluation.accelerationScore,
+        corneringScore: evaluation.corneringScore,
+        fatigueComplianceScore: evaluation.fatigueComplianceScore,
+        coachingRecommendations: evaluation.coachingRecommendations,
+        dataConfidenceNote: evaluation.roadAdjustedNote,
+      }
+    })
+  }, [dataset.drivers, activeOrganization.id, driverEvents, trips, vehicles])
 
   const rawOrgFuel = useMemo(
     () => dataset.fuelTransactions.filter((f) => f.organizationId === activeOrganization.id),
@@ -529,6 +590,9 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   const inviteMember = (fullName: string, email: string, role: OrganizationRole) => {
     assertRolePermission(activeRole, 'manage_members')
+    if (role === 'platform_admin' && activeRole !== 'platform_admin') {
+      throw new Error('Only Platform Super Admins can assign the platform_admin role.')
+    }
     if (!fullName.trim() || !email.trim()) {
       throw new Error('Member name and email are required.')
     }
@@ -551,6 +615,9 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   const updateMemberRole = (memberId: string, role: OrganizationRole) => {
     assertRolePermission(activeRole, 'manage_members')
+    if (role === 'platform_admin' && activeRole !== 'platform_admin') {
+      throw new Error('Only Platform Super Admins can grant the platform_admin role.')
+    }
     commitDataset((prev) => ({
       ...prev,
       members: prev.members.map((m) =>
@@ -628,7 +695,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       monthlyRevenueInr: 145000,
       telemetry: {
         vehicleId: id,
-        location: { lat: 13.0827, lng: 80.2707 },
+        location: getCorridorSeedLocation(corridor.id, orgAllVehicles.length),
         cityLabel: `${corridor.name} Depot`,
         speedKmh: 0,
         heading: 0,
@@ -703,12 +770,26 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     assertRolePermission(activeRole, 'decommission_vehicle')
     const target = orgAllVehicles.find((v) => v.id === vehicleId)
     if (!target || target.decommissioned) return
+    const closedAt = new Date().toISOString()
     commitDataset((prev) => ({
       ...prev,
       vehicles: prev.vehicles.map((v) =>
         v.id === vehicleId && v.organizationId === activeOrganization.id
-          ? { ...v, decommissioned: true, operationStatus: 'stopped', assignedDriverId: null }
+          ? {
+              ...v,
+              decommissioned: true,
+              operationStatus: 'stopped',
+              assignedDriverId: null,
+              telemetry: { ...v.telemetry, speedKmh: 0 },
+            }
           : v,
+      ),
+      trips: prev.trips.map((t) =>
+        t.vehicleId === vehicleId &&
+        t.organizationId === activeOrganization.id &&
+        (t.status === 'active' || t.status === 'delayed')
+          ? { ...t, status: 'interrupted', endTime: closedAt }
+          : t,
       ),
       drivers: prev.drivers.map((d) =>
         d.assignedVehicleId === vehicleId && d.organizationId === activeOrganization.id
@@ -865,14 +946,19 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     offlineMode = false,
   ): Trip | null => {
     assertRolePermission(activeRole, 'start_own_trip')
+    if (activeRole === 'driver' && driverId !== currentDriverId) {
+      throw new Error('Drivers can only start trips for their own active session.')
+    }
     const vehicle = vehicles.find((v) => v.id === vehicleId && !v.decommissioned)
-    if (!vehicle) return null
+    if (!vehicle) {
+      throw new Error('Selected vehicle is unavailable or decommissioned.')
+    }
 
     // Guard against duplicate active trips on the same driver or same vehicle
     const existingActiveDriverTrip = trips.find((t) => t.driverId === driverId && t.status === 'active')
     const existingActiveVehicleTrip = trips.find((t) => t.vehicleId === vehicleId && t.status === 'active')
     if (existingActiveDriverTrip || existingActiveVehicleTrip) {
-      return null
+      throw new Error('An active trip is already running for this driver or vehicle.')
     }
 
     const trip: Trip = {
@@ -1087,7 +1173,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       linkedPredictionId: payload.linkedPredictionId,
     }
     if (payload.linkedPredictionId) {
-      setPredictionStatusOverrides((prev) => ({ ...prev, [payload.linkedPredictionId!]: 'scheduled' }))
+      updatePredictionOverrides((prev) => ({ ...prev, [payload.linkedPredictionId!]: 'scheduled' }))
     }
     commitDataset((prev) => ({
       ...prev,
@@ -1102,7 +1188,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     const rec = maintenanceRecords.find((m) => m.id === recordId)
     if (!rec) return
     if (rec.linkedPredictionId) {
-      setPredictionStatusOverrides((prev) => ({ ...prev, [rec.linkedPredictionId!]: 'resolved' }))
+      updatePredictionOverrides((prev) => ({ ...prev, [rec.linkedPredictionId!]: 'resolved' }))
     }
     commitDataset((prev) => ({
       ...prev,
@@ -1133,7 +1219,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   const resolvePrediction = (predictionId: string) => {
     assertRolePermission(activeRole, 'resolve_prediction')
-    setPredictionStatusOverrides((prev) => ({ ...prev, [predictionId]: 'resolved' }))
+    updatePredictionOverrides((prev) => ({ ...prev, [predictionId]: 'resolved' }))
     commitDataset((prev) => ({
       ...prev,
       auditLogs: appendAudit(prev.auditLogs, 'RESOLVED_PREDICTION', 'ai_prediction', predictionId, 'Marked predictive maintenance alert as resolved'),
@@ -1312,21 +1398,8 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     }))
   }
 
-  const submitDemoRequest = (payload: Omit<DemoRequestSubmission, 'id' | 'submittedAt'>): DemoRequestSubmission => {
-    const submission: DemoRequestSubmission = {
-      ...payload,
-      id: `demo-req-${Date.now()}`,
-      submittedAt: new Date().toISOString(),
-    }
-    setDemoRequests((prev) => {
-      const next = [submission, ...prev]
-      localStorage.setItem(DEMO_REQUESTS_KEY, JSON.stringify(next))
-      return next
-    })
-    return submission
-  }
-
   const updateTelemetryState = (vehicleId: string, patch: Partial<Vehicle['telemetry']>) => {
+    assertRolePermission(activeRole, 'update_telemetry')
     if (patch.location && !isValidCoordinate(patch.location.lat, patch.location.lng)) {
       return
     }
@@ -1381,6 +1454,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     updateSettings,
     updateOrganizationProfile,
     unreadAlertCount,
+    nowTick: predictionTick,
     currentDriverId,
     setCurrentDriverId,
     currentDriverTrip,
@@ -1411,8 +1485,6 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     acknowledgeAlert,
     updateSubscriptionPlan,
     recordReportGeneration,
-    demoRequests,
-    submitDemoRequest,
     updateTelemetryState,
   }
 

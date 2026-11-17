@@ -145,7 +145,7 @@ export default function Maintenance() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Predictive Maintenance Engine</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Model {INTELLIGENCE_MODEL_VERSION} · 8 subsystem diagnostics
           </p>
         </div>
@@ -189,28 +189,28 @@ export default function Maintenance() {
       {/* Summary Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Critical Predictions</span>
+          <span className="text-xs font-semibold text-[#958777]">Critical Predictions</span>
           <p className="dm-kpi-value mt-1.5 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#D9786C]" />
             {predictions.filter((p) => !p.insufficientData && p.status !== 'resolved' && p.priority === 'critical').length}
           </p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">High Priority Windows</span>
+          <span className="text-xs font-semibold text-[#958777]">High Priority Windows</span>
           <p className="dm-kpi-value mt-1.5 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#E8C65A]" />
             {predictions.filter((p) => !p.insufficientData && p.status !== 'resolved' && p.priority === 'high').length}
           </p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Scheduled Workshop Jobs</span>
+          <span className="text-xs font-semibold text-[#958777]">Scheduled Workshop Jobs</span>
           <p className="dm-kpi-value mt-1.5 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#B8A3D9]" />
             {maintenanceRecords.filter((m) => m.status !== 'completed').length}
           </p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#7D6D5F]">Est. Potential Savings (High/Crit)</span>
+          <span className="text-xs font-semibold text-[#958777]">Est. Potential Savings (High/Crit)</span>
           <p className="dm-kpi-value mt-1.5 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#789A75]" />
             {formatInr(totalEstimatedSavings)}
@@ -220,14 +220,14 @@ export default function Maintenance() {
 
       {/* Filters */}
       <div className="enterprise-card p-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+        <div className="flex flex-wrap items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
           {(['all', 'critical', 'high', 'medium', 'low'] as const).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => setPriorityFilter(p)}
               className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
-                priorityFilter === p ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+                priorityFilter === p ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               {p}
@@ -235,14 +235,14 @@ export default function Maintenance() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#D4C7E6]">
+        <div className="flex items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
           {(['active', 'resolved', 'all'] as const).map((st) => (
             <button
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
               className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
-                statusFilter === st ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+                statusFilter === st ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               {st}
@@ -259,7 +259,7 @@ export default function Maintenance() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Prediction Queue */}
-          <div className="lg:col-span-5 enterprise-card divide-y divide-[#E0D4B7]/70 overflow-hidden">
+          <div className="lg:col-span-5 enterprise-card divide-y divide-[#E5E5E5]/70 overflow-hidden">
             {filteredPredictions.map((pred) => {
               const vehicle = vehicles.find((v) => v.id === pred.vehicleId)
               const active = selectedPrediction?.id === pred.id
@@ -268,7 +268,7 @@ export default function Maintenance() {
                   key={pred.id}
                   type="button"
                   onClick={() => setSelectedPredId(pred.id)}
-                  className={`w-full p-4 text-left transition-colors hover:bg-[#FBF6E6] ${
+                  className={`w-full p-4 text-left transition-colors hover:bg-[#FFFFFF] ${
                     active ? 'bg-[#EEE8F7]' : ''
                   }`}
                 >
@@ -282,7 +282,7 @@ export default function Maintenance() {
                         {vehicle?.registrationNumber}
                       </span>
                     </div>
-                    <span className="text-xs text-[#7D6D5F] tabular-nums">
+                    <span className="text-xs text-[#958777] tabular-nums">
                       {pred.insufficientData ? '—' : `${pred.earliestWindowDays}–${pred.latestWindowDays}d`}
                     </span>
                   </div>
@@ -294,7 +294,7 @@ export default function Maintenance() {
                       Insufficient telemetry / service history — prediction suppressed
                     </p>
                   ) : (
-                    <div className="flex items-center justify-between text-xs text-[#7D6D5F] mt-1.5">
+                    <div className="flex items-center justify-between text-xs text-[#958777] mt-1.5">
                       <span>Conf. {Math.round(pred.confidenceScore * 100)}%</span>
                       <span className="text-[#625346] font-semibold tabular-nums inline-flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#789A75]" />
@@ -310,14 +310,14 @@ export default function Maintenance() {
           {/* Prediction Detail Inspector */}
           {selectedPrediction && selectedVehicle && (
             <div className="lg:col-span-7 enterprise-card p-6 space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E0D4B7]">
+              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
                 <div>
                   <div className="flex items-center gap-2">
                     <SeverityText
                       severity={selectedPrediction.insufficientData ? 'moderate' : selectedPrediction.priority}
                       label={selectedPrediction.insufficientData ? 'Insufficient Data' : undefined}
                     />
-                    <span className="text-xs text-[#7D6D5F] capitalize">
+                    <span className="text-xs text-[#958777] capitalize">
                       Status: {selectedPrediction.status}
                     </span>
                   </div>
@@ -374,7 +374,7 @@ export default function Maintenance() {
                     {selectedPrediction.insufficientDataReason ??
                       'Record baseline odometer readings, service history, or reconnect smartphone telemetry before estimating failure windows.'}
                   </p>
-                  <p className="text-xs text-[#7D6D5F]">
+                  <p className="text-xs text-[#958777]">
                     Recommended Action: {selectedPrediction.recommendedAction}
                   </p>
                 </div>
@@ -382,8 +382,8 @@ export default function Maintenance() {
                 <>
                   {/* Financial Impact Comparison */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                      <span className="text-[11px] text-[#7D6D5F] block">Preventive Repair</span>
+                    <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                      <span className="text-[11px] text-[#958777] block">Preventive Repair</span>
                       <span className="text-base font-bold text-[#625346] tabular-nums">
                         {formatInr(selectedPrediction.repairCostInr)}
                       </span>
@@ -400,8 +400,8 @@ export default function Maintenance() {
                         {formatInr(selectedPrediction.potentialSavingsInr)}
                       </span>
                     </div>
-                    <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                      <span className="text-[11px] text-[#7D6D5F] block">Downtime if Delayed</span>
+                    <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                      <span className="text-[11px] text-[#958777] block">Downtime if Delayed</span>
                       <span className="text-base font-bold text-[#625346] tabular-nums">
                         {selectedPrediction.estimatedDowntimeDaysIfDelayed} days
                       </span>
@@ -410,23 +410,23 @@ export default function Maintenance() {
 
                   {/* Confidence & Probability Windows */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4 space-y-2">
+                    <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4 space-y-2">
                       <p className="font-semibold text-[#625346]">Confidence & Horizon</p>
-                      <p className="text-[#7D6D5F]">
+                      <p className="text-[#958777]">
                         Confidence: <strong className="text-[#625346] tabular-nums">{Math.round(selectedPrediction.confidenceScore * 100)}%</strong>{' '}
                         (Interval {Math.round(selectedPrediction.confidenceLower * 100)}%–{Math.round(selectedPrediction.confidenceUpper * 100)}%)
                       </p>
-                      <p className="text-[#7D6D5F]">
+                      <p className="text-[#958777]">
                         Failure Window: <strong className="text-[#625346] tabular-nums">{selectedPrediction.earliestWindowDays}–{selectedPrediction.latestWindowDays} days</strong>{' '}
                         (Est. {formatShortDate(selectedPrediction.predictedFailureDate)})
                       </p>
                     </div>
-                    <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4 space-y-2">
+                    <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4 space-y-2">
                       <p className="font-semibold text-[#625346]">Failure Probability Curve</p>
                       <div className="grid grid-cols-3 gap-2 tabular-nums text-[#625346]">
-                        <div><span className="text-[#7D6D5F] block">7-Day</span><strong>{Math.round(selectedPrediction.failureProbability7d * 100)}%</strong></div>
-                        <div><span className="text-[#7D6D5F] block">30-Day</span><strong>{Math.round(selectedPrediction.failureProbability30d * 100)}%</strong></div>
-                        <div><span className="text-[#7D6D5F] block">90-Day</span><strong>{Math.round(selectedPrediction.failureProbability90d * 100)}%</strong></div>
+                        <div><span className="text-[#958777] block">7-Day</span><strong>{Math.round(selectedPrediction.failureProbability7d * 100)}%</strong></div>
+                        <div><span className="text-[#958777] block">30-Day</span><strong>{Math.round(selectedPrediction.failureProbability30d * 100)}%</strong></div>
+                        <div><span className="text-[#958777] block">90-Day</span><strong>{Math.round(selectedPrediction.failureProbability90d * 100)}%</strong></div>
                       </div>
                     </div>
                   </div>
@@ -436,7 +436,7 @@ export default function Maintenance() {
               {/* Contributing Factors */}
               <div>
                 <h3 className="text-xs font-bold text-[#625346] mb-2.5">Contributing Factors & Evidence</h3>
-                <p className="text-xs text-[#7D6D5F] mb-3">{selectedPrediction.evidenceSummary}</p>
+                <p className="text-xs text-[#958777] mb-3">{selectedPrediction.evidenceSummary}</p>
                 <div className="space-y-2.5">
                   {selectedPrediction.causalFactors.map((cf) => (
                     <div key={cf.factor} className="text-xs">
@@ -446,20 +446,20 @@ export default function Maintenance() {
                           {Math.round(cf.weight * 100)}%
                         </span>
                       </div>
-                      <div className="w-full h-1.5 bg-[#E0D4B7] rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-[#E5E5E5] rounded-full overflow-hidden">
                         <div className="h-full bg-[#B8A3D9] rounded-full" style={{ width: `${Math.round(cf.weight * 100)}%` }} />
                       </div>
-                      <p className="text-[11px] text-[#7D6D5F] mt-0.5">{cf.detail}</p>
+                      <p className="text-[11px] text-[#958777] mt-0.5">{cf.detail}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Recommendation & Model Metadata */}
-              <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-4 space-y-2 text-xs">
+              <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4 space-y-2 text-xs">
                 <p className="font-semibold text-[#625346]">Recommended Action</p>
                 <p className="text-[#625346]/90">{selectedPrediction.recommendedAction}</p>
-                <div className="pt-2 border-t border-[#E0D4B7] grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-[#7D6D5F] tabular-nums">
+                <div className="pt-2 border-t border-[#E5E5E5] grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-[#958777] tabular-nums">
                   <span>Model: {selectedPrediction.modelVersion}</span>
                   <span>Age: {selectedPrediction.inputFeatureSnapshot.vehicleAgeYears}y</span>
                   <span>Stress: {selectedPrediction.inputFeatureSnapshot.roadStressIndex.toFixed(2)}</span>
@@ -473,10 +473,10 @@ export default function Maintenance() {
 
       {/* Workshop Maintenance Ledger */}
       <div className="enterprise-card overflow-hidden">
-        <div className="px-5 py-4 bg-[#FBF6E6] border-b border-[#E0D4B7] flex items-center justify-between">
+        <div className="px-5 py-4 bg-[#FFFFFF] border-b border-[#E5E5E5] flex items-center justify-between">
           <div>
             <h2 className="dm-card-title">Workshop & Service Ledger</h2>
-            <p className="text-xs text-[#7D6D5F]">Scheduled and completed service records update vehicle component health directly</p>
+            <p className="text-xs text-[#958777]">Scheduled and completed service records update vehicle component health directly</p>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -501,7 +501,7 @@ export default function Maintenance() {
                     <td className="font-semibold tabular-nums">{vehicle?.registrationNumber ?? rec.vehicleId}</td>
                     <td className="font-medium">{rec.serviceType}</td>
                     <td>{rec.componentName}</td>
-                    <td className="text-[#7D6D5F]">{rec.serviceCenter}</td>
+                    <td className="text-[#958777]">{rec.serviceCenter}</td>
                     <td className="text-xs tabular-nums">{formatShortDate(rec.performedAt)}</td>
                     <td className="tabular-nums font-medium">{formatInr(rec.costInr)}</td>
                     <td>
@@ -525,10 +525,10 @@ export default function Maintenance() {
                             Mark Completed
                           </button>
                         ) : (
-                          <span className="text-xs text-[#7D6D5F]">Scheduled</span>
+                          <span className="text-xs text-[#958777]">Scheduled</span>
                         )
                       ) : (
-                        <span className="text-xs text-[#7D6D5F]">Closed</span>
+                        <span className="text-xs text-[#958777]">Closed</span>
                       )}
                     </td>
                   </tr>

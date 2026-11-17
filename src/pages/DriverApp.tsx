@@ -13,8 +13,8 @@ import {
   RefreshCw,
   Settings as SettingsIcon,
   ShieldAlert,
+  Smartphone,
   Square,
-  Truck,
   Wifi,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -22,6 +22,7 @@ import { useFleet } from '../hooks/useFleet'
 import { useTranslation } from '../i18n/useTranslation'
 import { languageOptions } from '../i18n/translations'
 import { formatDateTime, formatInr, SeverityText } from '../components/ui/EnterprisePrimitives'
+import { BrandLogo } from '../components/ui/BrandLogo'
 
 type DriverTab = 'home' | 'trips' | 'fuel' | 'inspect' | 'settings'
 
@@ -52,7 +53,6 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
   const [tab, setTab] = useState<DriverTab>(initialTab)
   const [offlineMode, setOfflineMode] = useState(false)
   const [gpsEnabled, setGpsEnabled] = useState(true)
-  const [motionEnabled, setMotionEnabled] = useState(true)
   const [batteryOptExempt, setBatteryOptExempt] = useState(true)
   const [fuelError, setFuelError] = useState<string | null>(null)
 
@@ -60,6 +60,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
   const driver = activeDrivers.find((d) => d.id === currentDriverId) ?? activeDrivers[0] ?? null
   const assignedVehicle = vehicles.find((v) => v.id === driver?.assignedVehicleId) ?? vehicles[0] ?? null
   const canSwitchDriver = activeRole !== 'driver'
+  const motionEnabled = assignedVehicle?.telemetry.motionPermissionGranted ?? true
 
   const [tripForm, setTripForm] = useState({
     origin: 'Chennai Freight Depot',
@@ -137,6 +138,19 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
     if (!nextGps && currentDriverTrip) {
       toast.error('GPS permission revoked mid-trip. Live telemetry is paused.')
     }
+  }
+
+  const handleToggleMotion = (nextMotion: boolean) => {
+    if (assignedVehicle) {
+      updateTelemetryState(assignedVehicle.id, {
+        motionPermissionGranted: nextMotion,
+      })
+    }
+    toast.info(
+      nextMotion
+        ? 'Accelerometer / motion sensor access enabled.'
+        : 'Motion sensor disabled: automatic harsh braking/cornering penalties suspended.',
+    )
   }
 
   const handleStartTrip = () => {
@@ -254,9 +268,9 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F0D9] text-[#625346] pb-24">
+    <div className="min-h-screen bg-[#FFFFFF] text-[#625346] pb-24">
       {/* Compact Sticky Mobile Top Bar (< 56px, well within 15% mobile cap) */}
-      <header className="sticky top-0 z-30 h-14 bg-[#FBF6E6] border-b border-[#E0D4B7] px-4 flex items-center justify-between gap-3">
+      <header className="sticky top-0 z-30 h-14 bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {canSwitchDriver && (
             <button
@@ -268,18 +282,19 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
               <ArrowLeft className="w-4 h-4" />
             </button>
           )}
+          <BrandLogo size="sm" className="border border-[#E5E5E5]" />
           <div className="min-w-0">
             <p className="font-bold text-sm text-[#625346] truncate">
-              DriveMitra Driver
+              Driver App
             </p>
-            <p className="text-[11px] text-[#7D6D5F] truncate">{activeOrganization.name}</p>
+            <p className="text-[11px] text-[#958777] truncate">{activeOrganization.name}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
           {offlineMode ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#625346] bg-[#E8C65A]/30 border border-[#C9A63B] px-2.5 py-1 rounded-[8px]">
-              <CloudOff className="w-3.5 h-3.5 text-[#8F6D15]" />
+            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#625346] bg-[#E8C65A]/30 border border-[#D8B442] px-2.5 py-1 rounded-[8px]">
+              <CloudOff className="w-3.5 h-3.5 text-[#A56021]" />
               Offline
             </span>
           ) : (
@@ -329,7 +344,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
         {activeDrivers.length > 0 && (
           <div className="enterprise-card p-3.5 flex items-center justify-between gap-3">
             <div>
-              <span className="text-[11px] text-[#7D6D5F] block">Active Driver Session</span>
+              <span className="text-[11px] text-[#958777] block">Active Driver Session</span>
               <span className="text-sm font-bold text-[#625346]">{driver?.name}</span>
             </div>
             {canSwitchDriver ? (
@@ -347,7 +362,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                 </select>
               </>
             ) : (
-              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-[8px] bg-[#EEE8F7] border border-[#D4C7E6] text-[#6E5696]">
+              <span className="text-[11px] font-semibold px-2.5 py-1 rounded-[8px] bg-[#EEE8F7] border border-[#DDD3ED] text-[#6E5696]">
                 Session Locked
               </span>
             )}
@@ -361,11 +376,11 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
               <div className="enterprise-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="text-xs text-[#7D6D5F]">Assigned Vehicle</span>
+                    <span className="text-xs text-[#958777]">Assigned Vehicle</span>
                     <p className="text-lg font-bold text-[#625346] tabular-nums">
                       {assignedVehicle.registrationNumber}
                     </p>
-                    <p className="text-xs text-[#7D6D5F]">
+                    <p className="text-xs text-[#958777]">
                       {assignedVehicle.make} {assignedVehicle.model} · {assignedVehicle.powertrain}
                     </p>
                   </div>
@@ -374,25 +389,25 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                     label={`Health ${assignedVehicle.healthScore}%`}
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E0D4B7] text-xs">
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#E5E5E5] text-xs">
                   <div>
-                    <span className="text-[#7D6D5F] block">Odometer</span>
+                    <span className="text-[#958777] block">Odometer</span>
                     <span className="font-semibold tabular-nums text-[#625346]">
                       {assignedVehicle.odometerKm.toLocaleString('en-IN')} km
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#7D6D5F] block">{assignedVehicle.powertrain === 'EV' ? 'Battery' : 'Fuel'}</span>
+                    <span className="text-[#958777] block">{assignedVehicle.powertrain === 'EV' ? 'Battery' : 'Fuel'}</span>
                     <span className="font-semibold tabular-nums text-[#625346]">{assignedVehicle.fuelOrSocPct}%</span>
                   </div>
                   <div>
-                    <span className="text-[#7D6D5F] block">Safety Score</span>
+                    <span className="text-[#958777] block">Safety Score</span>
                     <span className="font-semibold tabular-nums text-[#625346]">{driver?.safetyScore ?? 0}/100</span>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="enterprise-card p-6 text-center text-sm text-[#7D6D5F]">
+              <div className="enterprise-card p-6 text-center text-sm text-[#958777]">
                 No vehicle assigned in active organization.
               </div>
             )}
@@ -405,7 +420,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                     <span className={`w-2 h-2 rounded-full ${gpsEnabled ? 'bg-[#789A75]' : 'bg-[#D9786C]'}`} />
                     Trip Active · Driving Safety Mode
                   </span>
-                  <span className="text-xs font-medium text-[#7D6D5F]">
+                  <span className="text-xs font-medium text-[#958777]">
                     {!gpsEnabled ? 'GPS Paused' : currentDriverTrip.offlineSynced === false ? 'Offline Queued' : 'Live Sync'}
                   </span>
                 </div>
@@ -413,19 +428,19 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                   <p className="text-sm font-bold text-[#625346]">
                     {currentDriverTrip.originAddress} → {currentDriverTrip.destinationAddress}
                   </p>
-                  <p className="text-xs text-[#7D6D5F] mt-1">
+                  <p className="text-xs text-[#958777] mt-1">
                     Non-essential settings are minimized while vehicle is in motion.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-xs bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
+                <div className="grid grid-cols-2 gap-3 text-xs bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
                   <div>
-                    <span className="text-[#7D6D5F] block">Elapsed</span>
+                    <span className="text-[#958777] block">Elapsed</span>
                     <span className="text-lg font-bold tabular-nums text-[#625346]">
                       {Math.max(1, Math.round((nowMs - new Date(currentDriverTrip.startTime).getTime()) / 60000))} min
                     </span>
                   </div>
                   <div>
-                    <span className="text-[#7D6D5F] block">Distance</span>
+                    <span className="text-[#958777] block">Distance</span>
                     <span className="text-lg font-bold tabular-nums text-[#625346]">
                       {currentDriverTrip.distanceKm} km
                     </span>
@@ -477,7 +492,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
             {/* Quick Issue Report */}
             <form onSubmit={handleReportIssue} className="enterprise-card p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-[#8F6D15]" />
+                <AlertTriangle className="w-4 h-4 text-[#A56021]" />
                 <h2 className="dm-card-title text-sm">Report Mechanical or Roadside Issue</h2>
               </div>
               <input
@@ -515,13 +530,13 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                   <span className="font-semibold text-[#625346]">{t.originAddress} → {t.destinationAddress}</span>
                   <SeverityText severity={t.status === 'completed' ? 'normal' : 'moderate'} label={t.status} />
                 </div>
-                <p className="text-xs text-[#7D6D5F] tabular-nums">
+                <p className="text-xs text-[#958777] tabular-nums">
                   {t.distanceKm} km · {t.durationMinutes} min · {formatDateTime(t.startTime)}
                 </p>
               </div>
             ))}
             {driverTrips.length === 0 && (
-              <p className="enterprise-card p-6 text-center text-xs text-[#7D6D5F]">No trips logged yet.</p>
+              <p className="enterprise-card p-6 text-center text-xs text-[#958777]">No trips logged yet.</p>
             )}
 
             <h3 className="dm-card-title text-sm pt-2">Assigned Vehicle Service Log</h3>
@@ -531,7 +546,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                   <span>{m.serviceType}</span>
                   <span className="tabular-nums">{formatInr(m.costInr)}</span>
                 </div>
-                <p className="text-[#7D6D5F]">{m.serviceCenter} · {m.status}</p>
+                <p className="text-[#958777]">{m.serviceCenter} · {m.status}</p>
               </div>
             ))}
           </div>
@@ -548,21 +563,21 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
               )}
               <div>
                 <label htmlFor="m-station" className="dm-label">Station / Charger</label>
-                <input id="m-station" required value={fuelForm.station} onChange={(e) => setFuelFormDraft({ ...fuelForm, station: e.target.value })} className="dm-input min-h-[44px]" />
+                <input id="m-station" required value={fuelForm.station} onChange={(e) => { setFuelError(null); setFuelFormDraft({ ...fuelForm, station: e.target.value }) }} className="dm-input min-h-[44px]" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="m-liters" className="dm-label">Liters / kWh</label>
-                  <input id="m-liters" type="number" step="0.1" min={0.1} required value={fuelForm.litersOrKwh} onChange={(e) => setFuelFormDraft({ ...fuelForm, litersOrKwh: Number(e.target.value) })} className="dm-input tabular-nums min-h-[44px]" />
+                  <input id="m-liters" type="number" step="0.1" min={0.1} required value={fuelForm.litersOrKwh} onChange={(e) => { setFuelError(null); setFuelFormDraft({ ...fuelForm, litersOrKwh: Number(e.target.value) }) }} className="dm-input tabular-nums min-h-[44px]" />
                 </div>
                 <div>
                   <label htmlFor="m-amt" className="dm-label">Amount (INR)</label>
-                  <input id="m-amt" type="number" min={1} required value={fuelForm.amountInr} onChange={(e) => setFuelFormDraft({ ...fuelForm, amountInr: Number(e.target.value) })} className="dm-input tabular-nums min-h-[44px]" />
+                  <input id="m-amt" type="number" min={1} required value={fuelForm.amountInr} onChange={(e) => { setFuelError(null); setFuelFormDraft({ ...fuelForm, amountInr: Number(e.target.value) }) }} className="dm-input tabular-nums min-h-[44px]" />
                 </div>
               </div>
               <div>
                 <label htmlFor="m-odo" className="dm-label">Current Odometer (km)</label>
-                <input id="m-odo" type="number" min={0} required value={fuelForm.odometerKm} onChange={(e) => setFuelFormDraft({ ...fuelForm, odometerKm: Number(e.target.value) })} className="dm-input tabular-nums min-h-[44px]" />
+                <input id="m-odo" type="number" min={0} required value={fuelForm.odometerKm} onChange={(e) => { setFuelError(null); setFuelFormDraft({ ...fuelForm, odometerKm: Number(e.target.value) }) }} className="dm-input tabular-nums min-h-[44px]" />
               </div>
               <button type="submit" className="btn-primary w-full min-h-[48px]">Submit Fuel Log</button>
             </form>
@@ -572,11 +587,11 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                 <div key={f.id} className="enterprise-card p-3.5 flex items-center justify-between text-xs">
                   <div>
                     <p className="font-semibold text-[#625346]">{f.station}</p>
-                    <p className="text-[#7D6D5F] tabular-nums">{f.litersOrKwh} units · {f.odometerKm} km</p>
+                    <p className="text-[#958777] tabular-nums">{f.litersOrKwh} units · {f.odometerKm} km</p>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-[#625346] tabular-nums">{formatInr(f.amountInr)}</p>
-                    <span className="text-[#7D6D5F] capitalize">{f.verificationStatus.replace('_', ' ')}</span>
+                    <span className="text-[#958777] capitalize">{f.verificationStatus.replace('_', ' ')}</span>
                   </div>
                 </div>
               ))}
@@ -640,15 +655,15 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
                 <input type="checkbox" checked={gpsEnabled} onChange={(e) => handleToggleGps(e.target.checked)} className="w-5 h-5 accent-[#6E5696]" />
               </label>
               <label className="flex items-center justify-between min-h-[44px] text-sm">
-                <span className="inline-flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-[#7D6D5F]" /> Motion / Accelerometer Access</span>
-                <input type="checkbox" checked={motionEnabled} onChange={(e) => setMotionEnabled(e.target.checked)} className="w-5 h-5 accent-[#6E5696]" />
+                <span className="inline-flex items-center gap-2"><ShieldAlert className="w-4 h-4 text-[#958777]" /> Motion / Accelerometer Access</span>
+                <input type="checkbox" checked={motionEnabled} onChange={(e) => handleToggleMotion(e.target.checked)} className="w-5 h-5 accent-[#6E5696]" />
               </label>
               <label className="flex items-center justify-between min-h-[44px] text-sm">
                 <span className="inline-flex items-center gap-2"><Battery className="w-4 h-4 text-[#4D6E4A]" /> Battery Optimization Exempted</span>
                 <input type="checkbox" checked={batteryOptExempt} onChange={(e) => setBatteryOptExempt(e.target.checked)} className="w-5 h-5 accent-[#6E5696]" />
               </label>
-              <label className="flex items-center justify-between min-h-[44px] text-sm border-t border-[#E0D4B7] pt-2">
-                <span className="inline-flex items-center gap-2"><CloudOff className="w-4 h-4 text-[#8F6D15]" /> Simulate Offline Network Mode</span>
+              <label className="flex items-center justify-between min-h-[44px] text-sm border-t border-[#E5E5E5] pt-2">
+                <span className="inline-flex items-center gap-2"><CloudOff className="w-4 h-4 text-[#A56021]" /> Simulate Offline Network Mode</span>
                 <input type="checkbox" checked={offlineMode} onChange={(e) => handleToggleOffline(e.target.checked)} className="w-5 h-5 accent-[#6E5696]" />
               </label>
             </div>
@@ -674,11 +689,11 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
 
       {/* Mobile Bottom Thumb-Zone Navigation (height ~58px, well under 15% cap) */}
       <nav
-        className="fixed bottom-0 inset-x-0 z-30 bg-[#FBF6E6] border-t border-[#E0D4B7] px-2 py-1.5 flex items-center justify-around"
+        className="fixed bottom-0 inset-x-0 z-30 bg-[#FFFFFF] border-t border-[#E5E5E5] px-2 py-1.5 flex items-center justify-around"
         aria-label="Driver app navigation"
       >
         {[
-          { id: 'home', label: 'Shift', icon: Truck },
+          { id: 'home', label: 'Shift', icon: Smartphone },
           { id: 'trips', label: 'Trips', icon: MapPin },
           { id: 'fuel', label: 'Fuel', icon: Fuel },
           { id: 'inspect', label: 'Inspect', icon: ClipboardCheck },
@@ -694,7 +709,7 @@ export default function DriverApp({ initialTab = 'home' }: { initialTab?: Driver
               className={`min-h-[44px] min-w-[56px] px-2 rounded-[10px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${
                 active
                   ? 'text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9]'
-                  : 'text-[#7D6D5F] hover:text-[#625346]'
+                  : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               <Icon className="w-4 h-4" />

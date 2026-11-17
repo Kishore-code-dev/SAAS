@@ -1,0 +1,8 @@
+{
+  "name": "DriveMitra",
+  "description": "Enterprise Fleet Intelligence & Smartphone Predictive Maintenance Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

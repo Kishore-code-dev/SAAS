@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Globe,
   Menu,
+  Plus,
   RotateCcw,
   Search,
   User,
@@ -21,9 +22,11 @@ import { canAccessRoute, canPerformAction } from '../../utils/rbac'
 export default function Header({
   onMenuToggle,
   onOpenCopilot,
+  onAddVehicle,
 }: {
   onMenuToggle: () => void
   onOpenCopilot?: () => void
+  onAddVehicle?: () => void
   title?: string
 }) {
   const {
@@ -57,14 +60,14 @@ export default function Header({
     'Fleet Operations'
 
   const envStyles: Record<OperatingEnvironment, string> = {
-    demo: 'bg-[#EEE8F7] text-[#625346] border-[#B8A3D9]',
-    pilot: 'bg-[#E8C65A]/30 text-[#625346] border-[#C9A63B]',
-    production: 'bg-[#789A75]/22 text-[#625346] border-[#789A75]',
+    demo: 'bg-[#EEE8F7] text-[#6E5696] border-[#B8A3D9]',
+    pilot: 'bg-[#FDF3E7] text-[#625346] border-[#E8A85A]',
+    production: 'bg-[#EDF4EC] text-[#625346] border-[#789A75]',
   }
 
   return (
-    <header className="h-16 bg-[#FBF6E6] border-b border-[#E0D4B7] px-4 lg:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
-      <div className="flex items-center gap-2.5 min-w-0">
+    <header className="h-16 bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 lg:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
         <button
           type="button"
           onClick={onMenuToggle}
@@ -75,7 +78,7 @@ export default function Header({
         </button>
 
         {/* Organization Selector */}
-        <div className="flex items-center gap-1.5 bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] px-2.5 py-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 min-w-0 max-w-[165px] sm:max-w-[205px] overflow-hidden">
           <Building2 className="w-4 h-4 text-[#6E5696] shrink-0" />
           <label htmlFor="org-switcher" className="sr-only">
             Active Organization
@@ -84,7 +87,7 @@ export default function Header({
             id="org-switcher"
             value={activeOrganization.id}
             onChange={(e) => setActiveOrganizationId(e.target.value)}
-            className="bg-transparent text-xs font-semibold text-[#625346] outline-none pr-1 cursor-pointer max-w-[155px] sm:max-w-[195px] truncate"
+            className="bg-transparent text-xs font-semibold text-[#625346] outline-none pr-1 cursor-pointer w-full min-w-0 truncate"
           >
             {organizations.map((org) => (
               <option key={org.id} value={org.id}>
@@ -115,7 +118,7 @@ export default function Header({
               onClick={resetCurrentEnvironment}
               title="Reset environment data to baseline"
               aria-label="Reset environment data"
-              className="p-1.5 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] text-[#7D6D5F] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors shrink-0"
+              className="p-1.5 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
             </button>
@@ -123,31 +126,31 @@ export default function Header({
         </div>
       </div>
 
-      {/* Global Search + Period + Copilot + Notifications + User */}
+      {/* Global Search + Period + Copilot + Notifications + Add Vehicle + User */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="relative hidden md:block w-40 xl:w-52">
-          <Search className="w-4 h-4 text-[#7D6D5F] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="relative hidden md:block w-36 xl:w-44">
+          <Search className="w-4 h-4 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search vehicles, drivers..."
+            placeholder="Search fleet..."
             aria-label="Global fleet search"
-            className="w-full bg-[#F4EBD5] border border-[#E0D4B7] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#7D6D5F] outline-none focus:bg-[#FBF6E6] focus:border-[#B8A3D9]"
+            className="w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#958777] outline-none focus:bg-[#FFFFFF] focus:border-[#B8A3D9]"
           />
         </div>
 
         {/* Reporting Period Selector */}
-        <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#D4C7E6]" role="group" aria-label="Reporting period">
+        <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#DDD3ED]" role="group" aria-label="Reporting period">
           {(['7d', '30d', '90d'] as ReportingPeriod[]).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => setReportingPeriod(p)}
-              className={`px-2.5 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
+              className={`px-2 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
                 reportingPeriod === p
-                  ? 'bg-[#E8C65A] text-[#625346] shadow-subtle'
-                  : 'text-[#7D6D5F] hover:text-[#625346]'
+                  ? 'bg-[#FFFFFF] text-[#6E5696] shadow-subtle border border-[#B8A3D9]'
+                  : 'text-[#958777] hover:text-[#625346]'
               }`}
             >
               {p}
@@ -160,7 +163,7 @@ export default function Header({
             type="button"
             onClick={onOpenCopilot}
             aria-label="Open Fleet Intelligence Copilot"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#DFD3F2] text-xs font-semibold transition-colors whitespace-nowrap"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#E2D8F3] text-xs font-semibold transition-colors whitespace-nowrap"
           >
             <Bot className="w-3.5 h-3.5 text-[#6E5696]" />
             <span>Copilot</span>
@@ -168,8 +171,8 @@ export default function Header({
         )}
 
         {/* Language */}
-        <div className="hidden xl:flex items-center gap-1 border border-[#E0D4B7] rounded-[10px] px-2 py-1.5 bg-[#F4EBD5]">
-          <Globe className="w-3.5 h-3.5 text-[#7D6D5F]" />
+        <div className="hidden 2xl:flex items-center gap-1 border border-[#E5E5E5] rounded-[10px] px-2 py-1.5 bg-[#FAFAFA]">
+          <Globe className="w-3.5 h-3.5 text-[#958777]" />
           <label htmlFor="header-lang" className="sr-only">
             Language
           </label>
@@ -196,19 +199,19 @@ export default function Header({
               setUserMenuOpen(false)
             }}
             aria-label={`Notifications (${unreadAlertCount} unread)`}
-            className="relative p-2 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
+            className="relative p-2 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
             <Bell className="w-4 h-4" />
             {unreadAlertCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FBF6E6] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FCECEB] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
                 {unreadAlertCount}
               </span>
             )}
           </button>
 
           {alertsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl shadow-elevated z-50 p-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[#E0D4B7]">
+            <div className="absolute right-0 mt-2 w-80 bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated z-50 p-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#E5E5E5]">
                 <span className="text-xs font-bold text-[#625346]">Operational Alerts</span>
                 <button
                   type="button"
@@ -221,7 +224,7 @@ export default function Header({
                   View all
                 </button>
               </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-[#E0D4B7]/70">
+              <div className="max-h-64 overflow-y-auto divide-y divide-[#E5E5E5]">
                 {alerts.slice(0, 5).map((al) => (
                   <button
                     key={al.id}
@@ -231,21 +234,33 @@ export default function Header({
                       setAlertsOpen(false)
                       navigate(al.actionRoute)
                     }}
-                    className={`w-full text-left py-2.5 px-2 hover:bg-[#EEE8F7] transition-colors rounded-lg ${
+                    className={`w-full text-left py-2.5 px-2 hover:bg-[#EEE8F7]/60 transition-colors rounded-lg ${
                       al.read ? 'opacity-65' : ''
                     }`}
                   >
                     <p className="text-xs font-semibold text-[#625346] line-clamp-1">{al.title}</p>
-                    <p className="text-xs text-[#7D6D5F] line-clamp-2 mt-0.5">{al.message}</p>
+                    <p className="text-xs text-[#958777] line-clamp-2 mt-0.5">{al.message}</p>
                   </button>
                 ))}
                 {alerts.length === 0 && (
-                  <p className="text-xs text-[#7D6D5F] py-6 text-center">No active operational alerts.</p>
+                  <p className="text-xs text-[#958777] py-6 text-center">No active operational alerts.</p>
                 )}
               </div>
             </div>
           )}
         </div>
+
+        {/* Primary Soft Golden Yellow CTA: Add Vehicle */}
+        {onAddVehicle && canPerformAction(activeRole, 'add_vehicle') && (
+          <button
+            type="button"
+            onClick={onAddVehicle}
+            className="btn-primary text-xs px-3 py-1.5"
+          >
+            <Plus className="w-3.5 h-3.5 text-[#625346]" />
+            <span>Add Vehicle</span>
+          </button>
+        )}
 
         {/* User Profile Dropdown */}
         <div className="relative">
@@ -256,27 +271,27 @@ export default function Header({
               setAlertsOpen(false)
             }}
             aria-label="User account menu"
-            className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-[10px] border border-[#E0D4B7] bg-[#F4EBD5] hover:bg-[#EEE8F7] transition-colors"
+            className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] hover:bg-[#EEE8F7]/60 transition-colors"
           >
-            <div className="w-6 h-6 rounded-[8px] bg-[#E8C65A] border border-[#C9A63B] text-[#625346] flex items-center justify-center">
+            <div className="w-6 h-6 rounded-[8px] bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center">
               <User className="w-3.5 h-3.5" />
             </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-xs font-semibold text-[#625346] leading-none max-w-[110px] truncate">
+            <div className="hidden xl:block text-left">
+              <p className="text-xs font-semibold text-[#625346] leading-none max-w-[105px] truncate">
                 {displayName}
               </p>
-              <p className="text-[11px] text-[#7D6D5F] capitalize leading-tight mt-0.5">
+              <p className="text-[11px] text-[#958777] capitalize leading-tight mt-0.5">
                 {activeRole.replace('_', ' ')}
               </p>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-[#7D6D5F]" />
+            <ChevronDown className="w-3.5 h-3.5 text-[#958777]" />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-[#FBF6E6] border border-[#D4C7E6] rounded-xl shadow-elevated z-50 p-2">
-              <div className="px-2.5 py-2 border-b border-[#E0D4B7]">
+            <div className="absolute right-0 mt-2 w-56 bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated z-50 p-2">
+              <div className="px-2.5 py-2 border-b border-[#E5E5E5]">
                 <p className="text-xs font-semibold text-[#625346] truncate">{displayName}</p>
-                <p className="text-xs text-[#7D6D5F] truncate">{activeOrganization.name}</p>
+                <p className="text-xs text-[#958777] truncate">{activeOrganization.name}</p>
               </div>
               {canAccessRoute(activeRole, '/dashboard/settings') && (
                 <button
@@ -321,7 +336,7 @@ export default function Header({
                   await signOut()
                   navigate('/auth', { replace: true })
                 }}
-                className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[#B84E42] hover:bg-[#D9786C]/20 rounded-lg mt-1 border-t border-[#E0D4B7]"
+                className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[#B84E42] hover:bg-[#FCECEB] rounded-lg mt-1 border-t border-[#E5E5E5]"
               >
                 Sign Out
               </button>

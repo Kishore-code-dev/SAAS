@@ -96,8 +96,15 @@ def analyze_fleet():
         )
 
     if predictions_to_upsert:
-        print(f"Saving {len(predictions_to_upsert)} AI predictions to Supabase...")
-        supabase.table('ai_predictions').delete().eq('is_resolved', False).execute()
+        analyzed_vehicle_ids = sorted({p["vehicle_id"] for p in predictions_to_upsert})
+        print(f"Saving {len(predictions_to_upsert)} AI predictions across {len(analyzed_vehicle_ids)} vehicle(s) to Supabase...")
+        (
+            supabase.table('ai_predictions')
+            .delete()
+            .eq('is_resolved', False)
+            .in_('vehicle_id', analyzed_vehicle_ids)
+            .execute()
+        )
         supabase.table('ai_predictions').insert(predictions_to_upsert).execute()
         print("Analysis Complete.")
 

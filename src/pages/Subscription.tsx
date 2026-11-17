@@ -1,5 +1,5 @@
 import React from 'react'
-import { Check, CreditCard, Info } from 'lucide-react'
+import { Check, CreditCard } from 'lucide-react'
 import { toast } from 'sonner'
 import { SUBSCRIPTION_PLANS } from '../data/seedOrganizations'
 import { useFleet } from '../hooks/useFleet'
@@ -32,10 +32,6 @@ export default function Subscription() {
       toast.error('Your role is not authorized to change billing plans.')
       return
     }
-    if (environment === 'production') {
-      toast.info(`Billing checkout for ${planName} requires a configured payment gateway in Production.`)
-      return
-    }
     try {
       updateSubscriptionPlan(planId)
       toast.success(`Switched ${activeOrganization.name} to ${planName} tier (${environment.toUpperCase()}).`)
@@ -48,19 +44,10 @@ export default function Subscription() {
     <div className="space-y-6">
       <div>
         <h1 className="dm-page-title">Subscription & Usage</h1>
-        <p className="text-sm text-[#7D6D5F] mt-1">
+        <p className="text-sm text-[#958777] mt-1">
           {activeOrganization.name} · Current tier: {activePlan.name} · Timezone {activeOrganization.timezone}
         </p>
       </div>
-
-      {environment === 'production' && (
-        <div className="lavender-surface p-4 flex items-start gap-3 text-xs text-[#625346]">
-          <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
-          <p>
-            Online payment checkout is disabled until a production billing provider (Razorpay / Stripe) is configured. Contact enterprise onboarding to modify Production limits.
-          </p>
-        </div>
-      )}
 
       {/* Usage Meters */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -71,7 +58,7 @@ export default function Subscription() {
               {vehicles.length} / {activeOrganization.vehicleLimit}
             </span>
           </div>
-          <div className="w-full h-2 bg-[#E0D4B7] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
             <div className="h-full bg-[#E8C65A] rounded-full" style={{ width: `${vehicleUsagePct}%` }} />
           </div>
         </div>
@@ -83,7 +70,7 @@ export default function Subscription() {
               {drivers.length} / {activeOrganization.driverLimit}
             </span>
           </div>
-          <div className="w-full h-2 bg-[#E0D4B7] rounded-full overflow-hidden">
+          <div className="w-full h-2 bg-[#E5E5E5] rounded-full overflow-hidden">
             <div className="h-full bg-[#789A75] rounded-full" style={{ width: `${driverUsagePct}%` }} />
           </div>
         </div>
@@ -107,7 +94,7 @@ export default function Subscription() {
                     <SeverityText severity="normal" label="Current Plan" />
                   )}
                 </div>
-                <p className="text-xs text-[#7D6D5F] mt-1">{plan.tagline}</p>
+                <p className="text-xs text-[#958777] mt-1">{plan.tagline}</p>
                 <p className="text-2xl font-bold text-[#625346] tabular-nums mt-4">
                   {plan.monthlyInr !== null ? `${formatInr(plan.monthlyInr)} / mo` : 'Custom'}
                 </p>
@@ -138,7 +125,7 @@ export default function Subscription() {
 
       {/* Billing History */}
       <div className="enterprise-card overflow-hidden">
-        <div className="px-5 py-4 bg-[#FBF6E6] border-b border-[#E0D4B7] flex items-center gap-2">
+        <div className="px-5 py-4 bg-[#FFFFFF] border-b border-[#E5E5E5] flex items-center gap-2">
           <CreditCard className="w-4 h-4 text-[#6E5696]" />
           <h2 className="dm-card-title">Billing Ledger</h2>
         </div>

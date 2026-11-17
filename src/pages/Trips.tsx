@@ -135,7 +135,7 @@ export default function Trips() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Trip Intelligence</h1>
-          <p className="text-sm text-[#7D6D5F] mt-1">
+          <p className="text-sm text-[#958777] mt-1">
             {activeOrganization.name} · Route trajectories, speed profiles, stops, and operational events
           </p>
         </div>
@@ -166,14 +166,14 @@ export default function Trips() {
       </div>
 
       {/* Filter Bar */}
-      <div className="p-1.5 flex items-center gap-1 w-fit bg-[#EEE8F7] border border-[#D4C7E6] rounded-[10px]">
+      <div className="p-1.5 flex items-center gap-1 w-fit bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px]">
         {(['all', 'active', 'delayed', 'completed'] as const).map((st) => (
           <button
             key={st}
             type="button"
             onClick={() => setStatusFilter(st)}
             className={`px-3 py-1 rounded-[8px] text-xs font-semibold capitalize transition-colors whitespace-nowrap ${
-              statusFilter === st ? 'bg-[#FBF6E6] text-[#625346] shadow-subtle' : 'text-[#7D6D5F] hover:text-[#625346]'
+              statusFilter === st ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle' : 'text-[#958777] hover:text-[#625346]'
             }`}
           >
             {st}
@@ -189,7 +189,7 @@ export default function Trips() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
           {/* Trips List */}
-          <div className="xl:col-span-5 enterprise-card divide-y divide-[#E0D4B7]/70 overflow-hidden">
+          <div className="xl:col-span-5 enterprise-card divide-y divide-[#E5E5E5]/70 overflow-hidden">
             {filteredTrips.map((trip) => {
               const v = vehicles.find((x) => x.id === trip.vehicleId)
               const d = drivers.find((x) => x.id === trip.driverId)
@@ -199,7 +199,7 @@ export default function Trips() {
                   key={trip.id}
                   type="button"
                   onClick={() => setSelectedTripId(trip.id)}
-                  className={`w-full p-4 text-left transition-colors hover:bg-[#FBF6E6] ${
+                  className={`w-full p-4 text-left transition-colors hover:bg-[#FFFFFF] ${
                     active ? 'bg-[#EEE8F7]' : ''
                   }`}
                 >
@@ -215,7 +215,7 @@ export default function Trips() {
                   <p className="text-sm font-semibold text-[#625346] mt-1">
                     {trip.originAddress} → {trip.destinationAddress}
                   </p>
-                  <div className="flex items-center justify-between text-xs text-[#7D6D5F] mt-1.5">
+                  <div className="flex items-center justify-between text-xs text-[#958777] mt-1.5">
                     <span>{d?.name ?? 'Driver'}</span>
                     <span className="tabular-nums">
                       {trip.distanceKm} km · {trip.durationMinutes} min
@@ -229,16 +229,16 @@ export default function Trips() {
           {/* Detailed Trip Drawer */}
           {selectedTrip && (
             <div className="xl:col-span-7 enterprise-card p-6 space-y-5">
-              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E0D4B7]">
+              <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
                 <div>
                   <div className="flex items-center gap-2">
                     <RouteIcon className="w-4 h-4 text-[#6E5696]" />
-                    <span className="text-xs text-[#7D6D5F] tabular-nums">{selectedTrip.id}</span>
+                    <span className="text-xs text-[#958777] tabular-nums">{selectedTrip.id}</span>
                   </div>
                   <h2 className="dm-card-title text-lg mt-1">
                     {selectedTrip.originAddress} → {selectedTrip.destinationAddress}
                   </h2>
-                  <p className="text-xs text-[#7D6D5F] mt-0.5">
+                  <p className="text-xs text-[#958777] mt-0.5">
                     Started {formatDateTime(selectedTrip.startTime, activeOrganization.timezone)}
                     {selectedTrip.offlineSynced === false ? ' · Offline Queue Pending Sync' : ''}
                   </p>
@@ -262,26 +262,26 @@ export default function Trips() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                  <span className="text-[#7D6D5F] block">Distance</span>
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                  <span className="text-[#958777] block">Distance</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums">{selectedTrip.distanceKm} km</span>
                 </div>
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                  <span className="text-[#7D6D5F] block">Duration</span>
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                  <span className="text-[#958777] block">Duration</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums">{selectedTrip.durationMinutes} min</span>
                 </div>
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                  <span className="text-[#7D6D5F] block">Avg Speed</span>
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                  <span className="text-[#958777] block">Avg Speed</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums">{selectedTrip.avgSpeedKmh} km/h</span>
                 </div>
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3">
-                  <span className="text-[#7D6D5F] block">Max Speed</span>
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
+                  <span className="text-[#958777] block">Max Speed</span>
                   <span className="text-base font-bold text-[#625346] tabular-nums">{selectedTrip.maxSpeedKmh} km/h</span>
                 </div>
               </div>
 
               {/* Route Map */}
-              <div className="h-56 rounded-xl overflow-hidden border border-[#E0D4B7]">
+              <div className="h-56 rounded-xl overflow-hidden border border-[#E5E5E5]">
                 {validStart ? (
                   <MapContainer
                     key={selectedTrip.id}
@@ -299,7 +299,7 @@ export default function Trips() {
                     <Marker position={[selectedTrip.startLocation.lat, selectedTrip.startLocation.lng]} />
                   </MapContainer>
                 ) : (
-                  <div className="w-full h-full bg-[#EEE8F7]/60 flex items-center justify-center p-4 text-xs text-[#7D6D5F]">
+                  <div className="w-full h-full bg-[#EEE8F7]/60 flex items-center justify-center p-4 text-xs text-[#958777]">
                     Route GPS coordinates unavailable or invalid for this trip.
                   </div>
                 )}
@@ -312,10 +312,10 @@ export default function Trips() {
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={selectedTrip.speedTimeline}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" tick={{ fill: '#7D6D5F', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: '#7D6D5F', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <XAxis dataKey="label" tick={{ fill: '#958777', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: '#958777', fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip />
-                      <Area type="monotone" dataKey="speedKmh" name="Speed (km/h)" stroke="#C9A63B" fill="#E8C65A" fillOpacity={0.28} strokeWidth={2} />
+                      <Area type="monotone" dataKey="speedKmh" name="Speed (km/h)" stroke="#D8B442" fill="#E8C65A" fillOpacity={0.28} strokeWidth={2} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -323,31 +323,31 @@ export default function Trips() {
 
               {/* Stops & Events */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3.5">
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3.5">
                   <p className="font-bold text-[#625346] mb-2">Recorded Stops ({selectedTrip.stops.length})</p>
                   {selectedTrip.stops.map((st) => (
-                    <div key={st.id} className="py-1.5 border-t border-[#E0D4B7]/70 first:border-0">
+                    <div key={st.id} className="py-1.5 border-t border-[#E5E5E5]/70 first:border-0">
                       <p className="font-medium text-[#625346]">{st.address}</p>
-                      <p className="text-[#7D6D5F] capitalize tabular-nums">
+                      <p className="text-[#958777] capitalize tabular-nums">
                         {st.reason} · {st.durationMinutes} min · {st.location.lat.toFixed(3)}, {st.location.lng.toFixed(3)}
                       </p>
                     </div>
                   ))}
-                  {selectedTrip.stops.length === 0 && <p className="text-[#7D6D5F]">No intermediate stops recorded.</p>}
+                  {selectedTrip.stops.length === 0 && <p className="text-[#958777]">No intermediate stops recorded.</p>}
                 </div>
 
-                <div className="bg-[#FBF6E6] border border-[#E0D4B7] rounded-[10px] p-3.5">
+                <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3.5">
                   <p className="font-bold text-[#625346] mb-2">Behavior Events on Trip</p>
                   {driverEvents
                     .filter((ev) => ev.tripId === selectedTrip.id)
                     .map((ev) => (
-                      <div key={ev.id} className="py-1.5 border-t border-[#E0D4B7]/70 first:border-0">
+                      <div key={ev.id} className="py-1.5 border-t border-[#E5E5E5]/70 first:border-0">
                         <p className="font-medium text-[#625346] capitalize">{ev.eventType.replace(/_/g, ' ')}</p>
-                        <p className="text-[#7D6D5F]">{ev.locationLabel} · {ev.speedKmh} km/h</p>
+                        <p className="text-[#958777]">{ev.locationLabel} · {ev.speedKmh} km/h</p>
                       </div>
                     ))}
                   {driverEvents.filter((ev) => ev.tripId === selectedTrip.id).length === 0 && (
-                    <p className="text-[#7D6D5F]">No behavior exceptions logged.</p>
+                    <p className="text-[#958777]">No behavior exceptions logged.</p>
                   )}
                 </div>
               </div>

@@ -9,14 +9,27 @@ import { AppRoutes } from '../../src/App'
 import FuelLogs from '../../src/pages/FuelLogs'
 import Settings from '../../src/pages/Settings'
 import DriverApp from '../../src/pages/DriverApp'
+import Vehicles from '../../src/pages/Vehicles'
+import LiveMap from '../../src/pages/LiveMap'
+
+const mockFitBounds = vi.fn()
+const mockFlyTo = vi.fn()
 
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-map">{children}</div>,
   TileLayer: () => null,
-  Marker: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  Marker: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-marker">{children}</div>,
   Popup: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  Polyline: () => null,
-  useMap: () => ({ setView: vi.fn() }),
+  Polyline: () => <div data-testid="mock-polyline" />,
+  Circle: ({ children }: { children?: React.ReactNode }) => <div data-testid="mock-geofence">{children}</div>,
+  useMapEvents: () => null,
+  useMap: () => ({
+    setView: vi.fn(),
+    fitBounds: mockFitBounds,
+    flyTo: mockFlyTo,
+    panTo: vi.fn(),
+    getZoom: () => 7,
+  }),
 }))
 
 function TestShell({
@@ -288,4 +301,214 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
 
     expect(screen.getByRole('alert')).toHaveTextContent(/GPS Permission Revoked Mid-Trip/i)
   })
+
+  it('resets role on signOut, persists verified fuel state, syncs driver scores, enforces duplicate trip error, and syncs motion toggle', async () => {
+    localStorage.setItem('dm_active_role_v2', 'org_admin')
+
+    function FullStateProbe() {
+      const fleet = useFleet()
+      const auth = useAuth()
+      const [tripErr, setTripErr] = React.useState<string>('')
+      const firstFlagged = fleet.fuelTransactions.find((f) => f.verificationStatus === 'needs_review')
+      const firstDisputableEvent = fleet.driverEvents.find((e) => e.disputeStatus === 'none')
+      const targetDriver = fleet.drivers.find((d) => d.id === firstDisputableEvent?.driverId)
+      const busyTrip = fleet.trips.find((t) => t.status === 'active')
+
+      return (
+        <div>
+          <span data-testid="active-role">{fleet.activeRole}</span>
+          <span data-testid="flagged-status">{firstFlagged?.verificationStatus ?? 'none'}</span>
+          <span data-testid="target-driver-score">{targetDriver?.safetyScore ?? 0}</span>
+          <span data-testid="motion-perm">{String(fleet.vehicles[0]?.telemetry.motionPermissionGranted)}</span>
+          <span data-testid="trip-err">{tripErr}</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (firstFlagged) fleet.verifyFuelTransaction(firstFlagged.id, 'verified')
+            }}
+          >
+            Verify Flagged Fuel
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (firstDisputableEvent) {
+                fleet.resolveDriverEventDispute(firstDisputableEvent.id, 'accepted_dismissed', 'Validated pothole')
+              }
+            }}
+          >
+            Dismiss Driver Event
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!busyTrip) return
+              try {
+                fleet.scheduleTrip({
+                  vehicleId: busyTrip.vehicleId,
+                  driverId: busyTrip.driverId,
+                  originAddress: 'A',
+                  destinationAddress: 'B',
+                })
+              } catch (err) {
+                setTripErr(err instanceof Error ? err.message : 'failed')
+              }
+            }}
+          >
+            Trigger Duplicate Trip
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              fleet.updateTelemetryState(fleet.vehicles[0].id, { motionPermissionGranted: false })
+            }}
+          >
+            Disable Motion Sensor
+          </button>
+
+          <button type="button" onClick={() => void auth.signOut()}>
+            Sign Out Full
+          </button>
+        </div>
+      )
+    }
+
+    render(
+      <TestShell>
+        <FullStateProbe />
+      </TestShell>,
+    )
+
+    expect(screen.getByTestId('active-role')).toHaveTextContent('org_admin')
+    expect(screen.getByTestId('flagged-status')).toHaveTextContent('needs_review')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verify Flagged Fuel' }))
+    expect(screen.getByTestId('flagged-status')).toHaveTextContent('none')
+
+    const beforeScore = Number(screen.getByTestId('target-driver-score').textContent)
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss Driver Event' }))
+    expect(Number(screen.getByTestId('target-driver-score').textContent)).toBeGreaterThanOrEqual(beforeScore)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trigger Duplicate Trip' }))
+    expect(screen.getByTestId('trip-err')).toHaveTextContent(/already running/i)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Disable Motion Sensor' }))
+    expect(screen.getByTestId('motion-perm')).toHaveTextContent('false')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign Out Full' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('active-role')).toHaveTextContent('fleet_manager')
+    })
+  })
+
+  it('paginates and renders 60+ vehicles cleanly within performance budget (FLEET-019)', () => {
+    function LargeFleetSeeder() {
+      const { setActiveRole, addVehicle } = useFleet()
+      const seededRef = React.useRef(false)
+      React.useEffect(() => {
+        if (seededRef.current) return
+        seededRef.current = true
+        setActiveRole('org_admin')
+        for (let i = 10; i < 65; i += 1) {
+          try {
+            addVehicle({
+              registrationNumber: `TN 99 QA ${1000 + i}`,
+              make: 'Tata',
+              model: 'Ace Gold',
+              category: 'Light Commercial',
+              powertrain: 'ICE',
+              fuelType: 'Diesel',
+              year: 2024,
+              odometerKm: 15000 + i * 100,
+              dailyAvgKm: 140,
+              corridorId: 'cor-chennai',
+              assignedDriverId: null,
+              insuranceProvider: 'ICICI',
+              insuranceExpiry: '2028-01-01',
+              registrationExpiry: '2029-01-01',
+            })
+          } catch {
+            // Skip if already seeded
+          }
+        }
+      }, [setActiveRole, addVehicle])
+      return <Vehicles />
+    }
+
+    const start = performance.now()
+    render(
+      <TestShell>
+        <LargeFleetSeeder />
+      </TestShell>,
+    )
+    const elapsedMs = performance.now() - start
+    expect(elapsedMs).toBeLessThan(2500)
+    expect(screen.getByText(/1–10 of/i)).toBeInTheDocument()
+  })
+
+  it('tracks every fleet vehicle simultaneously on LiveMap via fitBounds and supports route playback', () => {
+    mockFitBounds.mockClear()
+    mockFlyTo.mockClear()
+
+    render(
+      <TestShell initialEntries={['/dashboard/map']}>
+        <Routes>
+          <Route path="/dashboard/map" element={<LiveMap />} />
+        </Routes>
+      </TestShell>,
+    )
+
+    // All 8 Kaveri Logistics vehicles render simultaneously (never collapsed to 1 location)
+    expect(screen.getByText(/Tracking 8\/8 fleet assets/i)).toBeInTheDocument()
+    expect(screen.getAllByTestId('mock-marker').length).toBe(8)
+    expect(mockFitBounds).toHaveBeenCalled()
+    expect(mockFlyTo).not.toHaveBeenCalled()
+
+    // Select a moving vehicle from the Fleet Roster to open telemetry, geofence status & route playback
+    fireEvent.click(screen.getByRole('button', { name: /TN 38 AB 1234/i }))
+    expect(screen.getByText(/Route & Trip Playback/i)).toBeInTheDocument()
+    expect(screen.getByText(/Geofence Status/i)).toBeInTheDocument()
+    expect(mockFlyTo).toHaveBeenCalled()
+  })
+
+  it('supports standalone local Register, invalid-credential rejection, Sign In, and Email OTP without env vars or backend', async () => {
+    render(
+      <TestShell initialEntries={['/auth']}>
+        <AppRoutes />
+      </TestShell>,
+    )
+
+    // Switch to Register tab and confirm no env var warning banner exists
+    fireEvent.click(screen.getByRole('tab', { name: /Register/i }))
+    expect(screen.queryByText(/Cloud Supabase Auth variables are not configured/i)).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText(/Full Name/i), { target: { value: 'Priya Ops' } })
+    fireEvent.change(screen.getByLabelText(/Work Email/i), { target: { value: 'priya@kaveri.in' } })
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'fleetpass99' } })
+    fireEvent.click(screen.getByRole('button', { name: /Create Organization Account/i }))
+
+    // Automatically switches to Sign In tab after registration
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Sign In to Workspace/i })).toBeInTheDocument()
+    })
+
+    // Wrong password rejected cleanly
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'wrongpass' } })
+    fireEvent.click(screen.getByRole('button', { name: /Sign In to Workspace/i }))
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Invalid email or password/i)
+    })
+
+    // Valid password succeeds and navigates to Command Centre
+    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'fleetpass99' } })
+    fireEvent.click(screen.getByRole('button', { name: /Sign In to Workspace/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/Priya Ops/i)).toBeInTheDocument()
+    })
+  })
 })
+

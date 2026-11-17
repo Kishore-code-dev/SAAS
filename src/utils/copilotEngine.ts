@@ -108,6 +108,52 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     }
   }
 
+  // Unsupported / missing external data domain check (avoid fabricating non-existent metrics)
+  if (/\b(weather|forecast|rainfall|gst\s*invoice|toll\s*fastag|(tyre|tire)\s*(psi|pressure)|cargo\s*weight|payload\s*sensor|coolant\s*temp|oil\s*pressure)\b/i.test(rawQuery)) {
+    return {
+      answer: `Insufficient sensor/integration data in ${input.activeOrganization.name}: Smartphone telematics does not capture live OBD-II/payload/weather or external toll feeds. Only GPS, motion behavior, pre-trip inspections, maintenance logs, and fuel ledger records are available.`,
+      citations: ['Telemetry scope boundary'],
+      blocked: false,
+      reason: 'insufficient_data',
+    }
+  }
+
+  // Specific vehicle match (supports 2-vehicle comparison or single-vehicle lookup)
+  const matchedVehicles = activeVehicles.filter((v) => {
+    const compactReg = v.registrationNumber.replace(/\s+/g, '').toLowerCase()
+    const compactQuery = lower.replace(/\s+/g, '')
+    return lower.includes(v.registrationNumber.toLowerCase()) || compactQuery.includes(compactReg)
+  })
+
+  if (matchedVehicles.length >= 2) {
+    const [v1, v2] = matchedVehicles
+    const rowFor = (v: Vehicle) => {
+      const openPreds = input.predictions.filter((p) => p.vehicleId === v.id && p.status !== 'resolved' && !p.insufficientData)
+      const vehCost = input.financialSummary.vehicleCostBreakdown.find((r) => r.vehicleId === v.id)
+      const topPred = openPreds[0]
+      return `• ${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, ${vehCost ? `₹${vehCost.costPerKmInr}/km` : 'N/A cost/km'}, ${openPreds.length} open prediction(s)${topPred ? ` (highest: ${topPred.componentName} ~${topPred.estimatedDaysToFailure}d RUL)` : ''}`
+    }
+    return {
+      answer: `Vehicle comparison within ${input.activeOrganization.name}:\n${rowFor(v1)}\n${rowFor(v2)}`,
+      citations: [
+        `${v1.registrationNumber}: ${v1.healthScore}% health`,
+        `${v2.registrationNumber}: ${v2.healthScore}% health`,
+      ],
+      blocked: false,
+    }
+  }
+
+  if (matchedVehicles.length === 1 && /compar|status|health|detail|about/i.test(rawQuery)) {
+    const v = matchedVehicles[0]
+    const openPreds = input.predictions.filter((p) => p.vehicleId === v.id && p.status !== 'resolved' && !p.insufficientData)
+    const vehCost = input.financialSummary.vehicleCostBreakdown.find((r) => r.vehicleId === v.id)
+    return {
+      answer: `${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, Status ${v.operationStatus}, Telemetry ${v.telemetry.connectionState}${vehCost ? `, Operating cost ₹${vehCost.costPerKmInr}/km` : ''}, ${openPreds.length} open predictive maintenance item(s).`,
+      citations: [`${v.id}: ${v.healthScore}%`, `Open predictions: ${openPreds.length}`],
+      blocked: false,
+    }
+  }
+
   // Maintenance / failure / savings intent
   if (/maint|predict|repair|saving|component|failure|service/i.test(rawQuery)) {
     const validOpen = input.predictions.filter((p) => p.status !== 'resolved' && !p.insufficientData)
