@@ -4,6 +4,7 @@ import {
   buildCopilotFleetContext,
   buildMaintenanceSystemInstruction,
   FLEET_MAINTENANCE_KNOWLEDGE,
+  isFleetManagementQuery,
 } from './copilotContext'
 import { computeFinancialIntelligence, computeVehicleComponentPrediction } from './intelligenceEngine'
 import {
@@ -73,7 +74,7 @@ test('buildCopilotFleetContext includes active org maintenance predictions and e
   assert.ok('financialAccessNote' in maintCtx)
 })
 
-test('buildMaintenanceSystemInstruction embeds maintenance concept and returns grounded citations', () => {
+test('buildMaintenanceSystemInstruction embeds Dhiyu identity, maintenance concept, and fleet citations', () => {
   const { systemInstruction, citations } = buildMaintenanceSystemInstruction({
     activeOrganization: ORG_KAVERI,
     activeRole: 'fleet_manager',
@@ -85,7 +86,22 @@ test('buildMaintenanceSystemInstruction embeds maintenance concept and returns g
     fuelTransactions: SAMPLE_FUEL_TXS,
     financialSummary: sampleFin,
   })
+  assert.ok(systemInstruction.includes('You are Dhiyu'))
+  assert.ok(systemInstruction.includes('STRICT FLEET-ONLY BOUNDARY'))
   assert.ok(systemInstruction.includes('DRIVEMITRA FLEET MAINTENANCE DOMAIN KNOWLEDGE'))
   assert.ok(systemInstruction.includes(SAMPLE_VEHICLE_ICE.registrationNumber))
-  assert.ok(citations.some((c) => c.includes('Predictive Maintenance AI')))
+  assert.ok(citations.some((c) => c.includes('Dhiyu Fleet AI')))
+})
+
+test('isFleetManagementQuery accepts fleet queries and declines unrelated general prompts', () => {
+  assert.equal(
+    isFleetManagementQuery('Which vehicles need brake maintenance soonest?', ['TN 58 AB 4321']),
+    true,
+  )
+  assert.equal(isFleetManagementQuery('Check TN 58 AB 4321', ['TN 58 AB 4321']), true)
+  assert.equal(isFleetManagementQuery('Write a python script to sort a list', ['TN 58 AB 4321']), false)
+  assert.equal(isFleetManagementQuery('Give me a recipe for masala dosa', ['TN 58 AB 4321']), false)
+  assert.equal(isFleetManagementQuery('Tell me a joke', ['TN 58 AB 4321']), false)
+  assert.equal(isFleetManagementQuery('Why?', ['TN 58 AB 4321'], true), true)
+  assert.equal(isFleetManagementQuery('Why?', ['TN 58 AB 4321'], false), false)
 })

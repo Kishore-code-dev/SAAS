@@ -77,11 +77,11 @@ const STATIC_DOCS: Partial<Record<Exclude<FooterModalKey, null>, StaticDocSpec>>
     sections: [
       {
         heading: 'GET /api/health',
-        body: 'Returns live application service readiness and Copilot availability metadata for workspace monitoring.',
+        body: 'Returns live application service readiness and Dhiyu AI availability metadata for workspace monitoring.',
       },
       {
         heading: 'POST /api/copilot',
-        body: 'Accepts tenant-scoped operational context, predictive maintenance logs, and natural-language queries with strict RBAC and cross-organization isolation checks.',
+        body: 'Serves Dhiyu Fleet Management AI queries grounded in tenant-scoped operational context and predictive maintenance logs with strict RBAC and cross-organization isolation.',
       },
       {
         heading: 'GPS & Inspection Payloads',
@@ -410,9 +410,9 @@ export function FooterModals({
               </div>
               <div className="rounded-xl bg-[#FAFAFA] border border-[#E5E5E5] p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-[#625346]">Predictive Maintenance Copilot</p>
+                  <p className="text-xs font-bold text-[#625346]">Dhiyu Fleet Management AI</p>
                   <p className="text-[11px] text-[#958777] mt-0.5">
-                    Server-side maintenance advisory endpoint
+                    Server-side predictive maintenance & fleet advisory endpoint
                   </p>
                 </div>
                 <span

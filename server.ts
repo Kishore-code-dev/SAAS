@@ -1,66 +1,96 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
-import { GoogleGenAI, ThinkingLevel } from '@google/genai'
+import {
+  DHIYU_SCOPE_REFUSAL,
+  isFleetManagementQuery,
+} from './src/utils/copilotContext'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const PORT = Number(process.env.PORT) || 3000
-const MODEL_NAME = 'gemini-3.1-flash-lite'
+const OPENCODE_CHAT_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions'
+const FREE_OPENCODE_MODELS = [
+  'deepseek-v4.1-flash-free',
+  'mimo-v2.6-flash-free',
+  'glm-5.3-flash-free',
+  'big-pickle',
+] as const
+
 const DEFAULT_MAINTENANCE_KNOWLEDGE =
-  'DriveMitra monitors 8 core vehicle subsystems (Engine Oil & Thermal System, Brake Pads & Rotor Wear, Battery & Alternator Electrical, Tyre Tread & Alignment, Transmission & Clutch, Cooling & Radiator System, Suspension & Shock Absorbers, Air Filter & Intake) using software-only telemetry (odometer, daily utilization, days since service, corridor road stress, harsh events, and pre-trip inspections) and quantifies preventive repair cost vs breakdown delay exposure in INR.'
+  'Dhiyu is DriveMitra’s Fleet Management AI. DriveMitra monitors 8 core vehicle subsystems (Engine Oil & Thermal System, Brake Pads & Rotor Wear, Battery & Alternator Electrical, Tyre Tread & Alignment, Transmission & Clutch, Cooling & Radiator System, Suspension & Shock Absorbers, Air Filter & Intake) using software-only telemetry (odometer, daily utilization, days since service, corridor road stress, harsh events, and pre-trip inspections) and quantifies preventive repair cost vs breakdown delay exposure in INR.'
 
 interface ChatHistoryTurn {
   role: 'user' | 'model'
   text: string
 }
 
-function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) {
-    return null
+interface OpenCodeChatResponse {
+  choices?: Array<{
+    message?: {
+      content?: string | null
+    }
+  }>
+  error?: {
+    type?: string
+    message?: string
   }
-  return new GoogleGenAI({
-    apiKey,
-    httpOptions: {
-      headers: {
-        'User-Agent': 'aistudio-build',
-      },
-    },
-  })
 }
 
-async function generateWithRetry(
-  ai: GoogleGenAI,
-  contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }>,
-  systemInstruction: string,
-) {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+function getOpenCodeApiKey(): string | null {
+  const key = process.env.OPENCODE_ZEN_API_KEY || process.env.OPENCODE_API_KEY
+  return key && key.trim() ? key.trim() : null
+}
+
+async function queryOpenCodeFree(
+  messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
+): Promise<{ answer: string; model: string }> {
+  const apiKey = getOpenCodeApiKey()
+  let lastStatus = 502
+  let lastMessage = 'Unable to reach OpenCode AI free inference gateway.'
+
+  for (const model of FREE_OPENCODE_MODELS) {
     try {
-      const response = await ai.models.generateContent({
-        model: MODEL_NAME,
-        contents,
-        config: {
-          systemInstruction,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.MINIMAL,
-          },
+      const response = await fetch(OPENCODE_CHAT_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
         },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.25,
+          max_tokens: 900,
+        }),
       })
-      return response.text ?? ''
-    } catch (err) {
-      lastError = err
-      const msg = err instanceof Error ? err.message : String(err)
-      const isTransient = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('ECONNRESET')
-      if (!isTransient || attempt === 1) {
-        throw err
+
+      const payload = (await response.json().catch(() => ({}))) as OpenCodeChatResponse
+      const content = payload?.choices?.[0]?.message?.content?.trim()
+
+      if (response.ok && content) {
+        return { answer: content, model }
       }
-      await new Promise((res) => setTimeout(res, 600))
+
+      lastStatus = response.status
+      lastMessage =
+        payload?.error?.message ||
+        `OpenCode model ${model} returned HTTP ${response.status}.`
+
+      // Only fail fast on auth rejection; try alternate free models on transient errors
+      if (response.status === 401 || response.status === 403) {
+        break
+      }
+    } catch (err) {
+      lastStatus = 502
+      lastMessage = err instanceof Error ? err.message : String(err)
     }
   }
-  throw lastError
+
+  const error = new Error(lastMessage) as Error & { status?: number }
+  error.status = lastStatus
+  throw error
 }
 
 async function startServer() {
@@ -70,8 +100,12 @@ async function startServer() {
   app.get('/api/health', (_req, res) => {
     res.json({
       ok: true,
-      model: MODEL_NAME,
-      configured: Boolean(process.env.GEMINI_API_KEY),
+      aiName: 'Dhiyu',
+      provider: 'opencode-zen',
+      model: FREE_OPENCODE_MODELS[0],
+      freeModels: FREE_OPENCODE_MODELS,
+      configured: true,
+      hasApiKey: Boolean(getOpenCodeApiKey()),
     })
   })
 
@@ -85,78 +119,79 @@ async function startServer() {
     const query = typeof body?.query === 'string' ? body.query.trim() : ''
     const clientSystemInstruction =
       typeof body?.systemInstruction === 'string' ? body.systemInstruction : ''
+    const rawHistory = Array.isArray(body?.history) ? (body.history as ChatHistoryTurn[]) : []
+
+    if (!query) {
+      res.status(400).json({ error: 'Enter a fleet management question to ask Dhiyu.' })
+      return
+    }
+
+    if (!isFleetManagementQuery(query, [], rawHistory.length > 0)) {
+      res.json({
+        answer: DHIYU_SCOPE_REFUSAL,
+        model: 'scope-guard',
+        provider: 'opencode-zen',
+        scopeRefused: true,
+      })
+      return
+    }
+
     const systemInstruction = clientSystemInstruction.includes('DRIVEMITRA FLEET MAINTENANCE DOMAIN KNOWLEDGE')
       ? clientSystemInstruction
       : [
-          'You are DriveMitra Fleet Maintenance & Operations Copilot.',
+          'You are Dhiyu, DriveMitra’s Fleet Management AI.',
+          'ONLY answer fleet management questions related to DriveMitra vehicles, predictive maintenance, RUL windows, cost of delay, driver safety, fuel logs, and fleet financials. Politely refuse anything unrelated.',
           DEFAULT_MAINTENANCE_KNOWLEDGE,
           clientSystemInstruction,
         ]
           .filter(Boolean)
           .join('\n\n')
-    const rawHistory = Array.isArray(body?.history) ? (body.history as ChatHistoryTurn[]) : []
 
-    if (!query) {
-      res.status(400).json({ error: 'Enter a fleet or maintenance question to ask Copilot.' })
-      return
-    }
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: systemInstruction },
+    ]
 
-    const ai = getGeminiClient()
-    if (!ai) {
-      res.status(503).json({
-        error:
-          'Gemini API key (GEMINI_API_KEY) is not configured on the server. Add it in Settings > Secrets to enable live Gemini responses.',
-      })
-      return
-    }
-
-    const contents: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = []
     for (const turn of rawHistory.slice(-8)) {
       if (
         (turn.role === 'user' || turn.role === 'model') &&
         typeof turn.text === 'string' &&
         turn.text.trim()
       ) {
-        contents.push({
-          role: turn.role,
-          parts: [{ text: turn.text.trim() }],
+        messages.push({
+          role: turn.role === 'user' ? 'user' : 'assistant',
+          content: turn.text.trim(),
         })
       }
     }
-    contents.push({
-      role: 'user',
-      parts: [{ text: query }],
-    })
+
+    messages.push({ role: 'user', content: query })
 
     try {
-      const answer = await generateWithRetry(ai, contents, systemInstruction)
-      if (!answer.trim()) {
-        res.status(502).json({
-          error: 'The AI model returned an empty response. Please rephrase and try again.',
-        })
-        return
-      }
+      const result = await queryOpenCodeFree(messages)
       res.json({
-        answer: answer.trim(),
-        model: MODEL_NAME,
+        answer: result.answer,
+        model: result.model,
+        provider: 'opencode-zen',
       })
     } catch (err) {
+      const status = (err as { status?: number })?.status ?? 502
       const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('API_KEY_INVALID') || msg.includes('PERMISSION_DENIED') || msg.includes('403') || msg.includes('400')) {
-        res.status(403).json({
+      if (status === 429 || msg.includes('FreeUsageLimitError')) {
+        res.status(429).json({
           error:
-            'Gemini API key was rejected or lacks permission. Please verify GEMINI_API_KEY in Settings > Secrets.',
+            'OpenCode AI free-tier anonymous quota for this server IP is temporarily reached. Add a free OPENCODE_ZEN_API_KEY (from opencode.ai/auth) in Settings > Secrets for dedicated access, or try again shortly.',
         })
         return
       }
-      if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
-        res.status(429).json({
-          error: 'Gemini free-tier rate limit reached. Please wait a moment and try again.',
+      if (status === 401 || status === 403) {
+        res.status(403).json({
+          error:
+            'OpenCode AI API key was rejected or lacks permission. Please verify OPENCODE_ZEN_API_KEY in Settings > Secrets.',
         })
         return
       }
       res.status(502).json({
-        error: `Unable to reach Gemini service (${MODEL_NAME}). Please verify network connectivity and API configuration.`,
+        error: `Unable to reach OpenCode AI service (${msg}). Please try again shortly.`,
       })
     }
   })
@@ -164,7 +199,10 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite')
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+      },
       appType: 'spa',
     })
     app.use(vite.middlewares)

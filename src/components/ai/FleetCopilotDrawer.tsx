@@ -1,8 +1,13 @@
 import React, { useRef, useState } from 'react'
-import { Bot, Loader2, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { Loader2, RotateCcw, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { queryFleetCopilot, type CopilotResponse } from '../../utils/copilotEngine'
-import { buildMaintenanceSystemInstruction } from '../../utils/copilotContext'
+import {
+  buildMaintenanceSystemInstruction,
+  DHIYU_SCOPE_REFUSAL,
+  isFleetManagementQuery,
+} from '../../utils/copilotContext'
+import { DhiyuLogo } from '../ui/DhiyuLogo'
 
 interface CopilotMessage {
   id: string
@@ -43,7 +48,6 @@ function FormattedCopilotText({ text }: { text: string }) {
       continue
     }
 
-    // Markdown table block fallback -> clean stacked cards
     if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
       const tableLines: string[] = []
       while (i < lines.length && lines[i].trim().startsWith('|')) {
@@ -91,7 +95,6 @@ function FormattedCopilotText({ text }: { text: string }) {
       continue
     }
 
-    // Headings (### Title)
     const headingMatch = trimmed.match(/^#{1,4}\s+(.*)$/)
     if (headingMatch) {
       const cleanHeading = headingMatch[1].replace(/\*\*/g, '').trim()
@@ -104,7 +107,6 @@ function FormattedCopilotText({ text }: { text: string }) {
       continue
     }
 
-    // Bullet list items (- item or * item)
     if (/^[-*•]\s+/.test(trimmed)) {
       const items: string[] = []
       while (i < lines.length && /^[-*•]\s+/.test(lines[i].trim())) {
@@ -123,7 +125,6 @@ function FormattedCopilotText({ text }: { text: string }) {
       continue
     }
 
-    // Numbered list items (1. item)
     if (/^\d+\.\s+/.test(trimmed)) {
       const items: string[] = []
       while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
@@ -131,7 +132,10 @@ function FormattedCopilotText({ text }: { text: string }) {
         i += 1
       }
       blocks.push(
-        <ol key={`ol-${i}`} className="space-y-1 pl-4 list-decimal marker:text-[#6E5696] marker:font-bold">
+        <ol
+          key={`ol-${i}`}
+          className="space-y-1 pl-4 list-decimal marker:text-[#6E5696] marker:font-bold"
+        >
           {items.map((item, idx) => (
             <li key={idx} className="text-xs font-medium text-[#625346] leading-relaxed">
               {renderInlineBold(item)}
@@ -142,7 +146,6 @@ function FormattedCopilotText({ text }: { text: string }) {
       continue
     }
 
-    // Standard paragraph
     blocks.push(
       <p key={`p-${i}`} className="text-xs font-medium text-[#625346] leading-relaxed">
         {renderInlineBold(trimmed)}
@@ -182,20 +185,31 @@ export default function FleetCopilotDrawer({
     return `${prefix}-${msgSeqRef.current}`
   }
 
-  const [messages, setMessages] = useState<CopilotMessage[]>([
-    {
-      id: 'welcome',
-      sender: 'copilot',
-      text: `Fleet Maintenance Copilot connected for ${activeOrganization.name} (${activeOrganization.code}). Grounded in your 8-subsystem predictive maintenance windows, cost-of-delay models, service ledger, and live telemetry.`,
-      citations: [
-        `Tenant: ${activeOrganization.id}`,
-        `Role: ${activeRole}`,
-        'Scope: Predictive Maintenance',
-      ],
-    },
-  ])
+  const createWelcomeMessage = (): CopilotMessage => ({
+    id: 'welcome',
+    sender: 'copilot',
+    text: `Hi, I’m Dhiyu — your dedicated Fleet Management AI for ${activeOrganization.name} (${activeOrganization.code}). I assist strictly with your fleet’s vehicles, 8-subsystem predictive maintenance, breakdown delay costs, driver safety, fuel verification, and TCO.`,
+    citations: [
+      `Tenant: ${activeOrganization.id}`,
+      `Role: ${activeRole}`,
+      'Scope: Fleet Management Only',
+    ],
+  })
+
+  const [messages, setMessages] = useState<CopilotMessage[]>(() => [createWelcomeMessage()])
 
   if (!open) return null
+
+  const activeVehicleCount = vehicles.filter((v) => !v.decommissioned).length
+  const openPredictionsCount = predictions.filter(
+    (p) => p.status !== 'resolved' && !p.insufficientData,
+  ).length
+
+  const resetChat = () => {
+    if (isLoading) return
+    setMessages([createWelcomeMessage()])
+    setQuery('')
+  }
 
   const runPrompt = async (text: string) => {
     const clean = text.trim()
@@ -205,7 +219,7 @@ export default function FleetCopilotDrawer({
     setMessages((prev) => [...prev, { id: userMsgId, sender: 'user', text: clean }])
     setQuery('')
 
-    // Pre-flight RBAC, prompt-injection, SQL-probe, cross-org, and sensor-scope check
+    // Pre-flight RBAC, prompt-injection, SQL-probe, cross-org, and sensor-scope guard
     const guard: CopilotResponse = queryFleetCopilot({
       query: clean,
       activeOrganization,
@@ -228,6 +242,24 @@ export default function FleetCopilotDrawer({
           text: guard.answer,
           citations: guard.citations,
           blocked: guard.blocked,
+        },
+      ])
+      return
+    }
+
+    const activeRegs = vehicles.filter((v) => !v.decommissioned).map((v) => v.registrationNumber)
+    const hasPriorHistory = messages.some((m) => m.id !== 'welcome' && !m.blocked)
+
+    // Strict Fleet-Management-Only enforcement
+    if (!isFleetManagementQuery(clean, activeRegs, hasPriorHistory)) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextMsgId('c'),
+          sender: 'copilot',
+          text: DHIYU_SCOPE_REFUSAL,
+          citations: ['Guard: Fleet Management Scope Only'],
+          blocked: true,
         },
       ])
       return
@@ -264,14 +296,19 @@ export default function FleetCopilotDrawer({
           history,
         }),
       })
-      const payload = (await res.json()) as { answer?: string; error?: string; model?: string }
+      const payload = (await res.json()) as {
+        answer?: string
+        error?: string
+        model?: string
+        scopeRefused?: boolean
+      }
       if (!res.ok || !payload.answer) {
         setMessages((prev) => [
           ...prev,
           {
             id: nextMsgId('c'),
             sender: 'copilot',
-            text: payload.error ?? 'Unable to generate a response from Fleet Copilot right now.',
+            text: payload.error ?? 'Unable to generate a response from Dhiyu right now.',
             citations: ['Status: Unavailable'],
             blocked: true,
           },
@@ -285,7 +322,8 @@ export default function FleetCopilotDrawer({
           id: nextMsgId('c'),
           sender: 'copilot',
           text: payload.answer!,
-          citations,
+          citations: payload.scopeRefused ? ['Guard: Fleet Management Scope Only'] : citations,
+          blocked: Boolean(payload.scopeRefused),
         },
       ])
     } catch {
@@ -294,7 +332,7 @@ export default function FleetCopilotDrawer({
         {
           id: nextMsgId('c'),
           sender: 'copilot',
-          text: 'Network error reaching the Fleet Copilot backend service. Please try again.',
+          text: 'Network error reaching the Dhiyu backend service. Please try again.',
           citations: ['Status: Network Error'],
           blocked: true,
         },
@@ -309,30 +347,52 @@ export default function FleetCopilotDrawer({
       className="fixed inset-0 z-50 bg-[#625346]/20 backdrop-blur-[1px] flex justify-end"
       role="dialog"
       aria-modal="true"
-      aria-label="Fleet Intelligence Copilot"
+      aria-label="Dhiyu Fleet Management AI"
     >
       <div className="w-full max-w-md bg-[#FFFFFF] border-l border-[#E5E5E5] h-full flex flex-col shadow-elevated">
-        <div className="px-5 py-4 bg-[#EEE8F7] border-b border-[#DDD3ED] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-[10px] bg-[#E8C65A] border border-[#D8B442] text-[#625346] flex items-center justify-center">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-[#625346]">Fleet Intelligence Copilot</h2>
-              <p className="text-[11px] text-[#958777] flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-[#6E5696]" />
-                Predictive Maintenance Assistant · {activeOrganization.name}
+        <div className="px-5 py-3.5 bg-[#EEE8F7] border-b border-[#DDD3ED] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <DhiyuLogo size="sm" className="shadow-subtle" />
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-[#625346] leading-tight">Dhiyu</h2>
+              <p className="text-[11px] text-[#958777] flex items-center gap-1 truncate">
+                <ShieldCheck className="w-3 h-3 text-[#6E5696] shrink-0" />
+                <span className="truncate">Fleet Management AI · {activeOrganization.name}</span>
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Fleet Copilot"
-            className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#E2D8F3]"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={resetChat}
+              disabled={isLoading}
+              title="Reset Dhiyu conversation"
+              aria-label="Reset conversation"
+              className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#E2D8F3] disabled:opacity-50"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close Dhiyu AI"
+              className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#E2D8F3]"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="px-5 py-2 bg-[#FFFFFF] border-b border-[#E5E5E5] flex items-center gap-2 text-[11px] text-[#958777]">
+          <span className="font-semibold text-[#625346] tabular-nums">
+            {activeVehicleCount} vehicles
+          </span>
+          <span aria-hidden="true">·</span>
+          <span className="font-semibold text-[#625346] tabular-nums">
+            {openPredictionsCount} open alerts
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>Fleet-Only Scope</span>
         </div>
 
         <div className="px-4 py-2.5 bg-[#FAFAFA] border-b border-[#E5E5E5] flex flex-wrap gap-1.5">
@@ -364,14 +424,12 @@ export default function FleetCopilotDrawer({
             >
               <FormattedCopilotText text={m.text} />
               {m.citations && m.citations.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-[#E5E5E5] flex flex-wrap gap-1.5">
-                  {m.citations.map((c) => (
-                    <span
-                      key={c}
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-[6px] bg-[#FFFFFF] border border-[#E5E5E5] text-[#958777]"
-                    >
-                      {c}
-                    </span>
+                <div className="mt-2 pt-2 border-t border-[#E5E5E5] flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium text-[#958777]">
+                  {m.citations.map((c, idx) => (
+                    <React.Fragment key={c}>
+                      {idx > 0 && <span aria-hidden="true">·</span>}
+                      <span>{c}</span>
+                    </React.Fragment>
                   ))}
                 </div>
               )}
@@ -380,7 +438,7 @@ export default function FleetCopilotDrawer({
           {isLoading && (
             <div className="mr-6 rounded-xl p-3.5 text-xs border bg-[#FAFAFA] border-[#E5E5E5] text-[#958777] flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6E5696]" />
-              <span>Analyzing fleet maintenance & telemetry data...</span>
+              <span>Dhiyu is analyzing fleet telemetry & maintenance windows...</span>
             </div>
           )}
         </div>
@@ -397,15 +455,15 @@ export default function FleetCopilotDrawer({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={isLoading}
-            placeholder="Ask about maintenance RUL, breakdown cost, or fleet health..."
-            aria-label="Ask Fleet Intelligence Copilot"
+            placeholder="Ask Dhiyu about fleet maintenance, RUL, vehicles, or fuel..."
+            aria-label="Ask Dhiyu Fleet Management AI"
             className="dm-input flex-1 text-xs"
           />
           <button
             type="submit"
             disabled={isLoading || !query.trim()}
             className="btn-accent px-3 py-2 shrink-0 disabled:opacity-50"
-            aria-label="Send copilot question"
+            aria-label="Send question to Dhiyu"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>

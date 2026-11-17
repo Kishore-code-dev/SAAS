@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
-  Bot,
   Building2,
   ChevronDown,
   Globe,
@@ -18,6 +17,7 @@ import { useTranslation } from '../../i18n/useTranslation'
 import { languageOptions } from '../../i18n/translations'
 import type { OperatingEnvironment, ReportingPeriod } from '../../types/fleet'
 import { canAccessRoute, canPerformAction } from '../../utils/rbac'
+import { DhiyuLogo } from '../ui/DhiyuLogo'
 
 export default function Header({
   onMenuToggle,
@@ -162,11 +162,12 @@ export default function Header({
           <button
             type="button"
             onClick={onOpenCopilot}
-            aria-label="Open Fleet Intelligence Copilot"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#E2D8F3] text-xs font-semibold transition-colors whitespace-nowrap"
+            title="Dhiyu — Fleet Management AI"
+            aria-label="Open Dhiyu Fleet Management AI"
+            className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#E2D8F3] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
           >
-            <Bot className="w-3.5 h-3.5 text-[#6E5696]" />
-            <span>Copilot</span>
+            <DhiyuLogo size="xs" className="border-transparent" />
+            <span className="text-[11px] font-bold text-[#6E5696]">AI</span>
           </button>
         )}
 
