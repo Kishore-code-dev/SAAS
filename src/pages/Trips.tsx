@@ -40,15 +40,24 @@ export default function Trips() {
   const [dispatchError, setDispatchError] = useState<string | null>(null)
   const [dispatchForm, setDispatchForm] = useState({
     vehicleId: vehicles[0]?.id ?? '',
-    driverId: drivers.find((d) => d.status !== 'onboarding')?.id ?? '',
+    driverId: drivers.find((d) => d.operationalStatus === 'active')?.id ?? '',
     originAddress: 'Chennai Freight Depot',
     destinationAddress: 'Coimbatore Distribution Hub',
   })
+  const [truckCheck, setTruckCheck] = useState<{
+    loading: boolean
+    tripId: string | null
+    available?: boolean
+    mode?: string
+    distanceKm?: number | null
+    durationSeconds?: number | null
+    message?: string
+  }>({ loading: false, tripId: null })
 
   const effectiveDispatchVehicleId = vehicles.some((v) => v.id === dispatchForm.vehicleId)
     ? dispatchForm.vehicleId
     : (vehicles[0]?.id ?? '')
-  const activeDriversList = drivers.filter((d) => d.status !== 'onboarding')
+  const activeDriversList = drivers.filter((d) => d.operationalStatus === 'active')
   const effectiveDispatchDriverId = activeDriversList.some((d) => d.id === dispatchForm.driverId)
     ? dispatchForm.driverId
     : (activeDriversList[0]?.id ?? '')
@@ -64,6 +73,49 @@ export default function Trips() {
     () => filteredTrips.find((t) => t.id === selectedTripId) ?? filteredTrips[0] ?? null,
     [filteredTrips, selectedTripId],
   )
+
+  const handleCheckCommercialTruckRoute = async () => {
+    if (!selectedTrip) return
+    const veh = vehicles.find((v) => v.id === selectedTrip.vehicleId)
+    setTruckCheck({ loading: true, tripId: selectedTrip.id })
+    try {
+      const origin = isValidCoordinate(selectedTrip.startLocation.lat, selectedTrip.startLocation.lng)
+        ? selectedTrip.startLocation
+        : { lat: 13.0827, lng: 80.2707 }
+      const endPt = selectedTrip.endLocation ?? selectedTrip.route[selectedTrip.route.length - 1]
+      const destination =
+        endPt && isValidCoordinate(endPt.lat, endPt.lng) ? endPt : { lat: 11.0168, lng: 76.9558 }
+
+      const res = await fetch('/api/routing/truck', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          origin,
+          destination,
+          specs: veh?.specs,
+        }),
+      })
+      const data = await res.json()
+      setTruckCheck({
+        loading: false,
+        tripId: selectedTrip.id,
+        available: Boolean(data.available),
+        mode: data.mode,
+        distanceKm: data.distanceKm,
+        durationSeconds: data.durationSeconds,
+        message: data.message,
+      })
+    } catch {
+      setTruckCheck({
+        loading: false,
+        tripId: selectedTrip.id,
+        available: false,
+        mode: 'highway_geometry_unverified',
+        message: 'Unable to reach commercial truck routing check; highway geometry shown is not restriction-verified.',
+      })
+    }
+  }
 
   const handleExportCsv = () => {
     const csv = generateCsvContent(
@@ -100,7 +152,7 @@ export default function Trips() {
     e.preventDefault()
     setDispatchError(null)
     if (!effectiveDispatchVehicleId || !effectiveDispatchDriverId || !dispatchForm.originAddress.trim()) {
-      setDispatchError('Vehicle, driver, and origin are required.')
+      setDispatchError('Vehicle, active driver, and origin are required.')
       return
     }
     try {
@@ -130,13 +182,15 @@ export default function Trips() {
         .map((p) => [p.lat, p.lng] as [number, number])
     : []
 
+  const selectedVehicle = selectedTrip ? vehicles.find((v) => v.id === selectedTrip.vehicleId) : undefined
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="dm-page-title">Trip Intelligence</h1>
           <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · Route trajectories, speed profiles, stops, and operational events
+            {activeOrganization.name} · Route trajectories, commercial truck clearance checks, speed profiles, and stop logs
           </p>
         </div>
         <div className="flex items-center gap-2.5">
@@ -152,7 +206,7 @@ export default function Trips() {
                 setDispatchForm((f) => ({
                   ...f,
                   vehicleId: vehicles[0]?.id ?? '',
-                  driverId: drivers.find((d) => d.status !== 'onboarding')?.id ?? '',
+                  driverId: drivers.find((d) => d.operationalStatus === 'active')?.id ?? '',
                 }))
                 setDispatchOpen(true)
               }}
@@ -184,7 +238,7 @@ export default function Trips() {
       {filteredTrips.length === 0 ? (
         <EmptySectionState
           title="No trips logged for selected filter"
-          description="Dispatch a trip or start one from the Driver Mobile App to populate route telemetry."
+          description="Dispatch a trip from the Owner Command Console to start live corridor tracking and telemetry."
         />
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
@@ -243,23 +297,67 @@ export default function Trips() {
                     {selectedTrip.offlineSynced === false ? ' · Offline Queue Pending Sync' : ''}
                   </p>
                 </div>
-                {selectedTrip.status === 'active' && canEnd && (
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      try {
-                        endTrip(selectedTrip.id)
-                        toast.success('Trip marked completed and odometer updated.')
-                      } catch (err) {
-                        toast.error(err instanceof Error ? err.message : 'Unable to complete trip.')
-                      }
-                    }}
-                    className="btn-primary text-xs"
+                    disabled={truckCheck.loading}
+                    onClick={() => void handleCheckCommercialTruckRoute()}
+                    className="btn-secondary text-xs"
                   >
-                    Complete Trip
+                    {truckCheck.loading && truckCheck.tripId === selectedTrip.id
+                      ? 'Checking Clearance...'
+                      : 'Check Truck Route Clearance'}
                   </button>
-                )}
+                  {selectedTrip.status === 'active' && canEnd && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        try {
+                          endTrip(selectedTrip.id)
+                          toast.success('Trip marked completed and odometer updated.')
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : 'Unable to complete trip.')
+                        }
+                      }}
+                      className="btn-primary text-xs"
+                    >
+                      Complete Trip
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {truckCheck.tripId === selectedTrip.id && truckCheck.message && (
+                <div
+                  className={`rounded-[10px] border p-3.5 text-xs ${
+                    truckCheck.available
+                      ? 'bg-[#789A75]/15 border-[#789A75] text-[#625346]'
+                      : 'bg-[#E8C65A]/20 border-[#D8B442] text-[#625346]'
+                  }`}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-bold">
+                    <span>
+                      {truckCheck.available
+                        ? 'Commercial Truck Route Verified'
+                        : 'Corridor Geometry Only — Restrictions NOT Verified'}
+                    </span>
+                    {selectedVehicle?.specs && (
+                      <span className="tabular-nums text-[11px] font-semibold">
+                        H {selectedVehicle.specs.heightMeters ?? '—'}m · GVW {selectedVehicle.specs.grossVehicleWeightKg ?? '—'} kg · {selectedVehicle.specs.axleCount ?? '—'} Axles
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 leading-relaxed">{truckCheck.message}</p>
+                  {typeof truckCheck.distanceKm === 'number' && (
+                    <p className="mt-1 font-semibold tabular-nums">
+                      Routed Distance: {truckCheck.distanceKm} km
+                      {typeof truckCheck.durationSeconds === 'number'
+                        ? ` · Est. Travel ${Math.round(truckCheck.durationSeconds / 60)} min`
+                        : ''}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-3">
@@ -374,9 +472,9 @@ export default function Trips() {
               </select>
             </div>
             <div>
-              <label htmlFor="disp-drv" className="dm-label">Driver *</label>
+              <label htmlFor="disp-drv" className="dm-label">Active Driver *</label>
               <select id="disp-drv" value={effectiveDispatchDriverId} onChange={(e) => setDispatchForm((f) => ({ ...f, driverId: e.target.value }))} className="dm-input">
-                {drivers.filter((d) => d.status !== 'onboarding').map((d) => (
+                {activeDriversList.map((d) => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>

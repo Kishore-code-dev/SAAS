@@ -1,4 +1,4 @@
-export type OperatingEnvironment = 'demo' | 'pilot' | 'production'
+export type OperatingEnvironment = 'production'
 
 export type OrganizationRole =
   | 'platform_admin'
@@ -6,7 +6,15 @@ export type OrganizationRole =
   | 'fleet_manager'
   | 'maintenance'
   | 'finance'
-  | 'driver'
+  | 'viewer'
+
+export type OrganizationStatus =
+  | 'active'
+  | 'payment_pending'
+  | 'grace_period'
+  | 'suspended'
+  | 'terminated'
+  | 'archived'
 
 export type SubscriptionPlanId = 'starter' | 'growth' | 'enterprise'
 
@@ -32,6 +40,14 @@ export type VehicleOperationStatus =
 
 export type TelemetryFreshness = 'live' | 'delayed' | 'stale' | 'offline'
 
+export type RefreshStatus =
+  | 'idle'
+  | 'refreshing'
+  | 'updated'
+  | 'partially_updated'
+  | 'no_new_data'
+  | 'failed'
+
 export type RiskSeverity = 'critical' | 'high' | 'moderate' | 'normal'
 
 export type RiskCategory =
@@ -40,6 +56,18 @@ export type RiskCategory =
   | 'fuel'
   | 'telemetry'
   | 'trip_exceptions'
+  | 'compliance_expiry'
+  | 'inspection_defects'
+  | 'climate_corridor'
+  | 'inventory_shortage'
+  | 'financial_variance'
+
+export type FiveAreaHealthCategory =
+  | 'Fuel Health'
+  | 'Engine Health'
+  | 'Tyre Health'
+  | 'Driver Health'
+  | 'Vehicle Health'
 
 export type ComponentCategory =
   | 'Engine'
@@ -67,6 +95,16 @@ export interface Organization {
   planId: SubscriptionPlanId
   vehicleLimit: number
   driverLimit: number
+  status: OrganizationStatus
+  paymentStatus: 'paid' | 'pending' | 'overdue' | 'grace' | 'cancelled'
+  subscriptionStartDate: string
+  subscriptionExpiryDate: string
+  gracePeriodUntil?: string
+  suspensionReason?: string
+  ownerName?: string
+  ownerEmail?: string
+  ownerPhone?: string
+  gstin?: string
   createdAt: string
   environment: OperatingEnvironment
 }
@@ -75,6 +113,7 @@ export interface OrganizationMember {
   id: string
   organizationId: string
   userId: string
+  username?: string
   fullName: string
   email: string
   role: OrganizationRole
@@ -104,6 +143,51 @@ export interface VehicleComponent {
   notes: string
 }
 
+export interface VehicleTechnicalSpecs {
+  heightMeters: number
+  widthMeters: number
+  lengthMeters: number
+  grossVehicleWeightKg: number
+  axleCount: number
+  payloadCapacityKg: number
+  cargoType: string
+  hazmatClass?: string
+  chassisNumber?: string
+  engineNumber?: string
+  emissionNorm?: 'BS-VI' | 'BS-IV' | 'EV-Zero'
+}
+
+export type DocumentVerificationStatus =
+  | 'uploaded'
+  | 'pending_verification'
+  | 'verified'
+  | 'rejected'
+  | 'expired'
+
+export interface DocumentVaultItem {
+  id: string
+  organizationId: string
+  entityType: 'vehicle' | 'driver'
+  entityId: string
+  category: string
+  title: string
+  documentNumber?: string
+  maskedNumber?: string
+  issuingAuthority?: string
+  issuedDate?: string
+  expiryDate?: string
+  fileName: string
+  mimeType: string
+  fileSizeBytes: number
+  storageKey: string
+  verificationStatus: DocumentVerificationStatus
+  verifiedBy?: string
+  verifiedAt?: string
+  rejectionReason?: string
+  uploadedBy: string
+  uploadedAt: string
+}
+
 export interface TelemetrySnapshot {
   vehicleId: string
   location: LatLng
@@ -117,6 +201,27 @@ export interface TelemetrySnapshot {
   lastUpdatedAt: string
   batteryLevelPct?: number
   motionPermissionGranted: boolean
+}
+
+export interface VehicleFiveAreaHealth {
+  fuelHealth: { score: number; status: 'healthy' | 'at-risk' | 'critical' | 'insufficient_data'; detail: string }
+  engineHealth: { score: number; status: 'healthy' | 'at-risk' | 'critical' | 'insufficient_data'; detail: string }
+  tyreHealth: { score: number; status: 'healthy' | 'at-risk' | 'critical' | 'insufficient_data'; detail: string }
+  driverHealth: { score: number; status: 'healthy' | 'at-risk' | 'critical' | 'insufficient_data'; detail: string }
+  vehicleHealth: { score: number; status: 'healthy' | 'at-risk' | 'critical' | 'insufficient_data'; detail: string }
+}
+
+export interface TyrePositionRecord {
+  id: string
+  vehicleId: string
+  position: string // e.g., 'FL', 'FR', 'RL-Outer', 'RL-Inner', 'RR-Outer', 'RR-Inner'
+  brand: string
+  serialNumber: string
+  treadDepthMm: number
+  installedAtOdometerKm: number
+  expectedLifeKm: number
+  status: 'healthy' | 'wear_watch' | 'replace_soon'
+  lastInspectedAt: string
 }
 
 export interface Vehicle {
@@ -141,9 +246,14 @@ export interface Vehicle {
   registrationExpiry: string
   insuranceExpiry: string
   insuranceProvider: string
+  fitnessExpiry?: string
+  pucExpiry?: string
+  permitExpiry?: string
   lastServiceDate: string
   nextServiceDueDate: string
+  nextServiceDueOdometerKm?: number
   monthlyRevenueInr: number
+  specs?: VehicleTechnicalSpecs
   telemetry: TelemetrySnapshot
   components: VehicleComponent[]
   decommissioned?: boolean
@@ -173,17 +283,54 @@ export interface DriverBehaviorEvent {
   disputeResolutionNote?: string
 }
 
+export type IndianLicenseCategory = 'LMV-TR' | 'TRANS' | 'HGMV' | 'HPMV' | 'HTV' | 'MGV'
+
+export type DriverOperationalStatus = 'active' | 'inactive' | 'suspended' | 'archived'
+
+export interface DriverAssignmentHistoryItem {
+  id: string
+  organizationId: string
+  driverId: string
+  vehicleId: string
+  vehicleRegistration: string
+  assignedAt: string
+  unassignedAt?: string
+  assignedBy: string
+  notes?: string
+}
+
 export interface Driver {
   id: string
   organizationId: string
   environment: OperatingEnvironment
+  employeeCode?: string
   name: string
   mobile: string
+  alternateMobile?: string
   email: string
+  dateOfBirth?: string
+  city?: string
+  state?: string
+  address?: string
+  bloodGroup?: string
+  emergencyContactName?: string
+  emergencyContactRelation?: string
+  emergencyContactPhone?: string
   licenseNumber: string
+  licenseCategories?: IndianLicenseCategory[]
+  licenseIssuingRto?: string
+  licenseIssueDate?: string
   licenseExpiry: string
+  hazmatEndorsed?: boolean
+  hazmatExpiry?: string
+  aadhaarMasked?: string
+  panMasked?: string
+  medicalFitnessExpiry?: string
+  policeVerificationStatus?: 'pending' | 'verified' | 'expired' | 'not_submitted'
+  digilockerStatus?: 'not_connected' | 'disabled_by_admin' | 'verified' | 'error'
   assignedVehicleId: string | null
-  status: 'on_trip' | 'available' | 'off_duty' | 'onboarding'
+  operationalStatus: DriverOperationalStatus
+  status: 'on_trip' | 'available' | 'off_duty' | 'suspended' | 'archived'
   safetyScore: number
   speedingScore: number
   brakingScore: number
@@ -228,10 +375,13 @@ export interface Trip {
   startTime: string
   endTime?: string
   distanceKm: number
+  plannedDistanceKm?: number
   durationMinutes: number
+  plannedDurationMinutes?: number
   avgSpeedKmh: number
   maxSpeedKmh: number
-  status: 'active' | 'completed' | 'delayed' | 'interrupted'
+  status: 'scheduled' | 'active' | 'completed' | 'delayed' | 'interrupted'
+  truckRoutingMode?: 'google_truck_verified' | 'google_truck_partial_restrictions' | 'highway_geometry_unverified'
   route: LatLng[]
   speedTimeline: TripSpeedPoint[]
   stops: TripStop[]
@@ -253,8 +403,9 @@ export interface FuelTransaction {
   location: LatLng
   timestamp: string
   paymentMethod: 'upi' | 'fleet_card' | 'cash' | 'ev_charging'
-  entrySource: 'manual_driver_entry' | 'receipt_ocr' | 'station_feed'
+  entrySource: 'owner_entry' | 'receipt_ocr' | 'station_feed'
   verificationStatus: 'verified' | 'pending' | 'needs_review'
+  paymentState?: 'recorded' | 'verified' | 'paid'
   anomalyFlags: string[]
   efficiencyKmPerUnit?: number
   costPerKmInr?: number
@@ -268,13 +419,198 @@ export interface MaintenanceRecord {
   serviceType: string
   componentName: ComponentCategory | 'General Service'
   serviceCenter: string
+  workshopId?: string
   description: string
   costInr: number
+  paymentState?: 'recorded' | 'verified' | 'paid'
+  billNumber?: string
+  billFileName?: string
   downtimeDays: number
   partsReplaced: string[]
   performedAt: string
+  odometerAtServiceKm?: number
   status: 'scheduled' | 'in_progress' | 'completed'
   linkedPredictionId?: string
+  linkedWorkOrderId?: string
+}
+
+export interface ServiceScheduleReminder {
+  id: string
+  organizationId: string
+  vehicleId: string
+  title: string
+  healthArea: FiveAreaHealthCategory
+  intervalDays: number
+  intervalKm: number
+  dueDate: string
+  dueOdometerKm: number
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  status: 'upcoming' | 'due_soon' | 'overdue' | 'completed'
+}
+
+export interface SmallIssueLog {
+  id: string
+  organizationId: string
+  vehicleId: string
+  driverId?: string
+  title: string
+  description: string
+  healthArea: FiveAreaHealthCategory
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  status: 'open' | 'triaged' | 'converted_to_wo' | 'resolved'
+  source: 'owner_manual' | 'inspection_defect' | 'predictive_alert'
+  reportedBy: string
+  reportedAt: string
+  linkedWorkOrderId?: string
+}
+
+export type WorkOrderStatus =
+  | 'draft'
+  | 'open'
+  | 'approved'
+  | 'in_progress'
+  | 'waiting_parts'
+  | 'completed'
+  | 'closed'
+
+export interface WorkOrderPartLine {
+  partId: string
+  partName: string
+  sku: string
+  quantity: number
+  unitCostInr: number
+  totalCostInr: number
+  consumedFromStock: boolean
+}
+
+export interface WorkOrder {
+  id: string
+  organizationId: string
+  workOrderNumber: string
+  vehicleId: string
+  workshopId?: string
+  workshopName: string
+  title: string
+  description: string
+  healthArea: FiveAreaHealthCategory
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  status: WorkOrderStatus
+  linkedIssueIds: string[]
+  tasks: Array<{ id: string; title: string; completed: boolean }>
+  parts: WorkOrderPartLine[]
+  laborCostInr: number
+  partsCostInr: number
+  totalCostInr: number
+  paymentState: 'recorded' | 'verified' | 'paid'
+  createdBy: string
+  createdAt: string
+  scheduledFor?: string
+  completedAt?: string
+}
+
+export interface PartInventoryItem {
+  id: string
+  organizationId: string
+  sku: string
+  name: string
+  category: FiveAreaHealthCategory | 'Consumables' | 'Safety'
+  unit: string
+  stockQty: number
+  reorderThreshold: number
+  unitCostInr: number
+  preferredSupplierId?: string
+  warehouseLocation: string
+  updatedAt: string
+}
+
+export interface SupplierRecord {
+  id: string
+  organizationId: string
+  name: string
+  gstin?: string
+  city: string
+  contactName: string
+  phone: string
+  email: string
+  leadTimeDays: number
+  rating: number
+}
+
+export interface PurchaseOrder {
+  id: string
+  organizationId: string
+  poNumber: string
+  supplierId: string
+  supplierName: string
+  status: 'draft' | 'issued' | 'partially_received' | 'received' | 'cancelled'
+  items: Array<{
+    partId: string
+    partName: string
+    sku: string
+    orderedQty: number
+    receivedQty: number
+    unitCostInr: number
+  }>
+  totalAmountInr: number
+  paymentState: 'recorded' | 'verified' | 'paid'
+  createdAt: string
+  expectedAt?: string
+}
+
+export interface InventoryTransaction {
+  id: string
+  organizationId: string
+  partId: string
+  partName: string
+  type: 'po_receive' | 'wo_consume' | 'manual_adjust'
+  quantityDelta: number
+  balanceAfter: number
+  referenceType: 'purchase_order' | 'work_order' | 'audit'
+  referenceId: string
+  performedBy: string
+  timestamp: string
+}
+
+export interface WorkshopVendor {
+  id: string
+  organizationId: string
+  name: string
+  city: string
+  specialties: FiveAreaHealthCategory[]
+  contactPhone: string
+  slaTurnaroundHours: number
+  avgTurnaroundHours: number
+  completedJobsCount: number
+  totalSpendInr: number
+  rating: number
+}
+
+export interface FinancialInvoice {
+  id: string
+  organizationId: string
+  invoiceNumber: string
+  vendorName: string
+  category: 'maintenance' | 'parts_po' | 'fuel' | 'insurance' | 'compliance'
+  vehicleId?: string
+  referenceId?: string
+  amountInr: number
+  paidAmountInr: number
+  status: 'recorded' | 'verified' | 'partially_paid' | 'paid'
+  dueDate: string
+  issuedDate: string
+  notes?: string
+}
+
+export interface PaymentRecord {
+  id: string
+  organizationId: string
+  invoiceId: string
+  invoiceNumber: string
+  amountInr: number
+  paymentMethod: 'neft' | 'rtgs' | 'upi' | 'fleet_card' | 'cheque'
+  referenceNumber: string
+  paidAt: string
+  recordedBy: string
 }
 
 export interface VehicleInspection {
@@ -283,6 +619,7 @@ export interface VehicleInspection {
   environment: OperatingEnvironment
   vehicleId: string
   driverId: string
+  inspectorName?: string
   timestamp: string
   tyreCondition: 'good' | 'worn' | 'critical'
   brakeFeel: 'normal' | 'spongy' | 'squealing'
@@ -291,6 +628,7 @@ export interface VehicleInspection {
   batteryOrStartingIssue: boolean
   notes: string
   passed: boolean
+  linkedIssueIds?: string[]
 }
 
 export interface PredictionCausalFactor {
@@ -306,6 +644,7 @@ export interface AIPrediction {
   environment: OperatingEnvironment
   vehicleId: string
   componentName: ComponentCategory
+  healthArea?: FiveAreaHealthCategory
   priority: 'low' | 'medium' | 'high' | 'critical'
   predictedIssue: string
   evidenceSummary: string
@@ -387,6 +726,7 @@ export interface AuditLogEntry {
   entityType: string
   entityId: string
   summary: string
+  reason?: string
   timestamp: string
 }
 
@@ -399,6 +739,6 @@ export interface ReportHistoryItem {
   period: ReportingPeriod
   generatedBy: string
   generatedAt: string
-  format: 'CSV' | 'PDF'
+  format: 'CSV' | 'PDF' | 'XLSX'
   rowCount: number
 }

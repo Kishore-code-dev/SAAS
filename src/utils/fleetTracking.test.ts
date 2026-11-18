@@ -13,7 +13,7 @@ import {
 } from './fleetTracking'
 
 test('computeFleetBounds encompasses every vehicle across Tamil Nadu corridors', () => {
-  const seed = buildSeedDataset('demo', Date.parse('2026-11-16T10:00:00Z'))
+  const seed = buildSeedDataset('production', Date.parse('2026-11-16T10:00:00Z'))
   const kaveriVehicles = seed.vehicles.filter((v) => v.organizationId === 'org-kaveri')
   assert.equal(kaveriVehicles.length, 8)
 
@@ -77,7 +77,7 @@ test('interpolateRoutePoint smoothly interpolates route coordinates and headings
 
 test('summarizeFleetTrackingStatuses counts every operational bucket accurately', () => {
   const refNow = Date.parse('2026-11-16T10:00:00Z')
-  const seed = buildSeedDataset('demo', refNow)
+  const seed = buildSeedDataset('production', refNow)
   const kaveriVehicles = seed.vehicles.filter((v) => v.organizationId === 'org-kaveri')
   const counts = summarizeFleetTrackingStatuses(kaveriVehicles, refNow)
 

@@ -94,12 +94,12 @@ const STATIC_DOCS: Partial<Record<Exclude<FooterModalKey, null>, StaticDocSpec>>
     subtitle: 'Guides for dispatch managers, maintenance leads, finance teams, and drivers.',
     sections: [
       {
-        heading: 'Smartphone Telemetry Setup',
-        body: 'Sign in on the Driver App route, grant location permission, and keep battery optimization disabled during active corridor runs to avoid Stale telemetry alerts.',
+        heading: 'Fleet Telemetry & GPS Ingestion',
+        body: 'Connect GPS feeds or fleet telemetry endpoints through the Owner Command Centre to maintain real-time location freshness without extra hardware lock-in.',
       },
       {
-        heading: '8-Subsystem Predictive Maintenance',
-        body: 'Forecasts cover Engine Oil & Thermal, Brakes, Battery & Electrical, Tyres, Transmission, Cooling, Suspension, and Air Filter using mileage, service interval age, and inspection flags.',
+        heading: '5-Area Predictive Health Intelligence',
+        body: 'Forecasts cover Fuel Health, Engine Health, Tyre Health, Driver Health (safety & compliance), and Vehicle Health using mileage, service interval age, and inspection logs.',
       },
       {
         heading: 'Fuel Verification & Anomaly Review',
@@ -169,7 +169,7 @@ const STATIC_DOCS: Partial<Record<Exclude<FooterModalKey, null>, StaticDocSpec>>
     sections: [
       {
         heading: 'Row-Level Tenant Isolation & RBAC',
-        body: 'Every query enforces active organization ID scoping alongside role-based access control across Admin, Fleet Manager, Maintenance, Finance, and Driver roles.',
+        body: 'Every query enforces active organization ID scoping alongside owner-side RBAC across Platform Admin, Org Admin, Fleet Manager, Maintenance, Finance, and Viewer roles.',
       },
       {
         heading: 'Auditability & Financial Integrity',
@@ -201,11 +201,11 @@ const STATIC_DOCS: Partial<Record<Exclude<FooterModalKey, null>, StaticDocSpec>>
   },
   'social-youtube': {
     title: 'DriveMitra on YouTube',
-    subtitle: 'Platform walkthroughs, driver app training, and maintenance deep dives.',
+    subtitle: 'Platform walkthroughs, workshop ERP tutorials, and maintenance deep dives.',
     sections: [
       {
         heading: 'Video Onboarding Library',
-        body: 'Watch step-by-step tutorials in English and regional languages on smartphone telematics setup and 8-subsystem predictive maintenance workflows.',
+        body: 'Watch step-by-step tutorials in English and regional languages on fleet ERP workflows, work orders, and 5-area predictive health tracking.',
       },
     ],
     copyValue: { label: 'YouTube Channel', value: 'youtube.com/@DriveMitraOfficial' },

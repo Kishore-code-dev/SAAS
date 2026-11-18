@@ -132,7 +132,7 @@ export default function Settings() {
       {/* Localization */}
       <div className="enterprise-card p-6 space-y-4">
         <h2 className="dm-card-title">Interface Localization</h2>
-        <p className="text-xs text-[#958777]">Select preferred display language across Command Centre and Driver Companion App.</p>
+        <p className="text-xs text-[#958777]">Select preferred display language across the Owner Command Workspace and fleet modules.</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {languageOptions.map((opt) => (
             <button
@@ -160,14 +160,14 @@ export default function Settings() {
       {/* Persistent Notification & AI Controls */}
       <div className="enterprise-card p-6 space-y-5">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="dm-card-title">Alerts, Telemetry & Privacy</h2>
+          <h2 className="dm-card-title">Alerts, Telemetry & KYC Readiness</h2>
           {!canEditGlobal && (
             <span className="text-xs font-medium text-[#6E5696]">Admin approval required to change global thresholds</span>
           )}
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div>
-            <label htmlFor="set-interval" className="dm-label">Smartphone Telemetry Ping Interval (sec)</label>
+            <label htmlFor="set-interval" className="dm-label">Telemetry Polling Interval (sec)</label>
             <input
               id="set-interval"
               type="number"
@@ -198,7 +198,7 @@ export default function Settings() {
           <label className="flex items-center justify-between gap-4 cursor-pointer">
             <div>
               <span className="font-medium text-[#625346] block">Critical Failure Alert Notifications</span>
-              <span className="text-xs text-[#958777]">Immediate banner & inbox alerting for high/critical component windows</span>
+              <span className="text-xs text-[#958777]">Immediate notification drawer & alert feed for high/critical component windows</span>
             </div>
             <input
               type="checkbox"
@@ -231,16 +231,16 @@ export default function Settings() {
 
           <label className="flex items-center justify-between gap-4 cursor-pointer">
             <div>
-              <span className="font-medium text-[#625346] block">Trip-Scoped Driver Location Sharing</span>
-              <span className="text-xs text-[#958777]">Restrict smartphone GPS transmission strictly to active shift trips</span>
+              <span className="font-medium text-[#625346] block">Optional DigiLocker KYC Verification Readiness</span>
+              <span className="text-xs text-[#958777]">Show DigiLocker readiness badge on Indian Driver & Vehicle Document Vault records (manual reviewer verification still required)</span>
             </div>
             <input
               type="checkbox"
               disabled={!canEditGlobal}
-              checked={settings.privacyShareDriverLocation}
+              checked={settings.digilockerEnabled}
               onChange={(e) => {
-                updateSettings({ privacyShareDriverLocation: e.target.checked })
-                toast.success('Privacy preference saved.')
+                updateSettings({ digilockerEnabled: e.target.checked })
+                toast.success('DigiLocker KYC readiness preference saved.')
               }}
               className="w-4 h-4 accent-[#6E5696]"
             />

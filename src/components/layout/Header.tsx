@@ -1,23 +1,45 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  AlertTriangle,
   Bell,
   Building2,
+  CheckCheck,
   ChevronDown,
+  Cpu,
+  Fuel,
   Globe,
   Menu,
   Plus,
-  RotateCcw,
   Search,
+  ShieldAlert,
   User,
+  Wrench,
+  X,
 } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { useAuth } from '../../hooks/useAuth'
 import { useTranslation } from '../../i18n/useTranslation'
 import { languageOptions } from '../../i18n/translations'
-import type { OperatingEnvironment, ReportingPeriod } from '../../types/fleet'
+import type { ReportingPeriod, RiskCategory } from '../../types/fleet'
 import { canAccessRoute, canPerformAction } from '../../utils/rbac'
 import { DhiyuLogo } from '../ui/DhiyuLogo'
+
+function CategoryIcon({ category }: { category: RiskCategory }) {
+  switch (category) {
+    case 'maintenance':
+      return <Cpu className="w-4 h-4 text-[#6E5696]" />
+    case 'fuel':
+      return <Fuel className="w-4 h-4 text-[#D8B442]" />
+    case 'inventory_shortage':
+      return <Wrench className="w-4 h-4 text-[#D9786C]" />
+    case 'compliance_expiry':
+    case 'driver_safety':
+      return <ShieldAlert className="w-4 h-4 text-[#B84E42]" />
+    default:
+      return <AlertTriangle className="w-4 h-4 text-[#6E5696]" />
+  }
+}
 
 export default function Header({
   onMenuToggle,
@@ -30,12 +52,7 @@ export default function Header({
   title?: string
 }) {
   const {
-    environment,
-    setEnvironment,
-    resetCurrentEnvironment,
-    organizations,
     activeOrganization,
-    setActiveOrganizationId,
     activeRole,
     reportingPeriod,
     setReportingPeriod,
@@ -44,162 +61,116 @@ export default function Header({
     alerts,
     unreadAlertCount,
     markAlertRead,
+    markAllAlertsRead,
   } = useFleet()
 
-  const { user, demoProfile, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const { language, setLanguage } = useTranslation()
   const navigate = useNavigate()
 
-  const [alertsOpen, setAlertsOpen] = useState(false)
+  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
-  const displayName =
-    demoProfile?.fullName ??
-    (typeof user?.user_metadata?.full_name === 'string' ? user.user_metadata.full_name : null) ??
-    user?.email ??
-    'Fleet Operations'
-
-  const envStyles: Record<OperatingEnvironment, string> = {
-    demo: 'bg-[#EEE8F7] text-[#6E5696] border-[#B8A3D9]',
-    pilot: 'bg-[#FDF3E7] text-[#625346] border-[#E8A85A]',
-    production: 'bg-[#EDF4EC] text-[#625346] border-[#789A75]',
-  }
+  const displayName = user?.fullName ?? user?.username ?? 'Fleet Owner'
 
   return (
-    <header className="h-16 bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 lg:px-6 flex items-center justify-between gap-3 sticky top-0 z-30 shrink-0">
-      <div className="flex items-center gap-2.5 min-w-0 flex-1">
-        <button
-          type="button"
-          onClick={onMenuToggle}
-          aria-label="Open navigation menu"
-          className="lg:hidden p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7] shrink-0"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
-
-        {/* Organization Selector */}
-        <div className="flex items-center gap-1.5 bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 min-w-0 max-w-[165px] sm:max-w-[205px] overflow-hidden">
-          <Building2 className="w-4 h-4 text-[#6E5696] shrink-0" />
-          <label htmlFor="org-switcher" className="sr-only">
-            Active Organization
-          </label>
-          <select
-            id="org-switcher"
-            value={activeOrganization.id}
-            onChange={(e) => setActiveOrganizationId(e.target.value)}
-            className="bg-transparent text-xs font-semibold text-[#625346] outline-none pr-1 cursor-pointer w-full min-w-0 truncate"
-          >
-            {organizations.map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name} ({org.code})
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Explicit Environment Switcher */}
-        <div className="hidden sm:flex items-center gap-1.5 shrink-0">
-          <label htmlFor="env-switcher" className="sr-only">
-            Operating Environment
-          </label>
-          <select
-            id="env-switcher"
-            value={environment}
-            onChange={(e) => setEnvironment(e.target.value as OperatingEnvironment)}
-            className={`text-xs font-semibold border rounded-[10px] px-2.5 py-1.5 outline-none cursor-pointer uppercase ${envStyles[environment]}`}
-          >
-            <option value="demo">DEMO</option>
-            <option value="pilot">PILOT</option>
-            <option value="production">PRODUCTION</option>
-          </select>
-          {environment !== 'production' && (
-            <button
-              type="button"
-              onClick={resetCurrentEnvironment}
-              title="Reset environment data to baseline"
-              aria-label="Reset environment data"
-              className="p-1.5 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors shrink-0"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Global Search + Period + Copilot + Notifications + Add Vehicle + User */}
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="relative hidden md:block w-36 xl:w-44">
-          <Search className="w-4 h-4 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search fleet..."
-            aria-label="Global fleet search"
-            className="w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#958777] outline-none focus:bg-[#FFFFFF] focus:border-[#B8A3D9]"
-          />
-        </div>
-
-        {/* Reporting Period Selector */}
-        <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#DDD3ED]" role="group" aria-label="Reporting period">
-          {(['7d', '30d', '90d'] as ReportingPeriod[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setReportingPeriod(p)}
-              className={`px-2 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
-                reportingPeriod === p
-                  ? 'bg-[#FFFFFF] text-[#6E5696] shadow-subtle border border-[#B8A3D9]'
-                  : 'text-[#958777] hover:text-[#625346]'
-              }`}
-            >
-              {p}
-            </button>
-          ))}
-        </div>
-
-        {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
+    <>
+      <header className="h-16 bg-[#FFFFFF] border-b border-[#E5E5E5] px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-3 sticky top-0 z-30 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
           <button
             type="button"
-            onClick={onOpenCopilot}
-            title="Dhiyu — Fleet Management AI"
-            aria-label="Open Dhiyu Fleet Management AI"
-            className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-[10px] border border-[#B8A3D9] bg-[#EEE8F7] text-[#625346] hover:bg-[#E2D8F3] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+            onClick={onMenuToggle}
+            aria-label="Open navigation menu"
+            className="lg:hidden p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7] shrink-0"
           >
-            <DhiyuLogo size="xs" className="border-transparent" />
-            <span className="text-[11px] font-bold text-[#6E5696]">AI</span>
+            <Menu className="w-5 h-5" />
           </button>
-        )}
 
-        {/* Language */}
-        <div className="hidden 2xl:flex items-center gap-1 border border-[#E5E5E5] rounded-[10px] px-2 py-1.5 bg-[#FAFAFA]">
-          <Globe className="w-3.5 h-3.5 text-[#958777]" />
-          <label htmlFor="header-lang" className="sr-only">
-            Language
-          </label>
-          <select
-            id="header-lang"
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as typeof language)}
-            className="text-xs font-medium text-[#625346] bg-transparent outline-none cursor-pointer"
-          >
-            {languageOptions.map((opt) => (
-              <option key={opt.code} value={opt.code}>
-                {opt.nativeLabel}
-              </option>
-            ))}
-          </select>
+          {/* Scoped Tenant Organization Pill */}
+          <div className="flex items-center gap-1.5 bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 min-w-0 max-w-[155px] sm:max-w-[230px]">
+            <Building2 className="w-4 h-4 text-[#6E5696] shrink-0" />
+            <span className="text-xs font-semibold text-[#625346] truncate">
+              {activeOrganization.name} ({activeOrganization.code})
+            </span>
+          </div>
+
+          {/* Cleanly aligned Production badge — NO demo toggle */}
+          <span className="hidden sm:inline-flex items-center justify-center px-3 py-1.5 rounded-[10px] border border-[#789A75] bg-[#EDF4EC] text-[11px] font-bold uppercase tracking-wider text-[#4D6E4A] leading-none whitespace-nowrap shrink-0">
+            Production
+          </span>
         </div>
 
-        {/* Notifications Popover */}
-        <div className="relative">
+        {/* Controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <div className="relative hidden md:block w-36 xl:w-44">
+            <Search className="w-4 h-4 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search fleet..."
+              aria-label="Global fleet search"
+              className="w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#958777] outline-none focus:bg-[#FFFFFF] focus:border-[#B8A3D9]"
+            />
+          </div>
+
+          {/* Reporting Period Selector */}
+          <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#DDD3ED]" role="group" aria-label="Reporting period">
+            {(['7d', '30d', '90d'] as ReportingPeriod[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setReportingPeriod(p)}
+                className={`px-2 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
+                  reportingPeriod === p
+                    ? 'bg-[#FFFFFF] text-[#6E5696] shadow-subtle border border-[#B8A3D9]'
+                    : 'text-[#958777] hover:text-[#625346]'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
+          {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
+            <button
+              type="button"
+              onClick={onOpenCopilot}
+              title="Dhiyu — Fleet Management AI"
+              aria-label="Open Dhiyu Fleet Management AI"
+              className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-[10px] border border-[#DDD3ED] bg-[#EEE8F7]/75 text-[#625346] hover:bg-[#EEE8F7] hover:border-[#B8A3D9] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+            >
+              <DhiyuLogo size="xs" />
+              <span className="hidden sm:inline text-[11px] font-bold text-[#6E5696]">AI</span>
+            </button>
+          )}
+
+          {/* Language Switcher */}
+          <div className="hidden xl:flex items-center gap-1 border border-[#E5E5E5] rounded-[10px] px-2 py-1.5 bg-[#FAFAFA]">
+            <Globe className="w-3.5 h-3.5 text-[#958777]" />
+            <label htmlFor="header-lang" className="sr-only">Language</label>
+            <select
+              id="header-lang"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value as typeof language)}
+              className="text-xs font-medium text-[#625346] bg-transparent outline-none cursor-pointer"
+            >
+              {languageOptions.map((opt) => (
+                <option key={opt.code} value={opt.code}>
+                  {opt.nativeLabel}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Notification Drawer Trigger */}
           <button
             type="button"
             onClick={() => {
-              setAlertsOpen((o) => !o)
+              setAlertsDrawerOpen(true)
               setUserMenuOpen(false)
             }}
-            aria-label={`Notifications (${unreadAlertCount} unread)`}
+            aria-label={`Open Notifications (${unreadAlertCount} unread)`}
             className="relative p-2 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
             <Bell className="w-4 h-4" />
@@ -210,141 +181,219 @@ export default function Header({
             )}
           </button>
 
-          {alertsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated z-50 p-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[#E5E5E5]">
-                <span className="text-xs font-bold text-[#625346]">Operational Alerts</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAlertsOpen(false)
-                    navigate('/dashboard/alerts')
-                  }}
-                  className="text-xs font-semibold text-[#6E5696] hover:underline"
-                >
-                  View all
-                </button>
+          {/* Add Vehicle Primary CTA */}
+          {onAddVehicle && canPerformAction(activeRole, 'add_vehicle') && (
+            <button
+              type="button"
+              onClick={onAddVehicle}
+              className="btn-primary text-xs px-2.5 sm:px-3 py-1.5 whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#625346]" />
+              <span className="hidden sm:inline">Add Vehicle</span>
+            </button>
+          )}
+
+          {/* User Account Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setUserMenuOpen((o) => !o)
+              }}
+              aria-label="User account menu"
+              className="flex items-center gap-2 pl-2 pr-2 py-1.5 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] hover:bg-[#EEE8F7]/60 transition-colors"
+            >
+              <div className="w-6 h-6 rounded-[8px] bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center shrink-0">
+                <User className="w-3.5 h-3.5" />
               </div>
-              <div className="max-h-64 overflow-y-auto divide-y divide-[#E5E5E5]">
-                {alerts.slice(0, 5).map((al) => (
+              <div className="hidden xl:block text-left">
+                <p className="text-xs font-semibold text-[#625346] leading-none max-w-[110px] truncate">
+                  {displayName}
+                </p>
+                <p className="text-[11px] text-[#958777] capitalize leading-tight mt-0.5">
+                  {(activeRole ?? 'viewer').replace(/_/g, ' ')}
+                </p>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-[#958777]" />
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated z-50 p-2">
+                <div className="px-2.5 py-2 border-b border-[#E5E5E5]">
+                  <p className="text-xs font-semibold text-[#625346] truncate">{displayName}</p>
+                  <p className="text-xs text-[#958777] truncate">{activeOrganization.name}</p>
+                </div>
+                {canAccessRoute(activeRole, '/dashboard/settings') && (
                   <button
-                    key={al.id}
                     type="button"
                     onClick={() => {
-                      markAlertRead(al.id)
-                      setAlertsOpen(false)
-                      navigate(al.actionRoute)
+                      setUserMenuOpen(false)
+                      navigate('/dashboard/settings')
                     }}
-                    className={`w-full text-left py-2.5 px-2 hover:bg-[#EEE8F7]/60 transition-colors rounded-lg ${
-                      al.read ? 'opacity-65' : ''
+                    className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg mt-1"
+                  >
+                    Workspace Settings
+                  </button>
+                )}
+                {canAccessRoute(activeRole, '/dashboard/admin') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      navigate('/dashboard/admin')
+                    }}
+                    className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
+                  >
+                    Admin Console
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setUserMenuOpen(false)
+                    await signOut()
+                    navigate('/auth', { replace: true })
+                  }}
+                  className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[#B84E42] hover:bg-[#FCECEB] rounded-lg mt-1 border-t border-[#E5E5E5]"
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Slide-Over Notification Sidebar Drawer */}
+      {alertsDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="fixed inset-0 bg-[#625346]/25 backdrop-blur-[1px]"
+            onClick={() => setAlertsDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <aside
+            aria-label="Notification Sidebar"
+            className="relative z-10 w-full sm:w-[400px] max-w-full h-full bg-[#FFFFFF] border-l border-[#E5E5E5] shadow-elevated flex flex-col"
+          >
+            <div className="h-16 px-5 border-b border-[#E5E5E5] flex items-center justify-between shrink-0 bg-[#FAFAFA]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-[10px] bg-[#EEE8F7] border border-[#B8A3D9] flex items-center justify-center text-[#6E5696]">
+                  <Bell className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-[#625346]">Notifications</h2>
+                  <p className="text-[11px] text-[#958777]">{unreadAlertCount} unread operational alerts</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {unreadAlertCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllAlertsRead}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-[#6E5696] hover:bg-[#EEE8F7]"
+                  >
+                    <CheckCheck className="w-3.5 h-3.5" />
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setAlertsDrawerOpen(false)}
+                  aria-label="Close notifications"
+                  className="p-1.5 rounded-lg text-[#625346] hover:bg-[#EEE8F7]"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto scrollbar-custom p-4 space-y-2.5">
+              {alerts.length === 0 ? (
+                <div className="py-12 text-center text-xs text-[#958777]">
+                  No operational notifications for this organization.
+                </div>
+              ) : (
+                alerts.map((al) => (
+                  <div
+                    key={al.id}
+                    className={`rounded-xl border p-3.5 transition-colors ${
+                      al.read
+                        ? 'bg-[#FFFFFF] border-[#E5E5E5] opacity-75'
+                        : 'bg-[#EEE8F7]/45 border-[#B8A3D9]'
                     }`}
                   >
-                    <p className="text-xs font-semibold text-[#625346] line-clamp-1">{al.title}</p>
-                    <p className="text-xs text-[#958777] line-clamp-2 mt-0.5">{al.message}</p>
-                  </button>
-                ))}
-                {alerts.length === 0 && (
-                  <p className="text-xs text-[#958777] py-6 text-center">No active operational alerts.</p>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Primary Soft Golden Yellow CTA: Add Vehicle */}
-        {onAddVehicle && canPerformAction(activeRole, 'add_vehicle') && (
-          <button
-            type="button"
-            onClick={onAddVehicle}
-            className="btn-primary text-xs px-3 py-1.5"
-          >
-            <Plus className="w-3.5 h-3.5 text-[#625346]" />
-            <span>Add Vehicle</span>
-          </button>
-        )}
-
-        {/* User Profile Dropdown */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => {
-              setUserMenuOpen((o) => !o)
-              setAlertsOpen(false)
-            }}
-            aria-label="User account menu"
-            className="flex items-center gap-2 pl-2 pr-2.5 py-1.5 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] hover:bg-[#EEE8F7]/60 transition-colors"
-          >
-            <div className="w-6 h-6 rounded-[8px] bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center">
-              <User className="w-3.5 h-3.5" />
-            </div>
-            <div className="hidden xl:block text-left">
-              <p className="text-xs font-semibold text-[#625346] leading-none max-w-[105px] truncate">
-                {displayName}
-              </p>
-              <p className="text-[11px] text-[#958777] capitalize leading-tight mt-0.5">
-                {activeRole.replace('_', ' ')}
-              </p>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-[#958777]" />
-          </button>
-
-          {userMenuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl shadow-elevated z-50 p-2">
-              <div className="px-2.5 py-2 border-b border-[#E5E5E5]">
-                <p className="text-xs font-semibold text-[#625346] truncate">{displayName}</p>
-                <p className="text-xs text-[#958777] truncate">{activeOrganization.name}</p>
-              </div>
-              {canAccessRoute(activeRole, '/dashboard/settings') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false)
-                    navigate('/dashboard/settings')
-                  }}
-                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg mt-1"
-                >
-                  Workspace Settings
-                </button>
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#FFFFFF] border border-[#E5E5E5] flex items-center justify-center shrink-0 mt-0.5">
+                        <CategoryIcon category={al.category} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border ${
+                              al.severity === 'critical'
+                                ? 'bg-[#FCECEB] border-[#D9786C] text-[#B84E42]'
+                                : al.severity === 'high'
+                                  ? 'bg-[#FCF5DE] border-[#D8B442] text-[#8E6F19]'
+                                  : 'bg-[#FAFAFA] border-[#E5E5E5] text-[#625346]'
+                            }`}
+                          >
+                            {al.severity}
+                          </span>
+                          <span className="text-[10px] text-[#958777] whitespace-nowrap">
+                            {new Date(al.timestamp).toLocaleString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            markAlertRead(al.id)
+                            setAlertsDrawerOpen(false)
+                            navigate(al.actionRoute)
+                          }}
+                          className="text-left w-full mt-1.5"
+                        >
+                          <p className="text-xs font-bold text-[#625346] hover:text-[#6E5696] leading-snug">
+                            {al.title}
+                          </p>
+                          <p className="text-xs text-[#958777] mt-1 leading-relaxed">{al.message}</p>
+                        </button>
+                        {!al.read && (
+                          <button
+                            type="button"
+                            onClick={() => markAlertRead(al.id)}
+                            className="mt-2 text-[11px] font-semibold text-[#6E5696] hover:underline"
+                          >
+                            Mark read
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
               )}
-              {canAccessRoute(activeRole, '/dashboard/admin') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false)
-                    navigate('/dashboard/admin')
-                  }}
-                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
-                >
-                  Admin Console
-                </button>
-              )}
-              {canAccessRoute(activeRole, '/driver') && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUserMenuOpen(false)
-                    navigate('/driver')
-                  }}
-                  className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
-                >
-                  Switch to Driver App
-                </button>
-              )}
+            </div>
+
+            <div className="p-4 border-t border-[#E5E5E5] bg-[#FAFAFA] shrink-0">
               <button
                 type="button"
-                onClick={async () => {
-                  setUserMenuOpen(false)
-                  await signOut()
-                  navigate('/auth', { replace: true })
+                onClick={() => {
+                  setAlertsDrawerOpen(false)
+                  navigate('/dashboard/alerts')
                 }}
-                className="w-full text-left px-2.5 py-2 text-xs font-semibold text-[#B84E42] hover:bg-[#FCECEB] rounded-lg mt-1 border-t border-[#E5E5E5]"
+                className="btn-secondary w-full text-xs py-2.5"
               >
-                Sign Out
+                Open Full Alerts Feed
               </button>
             </div>
-          )}
+          </aside>
         </div>
-      </div>
-    </header>
+      )}
+    </>
   )
 }

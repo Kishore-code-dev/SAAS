@@ -229,7 +229,7 @@ export default function AddVehicleDialog({
               className="dm-input"
             >
               <option value="">Unassigned</option>
-              {drivers.filter((d) => d.status !== 'onboarding').map((d) => (
+              {drivers.filter((d) => d.operationalStatus === 'active').map((d) => (
                 <option key={d.id} value={d.id}>{d.name}</option>
               ))}
             </select>

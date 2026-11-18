@@ -1,10 +1,15 @@
+import crypto from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
 import {
   DHIYU_SCOPE_REFUSAL,
   isFleetManagementQuery,
-} from './src/utils/copilotContext'
+} from './src/utils/dhiyuScope.ts'
+import { attachSession, requireActiveOrganization, requireAuth, requirePasswordChanged, type AuthenticatedRequest } from './server/authMiddleware.ts'
+import { sanitizeCopilotPayloadForLlm } from './server/authLogic.ts'
+import { getDb } from './server/db.ts'
+import { buildApiRouter } from './server/routes.ts'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -19,7 +24,7 @@ const FREE_OPENCODE_MODELS = [
 ] as const
 
 const DEFAULT_MAINTENANCE_KNOWLEDGE =
-  'Dhiyu is DriveMitra’s Fleet Management AI. DriveMitra monitors 8 core vehicle subsystems (Engine Oil & Thermal System, Brake Pads & Rotor Wear, Battery & Alternator Electrical, Tyre Tread & Alignment, Transmission & Clutch, Cooling & Radiator System, Suspension & Shock Absorbers, Air Filter & Intake) using software-only telemetry (odometer, daily utilization, days since service, corridor road stress, harsh events, and pre-trip inspections) and quantifies preventive repair cost vs breakdown delay exposure in INR.'
+  'Dhiyu is DriveMitra’s Fleet Management AI. DriveMitra monitors 5 core predictive health intelligence areas (Fuel Health, Engine Health, Tyre Health, Driver Health, and Vehicle Health) using fleet telemetry, odometer utilization, service history, inspection defects, and work order costs in INR (₹).'
 
 interface ChatHistoryTurn {
   role: 'user' | 'model'
@@ -48,12 +53,13 @@ async function queryOpenCodeFree(
 ): Promise<{ answer: string; model: string }> {
   const apiKey = getOpenCodeApiKey()
   let lastStatus = 502
-  let lastMessage = 'Unable to reach OpenCode AI free inference gateway.'
+  let lastMessage = 'Unable to reach OpenCode AI inference gateway.'
 
   for (const model of FREE_OPENCODE_MODELS) {
     try {
       const response = await fetch(OPENCODE_CHAT_ENDPOINT, {
         method: 'POST',
+        signal: AbortSignal.timeout(4500),
         headers: {
           'Content-Type': 'application/json',
           ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
@@ -78,8 +84,7 @@ async function queryOpenCodeFree(
         payload?.error?.message ||
         `OpenCode model ${model} returned HTTP ${response.status}.`
 
-      // Only fail fast on auth rejection; try alternate free models on transient errors
-      if (response.status === 401 || response.status === 403) {
+      if (response.status === 401 || response.status === 403 || response.status === 429) {
         break
       }
     } catch (err) {
@@ -94,107 +99,115 @@ async function queryOpenCodeFree(
 }
 
 async function startServer() {
+  // Initialize SQLite database & pre-seed production tenants and Level-2 admin
+  getDb()
+
   const app = express()
-  app.use(express.json({ limit: '1mb' }))
+  app.use(express.json({ limit: '8mb' }))
 
   app.get('/api/health', (_req, res) => {
     res.json({
       ok: true,
       aiName: 'Dhiyu',
-      provider: 'opencode-zen',
-      model: FREE_OPENCODE_MODELS[0],
-      freeModels: FREE_OPENCODE_MODELS,
+      environment: 'production',
       configured: true,
-      hasApiKey: Boolean(getOpenCodeApiKey()),
     })
   })
 
-  app.post('/api/copilot', async (req, res) => {
-    const body = req.body as {
-      query?: unknown
-      systemInstruction?: unknown
-      history?: unknown
-    }
+  // Auth, Super Admin, Fleet Persistence, Document Vault, Truck Routing, Weather APIs
+  app.use('/api', buildApiRouter())
 
-    const query = typeof body?.query === 'string' ? body.query.trim() : ''
-    const clientSystemInstruction =
-      typeof body?.systemInstruction === 'string' ? body.systemInstruction : ''
-    const rawHistory = Array.isArray(body?.history) ? (body.history as ChatHistoryTurn[]) : []
-
-    if (!query) {
-      res.status(400).json({ error: 'Enter a fleet management question to ask Dhiyu.' })
-      return
-    }
-
-    if (!isFleetManagementQuery(query, [], rawHistory.length > 0)) {
-      res.json({
-        answer: DHIYU_SCOPE_REFUSAL,
-        model: 'scope-guard',
-        provider: 'opencode-zen',
-        scopeRefused: true,
-      })
-      return
-    }
-
-    const systemInstruction = clientSystemInstruction.includes('DRIVEMITRA FLEET MAINTENANCE DOMAIN KNOWLEDGE')
-      ? clientSystemInstruction
-      : [
-          'You are Dhiyu, DriveMitra’s Fleet Management AI.',
-          'ONLY answer fleet management questions related to DriveMitra vehicles, predictive maintenance, RUL windows, cost of delay, driver safety, fuel logs, and fleet financials. Politely refuse anything unrelated.',
-          DEFAULT_MAINTENANCE_KNOWLEDGE,
-          clientSystemInstruction,
-        ]
-          .filter(Boolean)
-          .join('\n\n')
-
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: systemInstruction },
-    ]
-
-    for (const turn of rawHistory.slice(-8)) {
-      if (
-        (turn.role === 'user' || turn.role === 'model') &&
-        typeof turn.text === 'string' &&
-        turn.text.trim()
-      ) {
-        messages.push({
-          role: turn.role === 'user' ? 'user' : 'assistant',
-          content: turn.text.trim(),
-        })
+  // Secured Dhiyu Fleet Intelligence Endpoint (Auth + Active Org + PII Redaction + User-Safe Errors)
+  app.post(
+    '/api/copilot',
+    attachSession,
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    async (req: AuthenticatedRequest, res) => {
+      const body = req.body as {
+        query?: unknown
+        systemInstruction?: unknown
+        history?: unknown
+        language?: unknown
       }
-    }
 
-    messages.push({ role: 'user', content: query })
+      const query = typeof body?.query === 'string' ? body.query.trim() : ''
+      const clientSystemInstruction =
+        typeof body?.systemInstruction === 'string' ? body.systemInstruction : ''
+      const rawHistory = Array.isArray(body?.history) ? (body.history as ChatHistoryTurn[]) : []
+      const activeLang = typeof body?.language === 'string' ? body.language.trim() : 'en'
 
-    try {
-      const result = await queryOpenCodeFree(messages)
-      res.json({
-        answer: result.answer,
-        model: result.model,
-        provider: 'opencode-zen',
-      })
-    } catch (err) {
-      const status = (err as { status?: number })?.status ?? 502
-      const msg = err instanceof Error ? err.message : String(err)
-      if (status === 429 || msg.includes('FreeUsageLimitError')) {
-        res.status(429).json({
-          error:
-            'OpenCode AI free-tier anonymous quota for this server IP is temporarily reached. Add a free OPENCODE_ZEN_API_KEY (from opencode.ai/auth) in Settings > Secrets for dedicated access, or try again shortly.',
+      if (!query) {
+        res.status(400).json({ error: 'Enter a fleet management question to ask Dhiyu.' })
+        return
+      }
+
+      if (!isFleetManagementQuery(query, [], rawHistory.length > 0)) {
+        res.json({
+          answer: DHIYU_SCOPE_REFUSAL,
+          model: 'scope-guard',
+          scopeRefused: true,
         })
         return
       }
-      if (status === 401 || status === 403) {
-        res.status(403).json({
-          error:
-            'OpenCode AI API key was rejected or lacks permission. Please verify OPENCODE_ZEN_API_KEY in Settings > Secrets.',
-        })
-        return
+
+      // Sanitize any sensitive personal identifiers before outbound LLM inference
+      const sanitizedContext = sanitizeCopilotPayloadForLlm(clientSystemInstruction)
+      const languageDirective =
+        activeLang && activeLang !== 'en'
+          ? `Respond naturally in the active user interface language code "${activeLang}" while keeping Indian vehicle registration numbers and INR (₹) values clear.`
+          : 'Respond clearly in English with INR (₹) formatting.'
+
+      const systemInstruction = [
+        'You are Dhiyu, DriveMitra’s Fleet Management AI.',
+        'ONLY answer fleet management questions related to DriveMitra vehicles, 5-area predictive health, work orders, parts inventory, driver safety & compliance, fuel logs, and fleet financials. Politely refuse anything unrelated.',
+        languageDirective,
+        DEFAULT_MAINTENANCE_KNOWLEDGE,
+        sanitizedContext,
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemInstruction },
+      ]
+
+      for (const turn of rawHistory.slice(-8)) {
+        if (
+          (turn.role === 'user' || turn.role === 'model') &&
+          typeof turn.text === 'string' &&
+          turn.text.trim()
+        ) {
+          messages.push({
+            role: turn.role === 'user' ? 'user' : 'assistant',
+            content: sanitizeCopilotPayloadForLlm(turn.text.trim()),
+          })
+        }
       }
-      res.status(502).json({
-        error: `Unable to reach OpenCode AI service (${msg}). Please try again shortly.`,
-      })
-    }
-  })
+
+      messages.push({ role: 'user', content: sanitizeCopilotPayloadForLlm(query) })
+
+      try {
+        const result = await queryOpenCodeFree(messages)
+        res.json({
+          answer: result.answer,
+          model: 'dhiyu-fleet-intelligence',
+        })
+      } catch (err) {
+        const correlationId = crypto.randomUUID().slice(0, 8)
+        const internalMsg = err instanceof Error ? err.message : String(err)
+        console.error(`[Dhiyu][${correlationId}] Upstream inference unavailable:`, internalMsg)
+        // Strict user-safe response: NEVER expose OpenCode IP quota, upstream keys, or provider diagnostics
+        res.json({
+          fallbackRecommended: true,
+          correlationId,
+          error:
+            'Dhiyu is temporarily unable to process this request. Your fleet information has not been changed. Please try again shortly.',
+        })
+      }
+    },
+  )
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite')

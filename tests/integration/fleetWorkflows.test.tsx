@@ -1,6 +1,6 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from '../../src/hooks/useAuth'
 import { FleetProvider, useFleet } from '../../src/hooks/useFleet'
@@ -8,7 +8,6 @@ import { I18nProvider } from '../../src/i18n/useTranslation'
 import { AppRoutes } from '../../src/App'
 import FuelLogs from '../../src/pages/FuelLogs'
 import Settings from '../../src/pages/Settings'
-import DriverApp from '../../src/pages/DriverApp'
 import Vehicles from '../../src/pages/Vehicles'
 import LiveMap from '../../src/pages/LiveMap'
 
@@ -32,6 +31,27 @@ vi.mock('react-leaflet', () => ({
   }),
 }))
 
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+
+function mockUnauthenticatedFetch() {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input)
+    if (url.includes('/api/auth/me') || url.includes('/api/auth/session')) {
+      return new Response(JSON.stringify({ authenticated: false }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  })
+}
+
 function TestShell({
   initialEntries = ['/'],
   children,
@@ -41,18 +61,17 @@ function TestShell({
 }) {
   return (
     <I18nProvider>
-      <FleetProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <FleetProvider>
           <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
-        </AuthProvider>
-      </FleetProvider>
+        </FleetProvider>
+      </AuthProvider>
     </I18nProvider>
   )
 }
 
 function FleetWorkflowProbe() {
   const fleet = useFleet()
-  const auth = useAuth()
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
   const sampleReg = fleet.vehicles[0]?.registrationNumber ?? 'TN 58 AB 4321'
   const firstVehicleId = fleet.vehicles[0]?.id ?? ''
@@ -66,15 +85,7 @@ function FleetWorkflowProbe() {
       {errorMsg && <div role="alert">{errorMsg}</div>}
       <button
         type="button"
-        onClick={() => {
-          auth.enterDemoSession({
-            fullName: 'Ops Admin',
-            email: 'admin@kaveri.in',
-            role: 'org_admin',
-            isDemo: true,
-          })
-          fleet.setActiveRole('org_admin')
-        }}
+        onClick={() => fleet.setActiveRole('org_admin')}
       >
         Auth Admin
       </button>
@@ -124,93 +135,103 @@ function FleetWorkflowProbe() {
       >
         Restore Archived Vehicle
       </button>
-      <button
-        type="button"
-        onClick={() => {
-          const other = fleet.organizations.find((o) => o.id !== fleet.activeOrganization.id)
-          if (other) fleet.setActiveOrganizationId(other.id)
-        }}
-      >
-        Switch Org
-      </button>
     </div>
   )
 }
 
-describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver Mobile', () => {
-  it('redirects unauthenticated users from /dashboard to /auth and supports demo sign-in & sign-out', async () => {
-    function AuthLogoutButton() {
-      const { signOut, isAuthenticated } = useAuth()
+describe('Integration Workflows: Cookie Auth, Owner RBAC, Vehicles, Fuel, Settings & Satellite Map', () => {
+  it('redirects unauthenticated users from /dashboard to /auth and enforces strict login form without demo/driver shortcuts', async () => {
+    mockUnauthenticatedFetch()
+
+    render(
+      <TestShell initialEntries={['/dashboard']}>
+        <AppRoutes />
+      </TestShell>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/DriveMitra Workspace Login/i)).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText(/Username/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Forgot Password\?/i })).toBeInTheDocument()
+    expect(screen.queryByText(/Driver Mode/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Enter Demo/i)).not.toBeInTheDocument()
+  })
+
+  it('allows cookie-authenticated owner login, temporary password redirect, and sign-out', async () => {
+    let authed = false
+    const mockUserPayload = {
+      authenticated: true,
+      id: 'u-1',
+      username: 'kaveri.owner',
+      email: 'owner@kaveri.in',
+      fullName: 'Arjun Raj',
+      role: 'org_admin',
+      organizationId: 'org-kaveri',
+      passwordChangeRequired: false,
+      status: 'active',
+      redirectTo: '/dashboard',
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input)
+      if (url.includes('/api/auth/me')) {
+        return new Response(
+          JSON.stringify(authed ? mockUserPayload : { authenticated: false }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      if (url.includes('/api/auth/login')) {
+        authed = true
+        return new Response(JSON.stringify(mockUserPayload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (url.includes('/api/auth/logout')) {
+        authed = false
+        return new Response(JSON.stringify({ ok: true }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    })
+
+    function AuthProbe() {
+      const { isAuthenticated, signOut, user } = useAuth()
       return (
         <div>
-          <span data-testid="auth-state">{isAuthenticated ? 'yes' : 'no'}</span>
-          <button type="button" onClick={() => void signOut()}>
-            Sign Out Probe
-          </button>
+          <span data-testid="auth-state">{isAuthenticated ? user?.username : 'guest'}</span>
+          <button type="button" onClick={() => void signOut()}>Sign Out Probe</button>
         </div>
       )
     }
 
     render(
-      <TestShell initialEntries={['/dashboard']}>
-        <AuthLogoutButton />
+      <TestShell initialEntries={['/auth']}>
+        <AuthProbe />
         <AppRoutes />
       </TestShell>,
     )
 
     await waitFor(() => {
-      expect(screen.getByText(/DriveMitra Workspace Access/i)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Username/i)).toBeInTheDocument()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Enter Fleet Command Centre/i }))
+    fireEvent.change(screen.getByLabelText(/Username/i), { target: { value: 'kaveri.owner' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'DriveMitra@2026' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('yes')
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('kaveri.owner')
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /Sign Out Probe/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign Out Probe' }))
     await waitFor(() => {
-      expect(screen.getByTestId('auth-state')).toHaveTextContent('no')
-    })
-  })
-
-  it('enforces RoleProtectedRoute for driver and finance roles', async () => {
-    localStorage.setItem(
-      'dm_demo_profile_v2',
-      JSON.stringify({ fullName: 'Driver One', email: 'drv@kaveri.in', role: 'driver', isDemo: true }),
-    )
-    localStorage.setItem('dm_active_role_v2', 'driver')
-
-    render(
-      <TestShell initialEntries={['/dashboard']}>
-        <AppRoutes />
-      </TestShell>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText(/Access Restricted/i)).toBeInTheDocument()
-    })
-  })
-
-  it('blocks finance role from maintenance route via RoleProtectedRoute', async () => {
-    localStorage.setItem(
-      'dm_demo_profile_v2',
-      JSON.stringify({ fullName: 'Finance Lead', email: 'fin@kaveri.in', role: 'finance', isDemo: true }),
-    )
-    localStorage.setItem('dm_active_role_v2', 'finance')
-
-    render(
-      <TestShell initialEntries={['/dashboard/maintenance']}>
-        <AppRoutes />
-      </TestShell>,
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText(/Access Restricted/i)).toBeInTheDocument()
+      expect(screen.getByTestId('auth-state')).toHaveTextContent('guest')
     })
   })
 
   it('prevents same-org duplicate registration, preserves maintenance history on archive, and restores cleanly', () => {
+    mockUnauthenticatedFetch()
     render(
       <TestShell>
         <FleetWorkflowProbe />
@@ -234,37 +255,16 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
     expect(Number(screen.getByTestId('archived-count').textContent)).toBe(0)
   })
 
-  it('validates invalid fuel amounts inline and syncs Settings form inputs when switching organizations', () => {
-    function SwitcherPlusPages() {
-      const fleet = useFleet()
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => {
-              const other = fleet.organizations.find((o) => o.id !== fleet.activeOrganization.id)
-              if (other) fleet.setActiveOrganizationId(other.id)
-            }}
-          >
-            Switch Tenant Org
-          </button>
-          <Settings />
-          <FuelLogs />
-        </div>
-      )
-    }
-
+  it('validates invalid fuel amounts inline and renders Settings DigiLocker readiness toggle', () => {
+    mockUnauthenticatedFetch()
     render(
       <TestShell>
-        <SwitcherPlusPages />
+        <Settings />
+        <FuelLogs />
       </TestShell>,
     )
 
-    const orgInput = screen.getByLabelText('Organization Name') as HTMLInputElement
-    const firstOrgName = orgInput.value
-
-    fireEvent.click(screen.getByRole('button', { name: 'Switch Tenant Org' }))
-    expect(orgInput.value).not.toBe(firstOrgName)
+    expect(screen.getByText(/Optional DigiLocker KYC Verification Readiness/i)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: /Log Fuel \/ Charging/i }))
     const qtyInput = screen.getByLabelText(/Liters \/ kWh/i) as HTMLInputElement
@@ -274,40 +274,11 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
     expect(screen.getByRole('alert')).toHaveTextContent(/greater than zero/i)
   })
 
-  it('locks driver switcher for driver role (DRIVER-019) and warns on GPS revocation mid-trip (DRIVER-008)', () => {
-    localStorage.setItem('dm_active_role_v2', 'driver')
-
-    render(
-      <TestShell initialEntries={['/driver']}>
-        <Routes>
-          <Route path="/driver" element={<DriverApp />} />
-        </Routes>
-      </TestShell>,
-    )
-
-    expect(screen.getByText('Session Locked')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Switch Driver')).not.toBeInTheDocument()
-
-    // Start a trip or verify active trip, then switch to Device tab and disable GPS
-    const startBtn = screen.queryByRole('button', { name: /Start Trip/i })
-    if (startBtn) {
-      fireEvent.click(startBtn)
-    }
-    expect(screen.getByText(/Trip Active · Driving Safety Mode/i)).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Device' }))
-    const gpsCheckbox = screen.getByLabelText(/GPS Location Permission/i) as HTMLInputElement
-    fireEvent.click(gpsCheckbox)
-
-    expect(screen.getByRole('alert')).toHaveTextContent(/GPS Permission Revoked Mid-Trip/i)
-  })
-
-  it('resets role on signOut, persists verified fuel state, syncs driver scores, enforces duplicate trip error, and syncs motion toggle', async () => {
-    localStorage.setItem('dm_active_role_v2', 'org_admin')
+  it('persists verified fuel state, syncs driver scores, enforces duplicate trip error, and syncs motion toggle', () => {
+    mockUnauthenticatedFetch()
 
     function FullStateProbe() {
       const fleet = useFleet()
-      const auth = useAuth()
       const [tripErr, setTripErr] = React.useState<string>('')
       const firstFlagged = fleet.fuelTransactions.find((f) => f.verificationStatus === 'needs_review')
       const firstDisputableEvent = fleet.driverEvents.find((e) => e.disputeStatus === 'none')
@@ -316,7 +287,6 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
 
       return (
         <div>
-          <span data-testid="active-role">{fleet.activeRole}</span>
           <span data-testid="flagged-status">{firstFlagged?.verificationStatus ?? 'none'}</span>
           <span data-testid="target-driver-score">{targetDriver?.safetyScore ?? 0}</span>
           <span data-testid="motion-perm">{String(fleet.vehicles[0]?.telemetry.motionPermissionGranted)}</span>
@@ -369,10 +339,6 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
           >
             Disable Motion Sensor
           </button>
-
-          <button type="button" onClick={() => void auth.signOut()}>
-            Sign Out Full
-          </button>
         </div>
       )
     }
@@ -383,9 +349,7 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
       </TestShell>,
     )
 
-    expect(screen.getByTestId('active-role')).toHaveTextContent('org_admin')
     expect(screen.getByTestId('flagged-status')).toHaveTextContent('needs_review')
-
     fireEvent.click(screen.getByRole('button', { name: 'Verify Flagged Fuel' }))
     expect(screen.getByTestId('flagged-status')).toHaveTextContent('none')
 
@@ -398,14 +362,10 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
 
     fireEvent.click(screen.getByRole('button', { name: 'Disable Motion Sensor' }))
     expect(screen.getByTestId('motion-perm')).toHaveTextContent('false')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sign Out Full' }))
-    await waitFor(() => {
-      expect(screen.getByTestId('active-role')).toHaveTextContent('fleet_manager')
-    })
   })
 
-  it('paginates and renders 60+ vehicles cleanly within performance budget (FLEET-019)', () => {
+  it('paginates and renders 60+ vehicles cleanly within performance budget', () => {
+    mockUnauthenticatedFetch()
     function LargeFleetSeeder() {
       const { setActiveRole, addVehicle } = useFleet()
       const seededRef = React.useRef(false)
@@ -432,7 +392,7 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
               registrationExpiry: '2029-01-01',
             })
           } catch {
-            // Skip if already seeded
+            // Skip duplicate
           }
         }
       }, [setActiveRole, addVehicle])
@@ -450,7 +410,8 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
     expect(screen.getByText(/1–10 of/i)).toBeInTheDocument()
   })
 
-  it('tracks every fleet vehicle simultaneously on LiveMap via fitBounds and supports route playback', () => {
+  it('renders Kochi-to-Coimbatore satellite corridor route and switches cleanly to track all 8 fleet vehicles', () => {
+    mockUnauthenticatedFetch()
     mockFitBounds.mockClear()
     mockFlyTo.mockClear()
 
@@ -462,53 +423,19 @@ describe('Integration Workflows: Auth, RBAC, Vehicles, Fuel, Settings, & Driver 
       </TestShell>,
     )
 
-    // All 8 Kaveri Logistics vehicles render simultaneously (never collapsed to 1 location)
+    expect(screen.getAllByText(/Fort Kochi – Chinese Fishing Nets/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Adiyogi – Isha Yoga Centre/i).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Distance: 190 KM/i)).toBeInTheDocument()
+    expect(mockFitBounds).toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: /Fleet Assets \(8\)/i }))
     expect(screen.getByText(/Tracking 8\/8 fleet assets/i)).toBeInTheDocument()
     expect(screen.getAllByTestId('mock-marker').length).toBe(8)
-    expect(mockFitBounds).toHaveBeenCalled()
     expect(mockFlyTo).not.toHaveBeenCalled()
 
-    // Select a moving vehicle from the Fleet Roster to open telemetry, geofence status & route playback
     fireEvent.click(screen.getByRole('button', { name: /TN 38 AB 1234/i }))
     expect(screen.getByText(/Route & Trip Playback/i)).toBeInTheDocument()
     expect(screen.getByText(/Geofence Status/i)).toBeInTheDocument()
     expect(mockFlyTo).toHaveBeenCalled()
   })
-
-  it('supports standalone local Register, invalid-credential rejection, Sign In, and Email OTP without env vars or backend', async () => {
-    render(
-      <TestShell initialEntries={['/auth']}>
-        <AppRoutes />
-      </TestShell>,
-    )
-
-    // Switch to Register tab and confirm no env var warning banner exists
-    fireEvent.click(screen.getByRole('tab', { name: /Register/i }))
-    expect(screen.queryByText(/Cloud Supabase Auth variables are not configured/i)).not.toBeInTheDocument()
-
-    fireEvent.change(screen.getByLabelText(/Full Name/i), { target: { value: 'Priya Ops' } })
-    fireEvent.change(screen.getByLabelText(/Work Email/i), { target: { value: 'priya@kaveri.in' } })
-    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'fleetpass99' } })
-    fireEvent.click(screen.getByRole('button', { name: /Create Organization Account/i }))
-
-    // Automatically switches to Sign In tab after registration
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Sign In to Workspace/i })).toBeInTheDocument()
-    })
-
-    // Wrong password rejected cleanly
-    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'wrongpass' } })
-    fireEvent.click(screen.getByRole('button', { name: /Sign In to Workspace/i }))
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent(/Invalid email or password/i)
-    })
-
-    // Valid password succeeds and navigates to Command Centre
-    fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: 'fleetpass99' } })
-    fireEvent.click(screen.getByRole('button', { name: /Sign In to Workspace/i }))
-    await waitFor(() => {
-      expect(screen.getByText(/Priya Ops/i)).toBeInTheDocument()
-    })
-  })
 })
-

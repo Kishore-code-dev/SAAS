@@ -1,156 +1,262 @@
-import React, { createContext, useContext, useState } from 'react'
-import type { OrganizationRole } from '../types/fleet'
-import {
-  authenticateLocalAccount,
-  issueLocalOtpChallenge,
-  type LocalAccountRecord,
-  type LocalAuthSession,
-  type LocalAuthUser,
-  type LocalOtpChallenge,
-  registerLocalAccount,
-  toLocalAuthUser,
-  validateEmailFormat,
-  verifyLocalOtpChallenge,
-} from '../utils/localAuth'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import type { Organization, OrganizationRole, OrganizationStatus } from '../types/fleet'
 
-export { validateEmailFormat }
-
-export interface DemoSessionProfile {
-  fullName: string
+export interface AuthenticatedUser {
+  id: string
+  username: string
   email: string
+  fullName: string
   role: OrganizationRole
-  isDemo: boolean
+  organizationId: string | null
+  passwordChangeRequired: boolean
+  status: string
+  lastLoginAt?: string
+}
+
+export interface OrgBlockedInfo {
+  status: OrganizationStatus
+  reason: string
+}
+
+interface SignInResult {
+  error: Error | null
+  redirectTo?: string
+  blocked?: OrgBlockedInfo
 }
 
 interface AuthContextType {
-  user: LocalAuthUser | null
-  session: LocalAuthSession | null
-  demoProfile: DemoSessionProfile | null
+  user: AuthenticatedUser | null
+  organization: Organization | null
+  orgBlockedState: OrgBlockedInfo | null
   loading: boolean
   isAuthenticated: boolean
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>
-  signInWithOtp: (email: string) => Promise<{ error: Error | null; otpCode?: string }>
-  verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>
-  enterDemoSession: (profile: DemoSessionProfile) => void
+  passwordChangeRequired: boolean
+  signIn: (username: string, password: string) => Promise<SignInResult>
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error: Error | null; redirectTo?: string }>
+  requestPasswordReset: (username: string) => Promise<{ error: Error | null; message?: string; recoveryTokenPreview?: string }>
+  completePasswordReset: (token: string, newPassword: string) => Promise<{ error: Error | null; message?: string }>
+  refreshSession: () => Promise<void>
   signOut: () => Promise<void>
-}
-
-const DEMO_PROFILE_KEY = 'dm_demo_profile_v2'
-const LOCAL_ACCOUNTS_KEY = 'dm_local_accounts_v1'
-const LOCAL_SESSION_KEY = 'dm_local_session_v1'
-const LOCAL_OTP_KEY = 'dm_local_otp_v1'
-
-function readJsonStorage<T>(key: string, fallback: T): T {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
-  } catch {
-    return fallback
-  }
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+async function safeJson(res: Response): Promise<Record<string, unknown>> {
+  try {
+    return (await res.json()) as Record<string, unknown>
+  } catch {
+    return {}
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<LocalAuthSession | null>(() =>
-    readJsonStorage<LocalAuthSession | null>(LOCAL_SESSION_KEY, null),
-  )
-  const [user, setUser] = useState<LocalAuthUser | null>(() => session?.user ?? null)
-  const [demoProfile, setDemoProfile] = useState<DemoSessionProfile | null>(() =>
-    readJsonStorage<DemoSessionProfile | null>(DEMO_PROFILE_KEY, null),
-  )
-  const [loading] = useState(false)
+  const [user, setUser] = useState<AuthenticatedUser | null>(null)
+  const [organization, setOrganization] = useState<Organization | null>(null)
+  const [orgBlockedState, setOrgBlockedState] = useState<OrgBlockedInfo | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const persistLocalSession = (nextUser: LocalAuthUser) => {
-    const nextSession: LocalAuthSession = {
-      access_token: `local-session-${Date.now()}`,
-      user: nextUser,
-      issuedAt: new Date().toISOString(),
+  const refreshSession = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me', {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      })
+      const data = await safeJson(res)
+      if (res.status === 403 && data.code === 'ORG_ACCESS_BLOCKED') {
+        setUser(null)
+        setOrganization(null)
+        setOrgBlockedState({
+          status: (data.orgStatus as OrganizationStatus) ?? 'suspended',
+          reason: String(data.reason || data.error || 'Organization access suspended.'),
+        })
+        return
+      }
+      if (!res.ok || !data.authenticated) {
+        setUser(null)
+        setOrganization(null)
+        return
+      }
+
+      setOrgBlockedState(null)
+      setUser({
+        id: String(data.id),
+        username: String(data.username),
+        email: String(data.email),
+        fullName: String(data.fullName),
+        role: data.role as OrganizationRole,
+        organizationId: data.organizationId ? String(data.organizationId) : null,
+        passwordChangeRequired: Boolean(data.passwordChangeRequired),
+        status: String(data.status ?? 'active'),
+        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
+      })
+      setOrganization((data.organization as Organization | null) ?? null)
+    } catch {
+      // Offline / unit-test JSDOM fallback: stay cleanly unauthenticated
+      setUser(null)
+      setOrganization(null)
+    } finally {
+      setLoading(false)
     }
-    setSession(nextSession)
-    setUser(nextUser)
-    setDemoProfile(null)
-    localStorage.removeItem(DEMO_PROFILE_KEY)
-    localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(nextSession))
+  }, [])
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void refreshSession()
+    })
+  }, [refreshSession])
+
+  const signIn = async (username: string, password: string): Promise<SignInResult> => {
+    setOrgBlockedState(null)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      })
+      const data = await safeJson(res)
+      if (!res.ok) {
+        if (res.status === 403 && data.code === 'ORG_ACCESS_BLOCKED') {
+          const blocked: OrgBlockedInfo = {
+            status: (data.orgStatus as OrganizationStatus) ?? 'suspended',
+            reason: String(data.reason || data.error || 'Organization access has been paused.'),
+          }
+          setOrgBlockedState(blocked)
+          return { error: new Error(String(data.error || blocked.reason)), blocked }
+        }
+        return { error: new Error(String(data.error || 'Invalid username or password.')) }
+      }
+
+      const nextUser: AuthenticatedUser = {
+        id: String(data.id),
+        username: String(data.username),
+        email: String(data.email),
+        fullName: String(data.fullName),
+        role: data.role as OrganizationRole,
+        organizationId: data.organizationId ? String(data.organizationId) : null,
+        passwordChangeRequired: Boolean(data.passwordChangeRequired),
+        status: String(data.status ?? 'active'),
+        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
+      }
+      setUser(nextUser)
+      setOrganization((data.organization as Organization | null) ?? null)
+      setOrgBlockedState(null)
+      window.dispatchEvent(new CustomEvent('dm-auth-session', { detail: { user: nextUser } }))
+      return {
+        error: null,
+        redirectTo: typeof data.redirectTo === 'string' ? data.redirectTo : '/dashboard',
+      }
+    } catch {
+      return { error: new Error('Unable to reach authentication server. Verify the server is running.') }
+    }
   }
 
-  const signUp = async (email: string, password: string, fullName: string) => {
-    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
-    const res = registerLocalAccount(accounts, { email, password, fullName })
-    if (res.error || !res.account) {
-      return { error: new Error(res.error ?? 'Unable to create account.') }
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      const data = await safeJson(res)
+      if (!res.ok) {
+        return { error: new Error(String(data.error || 'Unable to update password.')) }
+      }
+      const nextUser: AuthenticatedUser = {
+        id: String(data.id),
+        username: String(data.username),
+        email: String(data.email),
+        fullName: String(data.fullName),
+        role: data.role as OrganizationRole,
+        organizationId: data.organizationId ? String(data.organizationId) : null,
+        passwordChangeRequired: false,
+        status: String(data.status ?? 'active'),
+        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
+      }
+      setUser(nextUser)
+      setOrganization((data.organization as Organization | null) ?? null)
+      window.dispatchEvent(new CustomEvent('dm-auth-session', { detail: { user: nextUser } }))
+      return {
+        error: null,
+        redirectTo: typeof data.redirectTo === 'string' ? data.redirectTo : '/dashboard',
+      }
+    } catch {
+      return { error: new Error('Unable to connect to password update service.') }
     }
-    localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(res.accounts))
-    return { error: null }
   }
 
-  const signIn = async (email: string, password: string) => {
-    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
-    const res = authenticateLocalAccount(accounts, { email, password })
-    if (res.error || !res.account) {
-      return { error: new Error(res.error ?? 'Invalid email or password.') }
+  const requestPasswordReset = async (username: string) => {
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim() }),
+      })
+      const data = await safeJson(res)
+      if (!res.ok) {
+        return { error: new Error(String(data.error || 'Unable to issue password reset token.')) }
+      }
+      return {
+        error: null,
+        message: String(data.message || 'Recovery instructions issued.'),
+        recoveryTokenPreview:
+          typeof data.recoveryTokenPreview === 'string' ? data.recoveryTokenPreview : undefined,
+      }
+    } catch {
+      return { error: new Error('Unable to reach password recovery endpoint.') }
     }
-    persistLocalSession(toLocalAuthUser(res.account))
-    return { error: null }
   }
 
-  const signInWithOtp = async (email: string) => {
-    const challenges = readJsonStorage<LocalOtpChallenge[]>(LOCAL_OTP_KEY, [])
-    const res = issueLocalOtpChallenge(challenges, email)
-    if (res.error || !res.challenge) {
-      return { error: new Error(res.error ?? 'Unable to generate verification code.') }
+  const completePasswordReset = async (token: string, newPassword: string) => {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token.trim(), newPassword }),
+      })
+      const data = await safeJson(res)
+      if (!res.ok) {
+        return { error: new Error(String(data.error || 'Unable to reset password.')) }
+      }
+      return {
+        error: null,
+        message: String(data.message || 'Password updated successfully.'),
+      }
+    } catch {
+      return { error: new Error('Unable to reach password reset endpoint.') }
     }
-    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(res.challenges))
-    return { error: null, otpCode: res.challenge.code }
-  }
-
-  const verifyOtp = async (email: string, token: string) => {
-    const challenges = readJsonStorage<LocalOtpChallenge[]>(LOCAL_OTP_KEY, [])
-    const accounts = readJsonStorage<LocalAccountRecord[]>(LOCAL_ACCOUNTS_KEY, [])
-    const res = verifyLocalOtpChallenge(challenges, accounts, { email, token })
-    if (res.error || !res.user) {
-      return { error: new Error(res.error ?? 'Invalid or expired verification code.') }
-    }
-    localStorage.setItem(LOCAL_OTP_KEY, JSON.stringify(res.challenges))
-    persistLocalSession(res.user)
-    return { error: null }
-  }
-
-  const enterDemoSession = (profile: DemoSessionProfile) => {
-    setDemoProfile(profile)
-    setUser(null)
-    setSession(null)
-    localStorage.removeItem(LOCAL_SESSION_KEY)
-    localStorage.setItem(DEMO_PROFILE_KEY, JSON.stringify(profile))
   }
 
   const signOut = async () => {
-    setDemoProfile(null)
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // ignore offline logout
+    }
     setUser(null)
-    setSession(null)
-    localStorage.removeItem(DEMO_PROFILE_KEY)
-    localStorage.removeItem(LOCAL_SESSION_KEY)
-    localStorage.removeItem('dm_active_role_v2')
-    localStorage.removeItem('dm_active_org_v2')
+    setOrganization(null)
+    setOrgBlockedState(null)
     window.dispatchEvent(new Event('dm-auth-signout'))
   }
 
-  const isAuthenticated = Boolean(user || demoProfile)
+  const isAuthenticated = Boolean(user)
+  const passwordChangeRequired = Boolean(user?.passwordChangeRequired)
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        session,
-        demoProfile,
+        organization,
+        orgBlockedState,
         loading,
         isAuthenticated,
-        signUp,
+        passwordChangeRequired,
         signIn,
-        signInWithOtp,
-        verifyOtp,
-        enterDemoSession,
+        changePassword,
+        requestPasswordReset,
+        completePasswordReset,
+        refreshSession,
         signOut,
       }}
     >

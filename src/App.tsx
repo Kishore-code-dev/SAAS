@@ -11,6 +11,7 @@ import { BrandLogo } from './components/ui/BrandLogo'
 import { canAccessRoute, getDefaultHomeForRole } from './utils/rbac'
 import Landing from './pages/Landing'
 import Auth from './pages/Auth'
+import ForcePasswordChange from './pages/ForcePasswordChange'
 import Dashboard from './pages/Dashboard'
 import NotFound from './pages/NotFound'
 
@@ -38,13 +39,19 @@ function lazyWithRetry<P extends object = Record<string, never>>(
   })
 }
 
+const PlatformAdmin = lazyWithRetry(() => import('./pages/PlatformAdmin'))
 const LiveMap = lazyWithRetry(() => import('./pages/LiveMap'))
 const Trips = lazyWithRetry(() => import('./pages/Trips'))
 const Vehicles = lazyWithRetry(() => import('./pages/Vehicles'))
 const VehicleDetails = lazyWithRetry(() => import('./pages/VehicleDetails'))
 const Drivers = lazyWithRetry(() => import('./pages/Drivers'))
+const DriverDetails = lazyWithRetry(() => import('./pages/DriverDetails'))
 const FuelLogs = lazyWithRetry(() => import('./pages/FuelLogs'))
 const Maintenance = lazyWithRetry(() => import('./pages/Maintenance'))
+const Inspections = lazyWithRetry(() => import('./pages/Inspections'))
+const WorkOrders = lazyWithRetry(() => import('./pages/WorkOrders'))
+const Inventory = lazyWithRetry(() => import('./pages/Inventory'))
+const Workshops = lazyWithRetry(() => import('./pages/Workshops'))
 const RiskRadar = lazyWithRetry(() => import('./pages/RiskRadar'))
 const Financials = lazyWithRetry(() => import('./pages/Financials'))
 const RoadIntelligence = lazyWithRetry(() => import('./pages/RoadIntelligence'))
@@ -53,7 +60,6 @@ const Reports = lazyWithRetry(() => import('./pages/Reports'))
 const AdminConsole = lazyWithRetry(() => import('./pages/AdminConsole'))
 const Settings = lazyWithRetry(() => import('./pages/Settings'))
 const Subscription = lazyWithRetry(() => import('./pages/Subscription'))
-const DriverApp = lazyWithRetry(() => import('./pages/DriverApp'))
 
 class RouteErrorBoundary extends Component<
   { children: React.ReactNode },
@@ -70,7 +76,7 @@ class RouteErrorBoundary extends Component<
       return (
         <div className="min-h-screen bg-[#FFFFFF] flex items-center justify-center p-6">
           <div className="max-w-md w-full bg-[#FFFFFF] border border-[#E5E5E5] rounded-2xl p-8 text-center shadow-card space-y-4">
-            <BrandLogo size="lg" className="mx-auto border border-[#DDD3ED]" />
+            <BrandLogo size="lg" className="mx-auto" />
             <h1 className="text-lg font-bold text-[#625346]">Workspace Module Interrupted</h1>
             <p className="text-xs text-[#958777] leading-relaxed">
               A navigation update occurred while loading this page. Reload to synchronize with the latest workspace build.
@@ -98,10 +104,8 @@ function LoadingScreen() {
   return (
     <div className="min-h-screen bg-[#FFFFFF] flex items-center justify-center p-6">
       <div className="flex flex-col items-center gap-4">
-        <BrandLogo size="xl" className="border border-[#DDD3ED] shadow-card" />
-        <div className="text-center">
-          <p className="text-xs text-[#958777]">Loading fleet workspace...</p>
-        </div>
+        <BrandLogo size="xl" />
+        <p className="text-xs text-[#958777]">Loading fleet workspace...</p>
         <div className="w-40 h-1.5 rounded-full overflow-hidden bg-[#E5E5E5]">
           <div className="h-full bg-[#E8C65A] animate-progress-flow w-full" />
         </div>
@@ -111,26 +115,52 @@ function LoadingScreen() {
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { loading, isAuthenticated } = useAuth()
+  const { loading, isAuthenticated, passwordChangeRequired, orgBlockedState, signOut } = useAuth()
   const location = useLocation()
   if (loading) return <LoadingScreen />
+
+  if (orgBlockedState) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white border border-[#E5E5E5] rounded-2xl p-8 shadow-card space-y-4 text-center">
+          <BrandLogo size="lg" className="mx-auto" />
+          <h1 className="text-lg font-bold text-[#625346]">Organization Access Restricted</h1>
+          <p className="text-xs text-[#958777] leading-relaxed">
+            Status: <span className="font-semibold uppercase text-[#D9786C]">{orgBlockedState.status}</span> —{' '}
+            {orgBlockedState.reason}
+          </p>
+          <button type="button" onClick={() => void signOut()} className="btn-primary text-xs px-5 py-2.5">
+            Return to Login
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (!isAuthenticated) {
     return <Navigate to="/auth" replace state={{ from: location.pathname }} />
   }
+
+  if (passwordChangeRequired && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />
+  }
+
   return <>{children}</>
 }
 
 export function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
   const { activeRole } = useFleet()
+  const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const effectiveRole = user?.role ?? activeRole
 
-  if (!canAccessRoute(activeRole, location.pathname)) {
-    const fallback = getDefaultHomeForRole(activeRole)
+  if (!canAccessRoute(effectiveRole, location.pathname)) {
+    const fallback = getDefaultHomeForRole(effectiveRole)
     return (
       <div className="min-h-screen bg-[#FFFFFF]">
         <AccessDeniedState
-          roleLabel={activeRole.replace('_', ' ')}
+          roleLabel={effectiveRole.replace('_', ' ')}
           targetPath={location.pathname}
           onReturn={() => navigate(fallback, { replace: true })}
         />
@@ -142,7 +172,7 @@ export function RoleProtectedRoute({ children }: { children: React.ReactNode }) 
 
 function LegacyVehicleRedirect() {
   const { id } = useParams()
-  return <Navigate to={id ? `/dashboard/fleet/${id}` : '/dashboard/fleet'} replace />
+  return <Navigate to={id ? `/dashboard/fleet/vehicles/${id}` : '/dashboard/fleet'} replace />
 }
 
 export function AppRoutes() {
@@ -152,8 +182,26 @@ export function AppRoutes() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
+          <Route
+            path="/change-password"
+            element={
+              <ProtectedRoute>
+                <ForcePasswordChange />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/platform-admin"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute>
+                  <PlatformAdmin />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Enterprise Dashboard Workspace */}
+          {/* Owner & Operations Enterprise Dashboard Workspace */}
           <Route
             path="/dashboard"
             element={
@@ -168,10 +216,17 @@ export function AppRoutes() {
             <Route path="map" element={<RoleProtectedRoute><LiveMap /></RoleProtectedRoute>} />
             <Route path="trips" element={<RoleProtectedRoute><Trips /></RoleProtectedRoute>} />
             <Route path="fleet" element={<RoleProtectedRoute><Vehicles /></RoleProtectedRoute>} />
+            <Route path="fleet/vehicles/:vehicleId" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
             <Route path="fleet/:id" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
             <Route path="maintenance" element={<RoleProtectedRoute><Maintenance /></RoleProtectedRoute>} />
+            <Route path="inspections" element={<RoleProtectedRoute><Inspections /></RoleProtectedRoute>} />
+            <Route path="work-orders" element={<RoleProtectedRoute><WorkOrders /></RoleProtectedRoute>} />
+            <Route path="inventory" element={<RoleProtectedRoute><Inventory /></RoleProtectedRoute>} />
+            <Route path="workshops" element={<RoleProtectedRoute><Workshops /></RoleProtectedRoute>} />
             <Route path="risk" element={<RoleProtectedRoute><RiskRadar /></RoleProtectedRoute>} />
             <Route path="drivers" element={<RoleProtectedRoute><Drivers /></RoleProtectedRoute>} />
+            <Route path="drivers/:driverId" element={<RoleProtectedRoute><DriverDetails /></RoleProtectedRoute>} />
+            <Route path="fleet/drivers/:driverId" element={<RoleProtectedRoute><DriverDetails /></RoleProtectedRoute>} />
             <Route path="roads" element={<RoleProtectedRoute><RoadIntelligence /></RoleProtectedRoute>} />
             <Route path="fuel" element={<RoleProtectedRoute><FuelLogs /></RoleProtectedRoute>} />
             <Route path="financials" element={<RoleProtectedRoute><Financials /></RoleProtectedRoute>} />
@@ -182,48 +237,6 @@ export function AppRoutes() {
             <Route path="settings" element={<RoleProtectedRoute><Settings /></RoleProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
-
-          {/* Driver Mobile Application */}
-          <Route
-            path="/driver"
-            element={
-              <ProtectedRoute>
-                <RoleProtectedRoute>
-                  <DriverApp />
-                </RoleProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/trips"
-            element={
-              <ProtectedRoute>
-                <RoleProtectedRoute>
-                  <DriverApp initialTab="trips" />
-                </RoleProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/fuel"
-            element={
-              <ProtectedRoute>
-                <RoleProtectedRoute>
-                  <DriverApp initialTab="fuel" />
-                </RoleProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/driver/settings"
-            element={
-              <ProtectedRoute>
-                <RoleProtectedRoute>
-                  <DriverApp initialTab="settings" />
-                </RoleProtectedRoute>
-              </ProtectedRoute>
-            }
-          />
 
           {/* Legacy / Convenience Redirects */}
           <Route path="/map" element={<Navigate to="/dashboard/map" replace />} />
@@ -240,8 +253,8 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <FleetProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <FleetProvider>
             <BrowserRouter>
               <AppRoutes />
               <Toaster
@@ -258,8 +271,8 @@ export default function App() {
                 }}
               />
             </BrowserRouter>
-          </AuthProvider>
-        </FleetProvider>
+          </FleetProvider>
+        </AuthProvider>
       </I18nProvider>
     </QueryClientProvider>
   )

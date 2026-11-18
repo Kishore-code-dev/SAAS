@@ -10,8 +10,8 @@ import {
   Linkedin,
   Menu,
   ShieldAlert,
-  Smartphone,
   Users,
+  Wrench,
   X,
   Youtube,
 } from 'lucide-react'
@@ -19,52 +19,61 @@ import { SUBSCRIPTION_PLANS } from '../data/seedOrganizations'
 import { formatInr } from '../components/ui/EnterprisePrimitives'
 import { BrandLogo } from '../components/ui/BrandLogo'
 import { FooterModals, type FooterModalKey } from '../components/landing/FooterModals'
+import { useAuth } from '../hooks/useAuth'
+import { getDefaultHomeForRole } from '../utils/rbac'
 
 export default function Landing() {
   const navigate = useNavigate()
+  const { isAuthenticated, user, passwordChangeRequired } = useAuth()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [footerModal, setFooterModal] = useState<FooterModalKey>(null)
 
+  const workspaceHref = user
+    ? passwordChangeRequired
+      ? '/change-password'
+      : getDefaultHomeForRole(user.role)
+    : '/auth'
+
   const handleBegin = () => {
-    navigate('/auth')
+    navigate(isAuthenticated ? workspaceHref : '/auth')
   }
 
   const platformModules = [
     {
       icon: Layers,
-      title: 'Fleet Intelligence & Digital Twins',
+      title: 'Fleet & Digital Twins',
       description:
-        'Unify registration, insurance, odometer, component health, maintenance ledger, and active trip status inside each vehicle profile.',
-    },
-    {
-      icon: Smartphone,
-      title: 'Smartphone Telematics',
-      description:
-        'Capture GPS location, speed profiles, trip stops, and driver motion events via standard Android/web devices with zero mandatory tracker hardware.',
+        'Unify registration, RC, insurance, Fitness/PUC expiry, vehicle dimensions, GVW specs, service history, and trips inside every vehicle profile.',
     },
     {
       icon: Cpu,
-      title: 'Predictive Maintenance Engine',
+      title: '5-Area Predictive Health',
       description:
-        'Estimate component failure windows across 8 vehicle subsystems using mileage, service history, road stress, and inspection reports.',
+        'Actionable Remaining Useful Life intelligence organized across Fuel Health, Engine Health, Tyre Health, Driver Health, and Vehicle Health.',
+    },
+    {
+      icon: Wrench,
+      title: 'Work Orders & Parts Inventory',
+      description:
+        'Convert inspection defects and predictive alerts directly into workshop Work Orders with automated SKU stock deduction and Purchase Orders.',
     },
     {
       icon: Users,
-      title: 'Driver Intelligence & Fairness',
+      title: 'Indian Driver Master & Compliance',
       description:
-        'Explainable safety scores adjusted for corridor road stress and GPS quality, paired with a transparent event dispute workflow.',
+        'Track LMV-TR/TRANS/HTV commercial licences, RTO records, Form 1A medical fitness, assignment history, and road-adjusted safety scores.',
     },
     {
       icon: Fuel,
       title: 'Fuel & Charging Verification',
       description:
-        'Track UPI, fleet card, cash, and EV charging spend with automated duplicate flagging and cost-per-kilometer variance checks.',
+        'Audit Diesel, Petrol, CNG, and EV charging spend with automated duplicate checks, efficiency variance, and cost-per-km benchmarks.',
     },
     {
       icon: BarChart3,
-      title: 'Financial Control & ICE vs EV',
+      title: 'Financial Control & ICE vs EV TCO',
       description:
-        'Analyze fuel, maintenance, and estimated downtime exposure across every vehicle, with direct ICE and electric TCO comparisons.',
+        'Separate recorded bills from verified invoices and cleared payments while comparing ICE and EV operating cost per kilometer.',
     },
   ]
 
@@ -82,8 +91,8 @@ export default function Landing() {
       detail: 'Identify unplanned highway halts, stale telemetry gaps, and mechanical risks before time-sensitive cargo dispatches.',
     },
     {
-      sector: 'Industrial & Construction Supply',
-      detail: 'Factor high-stress corridor conditions, pothole indices, and payload wear into proactive suspension and brake scheduling.',
+      sector: 'Industrial & Heavy Commercial',
+      detail: 'Track axle weights, vehicle clearance specs, tyre tread depth across axles, and multi-workshop SLA turnaround.',
     },
   ]
 
@@ -91,12 +100,8 @@ export default function Landing() {
     <div className="min-h-screen bg-[#FFFFFF] text-[#625346]">
       {/* Top Bar */}
       <header className="sticky top-0 z-40 bg-[#FFFFFF]/95 backdrop-blur border-b border-[#E5E5E5]">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-8">
-          <Link
-            to="/"
-            aria-label="DriveMitra"
-            className="flex items-center shrink-0"
-          >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4 sm:gap-8">
+          <Link to="/" aria-label="DriveMitra" className="flex items-center shrink-0">
             <BrandLogo size="header" />
           </Link>
 
@@ -113,19 +118,18 @@ export default function Landing() {
             <a href="#pricing" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
               Pricing
             </a>
-            <Link to="/auth" className="hover:text-[#625346] hover:underline underline-offset-4 whitespace-nowrap shrink-0">
-              Sign In
-            </Link>
           </nav>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              type="button"
-              onClick={handleBegin}
-              className="btn-primary text-xs sm:text-sm"
-            >
-              Begin
-            </button>
+          <div className="flex items-center gap-2.5 shrink-0">
+            {isAuthenticated ? (
+              <Link to={workspaceHref} className="btn-primary text-xs sm:text-sm whitespace-nowrap">
+                {user?.role === 'platform_admin' ? 'Platform Admin' : 'Open Workspace'}
+              </Link>
+            ) : (
+              <Link to="/auth" className="btn-primary text-xs sm:text-sm whitespace-nowrap">
+                Login
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setMobileNavOpen((prev) => !prev)}
@@ -151,58 +155,69 @@ export default function Landing() {
             <a href="#pricing" onClick={() => setMobileNavOpen(false)} className="block text-sm font-medium text-[#625346]">
               Pricing
             </a>
-            <Link to="/auth" onClick={() => setMobileNavOpen(false)} className="block text-sm font-semibold text-[#6E5696]">
-              Sign In
+            <Link
+              to={isAuthenticated ? workspaceHref : '/auth'}
+              onClick={() => setMobileNavOpen(false)}
+              className="block text-sm font-semibold text-[#6E5696]"
+            >
+              {isAuthenticated ? 'Open Workspace' : 'Login'}
             </Link>
           </div>
         )}
       </header>
 
       {/* Hero Section */}
-      <section className="py-16 lg:py-24 border-b border-[#DDD3ED] bg-[#EEE8F7]">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
+      <section className="py-14 lg:py-24 border-b border-[#DDD3ED] bg-[#EEE8F7]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-stretch">
           <div className="lg:col-span-6 flex flex-col justify-center">
             <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider mb-4">
-              Enterprise Fleet Intelligence · Smartphone Telematics
+              Owner-First Fleet ERP & Predictive Intelligence
             </p>
-            <h1 className="text-4xl sm:text-5xl font-extrabold text-[#625346] leading-[1.12] tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-[#625346] leading-[1.12] tracking-tight">
               Your Fleet. Your Intelligence. Your Competitive Advantage.
             </h1>
             <p className="mt-5 text-base sm:text-lg text-[#625346]/85 max-w-xl leading-relaxed">
-              Monitor vehicle operations, anticipate maintenance requirements, and transform everyday fleet data into smarter operational and financial decisions.
+              Built exclusively for commercial fleet owners, maintenance heads, and finance controllers — unifying satellite route intelligence, 5-area predictive health, work orders, parts inventory, and Indian compliance in one operating system.
             </p>
-            <p className="mt-6 text-xs text-[#958777]">
-              No dedicated GPS hardware required to start · Multi-organization RLS isolation · Supports ICE and EV commercial fleets
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <button type="button" onClick={handleBegin} className="btn-primary text-sm px-6 py-3">
+                {isAuthenticated ? 'Enter Workspace' : 'Sign In to Workspace'}
+              </button>
+              <a href="#platform" className="btn-secondary text-sm px-5 py-3">
+                Explore Platform
+              </a>
+            </div>
+            <p className="mt-5 text-xs text-[#958777]">
+              Strict multi-tenant organization isolation · Work orders & spare parts stock · Indian commercial compliance vault
             </p>
           </div>
 
-          {/* Authentic Interactive Platform Preview */}
           <div className="lg:col-span-6 flex">
             <div className="w-full bg-[#FFFFFF] border border-[#DDD3ED] rounded-2xl p-6 shadow-card flex flex-col justify-between">
               <div className="flex items-center justify-between gap-4 pb-4 border-b border-[#E5E5E5]">
                 <div>
-                  <p className="text-xs font-semibold text-[#958777]">Command Centre Snapshot</p>
+                  <p className="text-xs font-semibold text-[#958777]">Owner Command Centre</p>
                   <p className="font-bold text-base text-[#625346] mt-0.5">
-                    Kaveri Logistics Pvt Ltd
+                    Production Fleet Overview
                   </p>
                 </div>
+                <span className="px-2.5 py-1 rounded-lg bg-[#EDF4EC] border border-[#789A75] text-[11px] font-bold text-[#4D6E4A] uppercase">
+                  Production
+                </span>
               </div>
 
               <div className="grid grid-cols-3 gap-3 my-5">
                 <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl p-3.5">
                   <p className="text-xs text-[#958777]">Fleet Health Avg</p>
-                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1">67%</p>
+                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1">84%</p>
                 </div>
                 <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl p-3.5">
-                  <p className="text-xs text-[#958777]">Active Trips</p>
-                  <p className="text-2xl font-bold text-[#6E5696] tabular-nums mt-1">3</p>
+                  <p className="text-xs text-[#958777]">Health Areas</p>
+                  <p className="text-2xl font-bold text-[#6E5696] tabular-nums mt-1">5</p>
                 </div>
                 <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-xl p-3.5">
-                  <p className="text-xs text-[#958777]">Priority Reviews</p>
-                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#D9786C] inline-block" />
-                    2
-                  </p>
+                  <p className="text-xs text-[#958777]">Risk Categories</p>
+                  <p className="text-2xl font-bold text-[#625346] tabular-nums mt-1">10</p>
                 </div>
               </div>
 
@@ -211,13 +226,13 @@ export default function Landing() {
                   <div>
                     <p className="text-xs font-semibold text-[#625346] inline-flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-[#D9786C]" />
-                      Critical Maintenance Window · 6–10 Days
+                      Engine Health · Preventive Window 6–10 Days
                     </p>
                     <p className="text-sm font-bold text-[#625346] mt-0.5">
-                      TN 30 EF 9012 · Engine Oil & Thermal Stress
+                      TN 30 EF 9012 · Engine Oil & Sump Inspection
                     </p>
                   </div>
-                  <span className="text-xs font-semibold text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9] px-2 py-0.5 rounded tabular-nums">
+                  <span className="text-xs font-semibold text-[#625346] bg-[#EEE8F7] border border-[#B8A3D9] px-2 py-0.5 rounded tabular-nums shrink-0">
                     Conf. 87%
                   </span>
                 </div>
@@ -247,16 +262,16 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Platform Architecture & Smartphone Telematics */}
+      {/* Platform Architecture */}
       <section id="platform" className="py-16 lg:py-20 bg-[#FFFFFF]">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Unified Operating Architecture</p>
             <h2 className="dm-section-title text-3xl mt-2">
-              Eight integrated intelligence modules sharing one operational record
+              Enterprise fleet control built around one clean operational ledger
             </h2>
             <p className="text-[#958777] mt-3 text-base">
-              Every organization, vehicle digital twin, driver profile, trip route, fuel transaction, and maintenance log updates the same underlying system.
+              Every organization, vehicle specification sheet, Indian driver record, work order, spare SKU, and vendor invoice stays synchronized inside one private workspace.
             </p>
           </div>
 
@@ -264,7 +279,7 @@ export default function Landing() {
             {platformModules.map((mod) => {
               const Icon = mod.icon
               return (
-                <div key={mod.title} className="enterprise-card p-6 flex flex-col justify-between hover:bg-[#FFFFFF] transition-colors">
+                <div key={mod.title} className="enterprise-card p-6 flex flex-col justify-between">
                   <div>
                     <div className="w-10 h-10 rounded-[10px] bg-[#EEE8F7] border border-[#B8A3D9] text-[#6E5696] flex items-center justify-center mb-4">
                       <Icon className="w-5 h-5" />
@@ -279,33 +294,33 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Predictive Maintenance & Smartphone Honesty */}
+      {/* Predictive Maintenance & Integrity */}
       <section id="predictive" className="py-16 lg:py-20 bg-[#EEE8F7] border-y border-[#DDD3ED]">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           <div className="lg:col-span-6">
-            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Flagship Predictive Maintenance</p>
+            <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">5-Area Predictive Health</p>
             <h2 className="dm-section-title text-3xl mt-2">
-              Explainable wear windows built on verifiable operational inputs
+              Explainable maintenance forecasts built on verifiable operational inputs
             </h2>
             <p className="text-[#625346]/85 mt-3 leading-relaxed">
-              DriveMitra never claims a smartphone sensor can directly measure internal brake pads or engine oil viscosity. Instead, our deterministic and machine-learning baseline models combine verifiable signals to prioritize workshop scheduling before roadside breakdowns occur.
+              DriveMitra evaluates Fuel Health, Engine Health, Tyre Health, Driver Health (safety & compliance only), and Vehicle Health — clearly flagging insufficient data instead of guessing.
             </p>
             <div className="mt-6 space-y-3 text-sm text-[#625346]">
               <div className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
-                <span>Vehicle age, cumulative odometer, and daily utilization intensity</span>
+                <span>Cumulative odometer, service schedules (date + km), and small-issue escalation</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
-                <span>Recorded service intervals, parts history, and driver pre-trip inspection flags</span>
+                <span>Multi-axle tyre tread depth tracking and pre-trip inspection defect links</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
-                <span>Corridor road-stress indices, ambient heat exposure, and driving event rates</span>
+                <span>Live Open-Meteo highway climate monitoring & corridor stress scoring</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <Check className="w-4 h-4 text-[#4D6E4A] mt-0.5 shrink-0" />
-                <span>Transparent confidence intervals, model version tags, and delay-cost comparisons</span>
+                <span>60 / 30 / 15 / 7 / 0-day Indian licence, RC, Fitness, Insurance & PUC alerts</span>
               </div>
             </div>
           </div>
@@ -315,28 +330,28 @@ export default function Landing() {
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-4 h-4 text-[#6E5696]" />
                 <span className="font-semibold text-sm text-[#625346]">
-                  Fleet Risk & Telemetry Integrity Safeguards
+                  Fleet Risk & Document Integrity Safeguards
                 </span>
               </div>
               <Compass className="w-4 h-4 text-[#958777]" />
             </div>
             <div className="mt-4 space-y-4 text-sm">
               <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4">
-                <p className="font-semibold text-[#625346]">Honest Telemetry Freshness</p>
+                <p className="font-semibold text-[#625346]">Uploaded ≠ Verified Vault Policy</p>
                 <p className="text-[#958777] text-xs mt-1">
-                  Coordinates older than 5 minutes are marked Stale or Offline with exact GPS accuracy in meters—never misrepresented as live tracking.
+                  Uploaded RC, Insurance, Aadhaar/PAN, and Form 1A medical certificates remain Pending Verification until an authorized manager reviews and stamps approval.
                 </p>
               </div>
               <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4">
-                <p className="font-semibold text-[#625346]">Driver Dispute Fairness</p>
+                <p className="font-semibold text-[#625346]">Honest Truck Routing Guardrails</p>
                 <p className="text-[#958777] text-xs mt-1">
-                  Drivers can challenge accelerometer spikes caused by potholes or loose dashboard mounts; approved disputes are excluded from safety penalties.
+                  Bridge height, axle count, and GVW route compliance are verified only via Google Truck Routing when configured; otherwise corridors display an explicit unverified warning.
                 </p>
               </div>
               <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-[10px] p-4">
-                <p className="font-semibold text-[#625346]">Neutral Fuel Anomaly Review</p>
+                <p className="font-semibold text-[#625346]">Recorded vs Verified vs Paid Accounting</p>
                 <p className="text-[#958777] text-xs mt-1">
-                  Duplicate entries or efficiency drops are flagged as Needs Review with supporting odometer math rather than automated accusations.
+                  Separate operational fuel/service entries from verified vendor invoices and cleared payments without double-counting Work Orders.
                 </p>
               </div>
             </div>
@@ -346,7 +361,7 @@ export default function Landing() {
 
       {/* Industry Solutions */}
       <section id="solutions" className="py-16 lg:py-20 bg-[#FFFFFF]">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Commercial Fleet Fit</p>
             <h2 className="dm-section-title text-3xl mt-2">
@@ -356,7 +371,7 @@ export default function Landing() {
 
           <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6">
             {industryApplications.map((item) => (
-              <div key={item.sector} className="enterprise-card p-6 hover:bg-[#FFFFFF] transition-colors">
+              <div key={item.sector} className="enterprise-card p-6">
                 <h3 className="dm-card-title text-lg">{item.sector}</h3>
                 <p className="text-sm text-[#958777] mt-2 leading-relaxed">{item.detail}</p>
               </div>
@@ -367,14 +382,14 @@ export default function Landing() {
 
       {/* Pricing */}
       <section id="pricing" className="py-16 lg:py-20 bg-[#EEE8F7] border-t border-[#DDD3ED]">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Transparent Licensing</p>
             <h2 className="dm-section-title text-3xl mt-2">
               Predictable pricing per active fleet organization
             </h2>
             <p className="text-[#958777] mt-2 text-sm">
-              Start with a flexible workspace and scale seamlessly across your commercial fleet.
+              Provisioned centrally by platform onboarding with isolated tenant workspaces.
             </p>
           </div>
 
@@ -402,9 +417,7 @@ export default function Landing() {
                     {plan.monthlyInr !== null ? (
                       <p className="text-3xl font-bold tabular-nums text-[#625346]">
                         {formatInr(plan.monthlyInr)}
-                        <span className="text-xs font-normal ml-1 text-[#958777]">
-                          / month
-                        </span>
+                        <span className="text-xs font-normal ml-1 text-[#958777]">/ month</span>
                       </p>
                     ) : (
                       <p className="text-2xl font-bold text-[#625346]">Custom Contract</p>
@@ -425,7 +438,7 @@ export default function Landing() {
                   onClick={handleBegin}
                   className={`mt-8 w-full ${plan.id === 'growth' ? 'btn-primary' : 'btn-secondary'}`}
                 >
-                  Begin
+                  {isAuthenticated ? 'Open Workspace' : 'Login to Workspace'}
                 </button>
               </div>
             ))}
@@ -435,9 +448,8 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="bg-[#FFFFFF] border-t border-[#E5E5E5] pt-14 pb-10">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_1fr_1fr_1.15fr_1fr] gap-8 lg:gap-10">
-            {/* Column 1: Brand & Core Promise */}
             <div className="space-y-4">
               <Link to="/" aria-label="DriveMitra" className="inline-flex items-center shrink-0">
                 <BrandLogo size="sm" />
@@ -447,7 +459,7 @@ export default function Landing() {
                   Track Smarter. Predict Earlier. Operate Better.
                 </p>
                 <p className="text-xs text-[#958777] leading-relaxed max-w-xs">
-                  India’s first pure SaaS fleet intelligence platform.
+                  Pure SaaS owner-side fleet ERP and predictive intelligence for Indian commercial fleets.
                 </p>
               </div>
               <div className="flex items-center gap-2 pt-1" aria-label="Social media channels">
@@ -480,208 +492,52 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Column 2: Platform (Product) */}
             <div>
-              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Platform (Product)</h3>
+              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Platform</h3>
               <ul className="space-y-2.5 text-xs text-[#958777]">
-                <li>
-                  <Link to="/dashboard" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Executive Dashboard
-                  </Link>
-                </li>
-                <li>
-                  <a href="#platform" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Smartphone Telematics
-                  </a>
-                </li>
-                <li>
-                  <a href="#predictive" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Predictive Maintenance
-                  </a>
-                </li>
-                <li>
-                  <Link to="/dashboard/fleet" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Vehicle Digital Twin
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/drivers" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Driver & Safety Intelligence
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/dashboard/financials" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Financial & Fuel Intelligence
-                  </Link>
-                </li>
+                <li><Link to="/dashboard" className="hover:text-[#625346]">Command Centre</Link></li>
+                <li><Link to="/dashboard/fleet" className="hover:text-[#625346]">Vehicles & Specs</Link></li>
+                <li><Link to="/dashboard/maintenance" className="hover:text-[#625346]">5-Area Predictive Health</Link></li>
+                <li><Link to="/dashboard/work-orders" className="hover:text-[#625346]">Work Orders & Inventory</Link></li>
+                <li><Link to="/dashboard/drivers" className="hover:text-[#625346]">Indian Driver Master</Link></li>
+                <li><Link to="/dashboard/financials" className="hover:text-[#625346]">Financials & TCO</Link></li>
               </ul>
             </div>
 
-            {/* Column 3: Company & Resources */}
             <div>
-              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Company & Resources</h3>
+              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Company</h3>
               <ul className="space-y-2.5 text-xs text-[#958777]">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('about')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    About DriveMitra
-                  </button>
-                </li>
-                <li>
-                  <a href="#pricing" className="hover:text-[#625346] hover:underline underline-offset-4">
-                    Pricing & Plans
-                  </a>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('stories')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Customer Success Stories
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('blog')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Fleet Management Blog
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('api-docs')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    API Documentation
-                  </button>
-                </li>
+                <li><button type="button" onClick={() => setFooterModal('about')} className="text-left hover:text-[#625346]">About DriveMitra</button></li>
+                <li><a href="#pricing" className="hover:text-[#625346]">Pricing & Plans</a></li>
+                <li><button type="button" onClick={() => setFooterModal('stories')} className="text-left hover:text-[#625346]">Customer Stories</button></li>
+                <li><button type="button" onClick={() => setFooterModal('api-docs')} className="text-left hover:text-[#625346]">API Documentation</button></li>
               </ul>
             </div>
 
-            {/* Column 4: Support & Contact */}
             <div>
-              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Support & Contact</h3>
+              <h3 className="text-xs font-bold text-[#625346] mb-3.5">Support</h3>
               <ul className="space-y-2.5 text-xs text-[#958777]">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('help-center')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Help Center & Knowledge Base
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('status')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    System Status
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('whatsapp')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    WhatsApp Support
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('contact')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Contact Us
-                  </button>
-                </li>
-                <li className="pt-1">
-                  <span className="block text-[11px] text-[#958777]">Enterprise Sales</span>
-                  <a
-                    href="mailto:enterprise@drivemitra.in"
-                    className="font-semibold text-[#625346] hover:underline underline-offset-4"
-                  >
-                    enterprise@drivemitra.in
-                  </a>
-                </li>
-                <li>
-                  <span className="block text-[11px] text-[#958777]">General Support</span>
-                  <a
-                    href="mailto:hello@drivemitra.in"
-                    className="font-semibold text-[#625346] hover:underline underline-offset-4"
-                  >
-                    hello@drivemitra.in
-                  </a>
-                </li>
+                <li><button type="button" onClick={() => setFooterModal('help-center')} className="text-left hover:text-[#625346]">Help Center</button></li>
+                <li><button type="button" onClick={() => setFooterModal('status')} className="text-left hover:text-[#625346]">System Status</button></li>
+                <li><button type="button" onClick={() => setFooterModal('contact')} className="text-left hover:text-[#625346]">Contact Us</button></li>
+                <li><a href="mailto:enterprise@drivemitra.in" className="font-semibold text-[#625346]">enterprise@drivemitra.in</a></li>
               </ul>
             </div>
 
-            {/* Column 5: Legal & Compliance */}
             <div>
               <h3 className="text-xs font-bold text-[#625346] mb-3.5">Legal & Compliance</h3>
               <ul className="space-y-2.5 text-xs text-[#958777]">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('terms')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Terms of Service
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('privacy')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Privacy Policy
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('cookies')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Cookie Preferences
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('sla')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Service Level Agreement (SLA)
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setFooterModal('security')}
-                    className="text-left hover:text-[#625346] hover:underline underline-offset-4"
-                  >
-                    Data Security & Compliance
-                  </button>
-                </li>
+                <li><button type="button" onClick={() => setFooterModal('terms')} className="text-left hover:text-[#625346]">Terms of Service</button></li>
+                <li><button type="button" onClick={() => setFooterModal('privacy')} className="text-left hover:text-[#625346]">Privacy Policy</button></li>
+                <li><button type="button" onClick={() => setFooterModal('sla')} className="text-left hover:text-[#625346]">SLA</button></li>
+                <li><button type="button" onClick={() => setFooterModal('security')} className="text-left hover:text-[#625346]">Security & Compliance</button></li>
               </ul>
             </div>
           </div>
 
           <div className="mt-10 pt-6 border-t border-[#E5E5E5] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-[#958777]">
             <p>© {new Date().getFullYear()} DriveMitra. All rights reserved.</p>
-            <p>Multi-tenant SaaS fleet intelligence for Indian commercial and EV fleets.</p>
+            <p>Production SaaS Fleet ERP for Indian Commercial & EV Fleets.</p>
           </div>
         </div>
       </footer>

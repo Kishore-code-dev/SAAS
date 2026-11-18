@@ -74,14 +74,14 @@ describe('Security: AI Copilot RBAC, Prompt Injection, SQL Probe, & Cross-Org Is
     expect(res.answer).toContain(ORG_KAVERI.name)
   })
 
-  it('blocks unauthorized roles (driver & maintenance financial queries)', () => {
-    const driverRes = queryFleetCopilot({
+  it('blocks unauthorized roles (viewer & maintenance financial queries)', () => {
+    const viewerFinRes = queryFleetCopilot({
       ...baseInput,
-      activeRole: 'driver',
-      query: 'What are top maintenance priorities?',
+      activeRole: 'viewer',
+      query: 'Show fuel cost and TCO anomalies',
     })
-    expect(driverRes.blocked).toBe(true)
-    expect(driverRes.reason).toBe('rbac')
+    expect(viewerFinRes.blocked).toBe(true)
+    expect(viewerFinRes.reason).toBe('rbac')
 
     const maintFuelRes = queryFleetCopilot({
       ...baseInput,
@@ -156,12 +156,14 @@ describe('Security Static Audit: Supabase PostgreSQL Schema & RLS Hardening', ()
     expect(schemaSql).not.toMatch(/CREATE POLICY .* ON audit_logs FOR (UPDATE|DELETE|ALL)/i)
   })
 
-  it('enforces least-privilege RLS on vehicle_components, telemetry_points, driver_events, and legacy null-org guards', () => {
+  it('enforces least-privilege RLS on vehicle_components, telemetry_points, driver_events, work_orders, financial_invoices, and legacy null-org guards', () => {
     expect(schemaSql).toContain('v.organization_id IS NULL AND v.user_id = auth.uid()')
     expect(schemaSql).toContain('CREATE POLICY "vehicle_components_maint_write" ON vehicle_components')
-    expect(schemaSql).toContain('CREATE POLICY "telemetry_driver_or_manager_insert" ON telemetry_points')
+    expect(schemaSql).toContain('CREATE POLICY "telemetry_manager_insert" ON telemetry_points')
     expect(schemaSql).toContain('CREATE POLICY "telemetry_admin_delete" ON telemetry_points')
-    expect(schemaSql).toContain('CREATE POLICY "driver_events_manager_or_driver_dispute" ON driver_events')
+    expect(schemaSql).toContain('CREATE POLICY "driver_events_manager_update" ON driver_events')
+    expect(schemaSql).toContain('CREATE POLICY "work_orders_maint_write" ON work_orders')
+    expect(schemaSql).toContain('CREATE POLICY "financial_invoices_fin_write" ON financial_invoices')
     expect(schemaSql).toContain('CREATE POLICY "subscriptions_admin_write" ON subscriptions')
     expect(schemaSql).not.toMatch(/CREATE POLICY "components_org_all" ON vehicle_components FOR ALL/)
     expect(schemaSql).not.toMatch(/CREATE POLICY "telemetry_org_all" ON telemetry_points FOR ALL/)

@@ -3,24 +3,90 @@ import {
   ComponentCategory,
   Driver,
   DriverBehaviorEvent,
+  FinancialInvoice,
+  FiveAreaHealthCategory,
   FuelTransaction,
   MaintenanceRecord,
+  PartInventoryItem,
+  PaymentRecord,
   PredictionCausalFactor,
+  PurchaseOrder,
   RegionalCorridor,
   ReportingPeriod,
   RiskAssessmentItem,
   RiskSeverity,
+  SmallIssueLog,
   TelemetryFreshness,
   Trip,
+  TyrePositionRecord,
   Vehicle,
   VehicleComponent,
+  VehicleFiveAreaHealth,
   VehicleInspection,
+  WorkOrder,
 } from '../types/fleet'
 
-export const INTELLIGENCE_MODEL_VERSION = 'dm-predictive-rf-baseline-v2.4.0'
+export const INTELLIGENCE_MODEL_VERSION = 'dm-predictive-rf-baseline-v3.0.0'
 
 export const TELEMETRY_SCOPE_DISCLOSURE =
-  'Smartphone telemetry provides GPS position, speed, motion events, and trip duration. Mechanical wear estimates are inferred from vehicle age, odometer, maintenance history, road stress, usage intensity, driving behaviour, and driver inspections.'
+  'Smartphone/fleet telemetry provides GPS position, speed, motion events, and trip duration. Mechanical wear estimates are inferred from vehicle age, odometer, maintenance history, road stress, usage intensity, driving behaviour, and pre-trip inspections.'
+
+export type ComplianceExpiryTier =
+  | 'expired'
+  | 'critical_7d'
+  | 'urgent_15d'
+  | 'upcoming_30d'
+  | 'watch_60d'
+  | 'valid'
+  | 'missing'
+
+export function classifyComplianceExpiryTier(
+  expiryIso?: string | null,
+  nowMs: number = Date.now(),
+): { tier: ComplianceExpiryTier; daysRemaining: number | null; label: string } {
+  if (!expiryIso || !expiryIso.trim()) {
+    return { tier: 'missing', daysRemaining: null, label: 'Missing date' }
+  }
+  const targetMs = new Date(expiryIso).getTime()
+  if (Number.isNaN(targetMs)) {
+    return { tier: 'missing', daysRemaining: null, label: 'Invalid date' }
+  }
+  const daysRemaining = Math.ceil((targetMs - nowMs) / 86400000)
+  if (daysRemaining < 0) {
+    return { tier: 'expired', daysRemaining, label: `Expired (${Math.abs(daysRemaining)}d ago)` }
+  }
+  if (daysRemaining <= 7) {
+    return { tier: 'critical_7d', daysRemaining, label: `Expires in ${daysRemaining}d (<=7d)` }
+  }
+  if (daysRemaining <= 15) {
+    return { tier: 'urgent_15d', daysRemaining, label: `Expires in ${daysRemaining}d (<=15d)` }
+  }
+  if (daysRemaining <= 30) {
+    return { tier: 'upcoming_30d', daysRemaining, label: `Expires in ${daysRemaining}d (<=30d)` }
+  }
+  if (daysRemaining <= 60) {
+    return { tier: 'watch_60d', daysRemaining, label: `Expires in ${daysRemaining}d (<=60d)` }
+  }
+  return { tier: 'valid', daysRemaining, label: `Valid (${daysRemaining}d remaining)` }
+}
+
+export function mapComponentToFiveArea(componentName: ComponentCategory | 'General Service'): FiveAreaHealthCategory {
+  switch (componentName) {
+    case 'Engine':
+    case 'Transmission':
+    case 'Cooling System':
+    case 'EV Battery':
+      return 'Engine Health'
+    case 'Tyres':
+      return 'Tyre Health'
+    case 'Brakes':
+    case 'Suspension':
+    case 'Battery':
+    case 'General Service':
+    default:
+      return 'Vehicle Health'
+  }
+}
 
 export function classifyTelemetryFreshness(
   lastUpdatedIso: string,
@@ -251,6 +317,7 @@ export function computeVehicleComponentPrediction(params: {
   const { vehicle, component, corridor, driverEvents, inspections } = params
   const nowMs = params.nowMs ?? Date.now()
   const currentYear = new Date(nowMs).getFullYear()
+  const healthArea = mapComponentToFiveArea(component.componentName)
 
   const lastServiceMs = new Date(vehicle.lastServiceDate).getTime()
   const hasValidServiceDate = !Number.isNaN(lastServiceMs)
@@ -271,7 +338,7 @@ export function computeVehicleComponentPrediction(params: {
     insufficientReasons.push('Component health baseline out of bounds')
   }
   if (!hasValidServiceDate && recentInspections.length === 0 && !hasConnectedTelemetry) {
-    insufficientReasons.push('No service history, driver inspections, or active telemetry signal')
+    insufficientReasons.push('No service history, pre-trip inspections, or active telemetry signal')
   }
 
   const vehicleAgeYears = Math.max(1, currentYear - (Number.isFinite(vehicle.year) ? vehicle.year : currentYear))
@@ -310,10 +377,11 @@ export function computeVehicleComponentPrediction(params: {
       environment: vehicle.environment,
       vehicleId: vehicle.id,
       componentName: component.componentName,
+      healthArea,
       priority: 'low',
       predictedIssue: `${costProfile.issueTitle} (Insufficient Data)`,
       evidenceSummary: reasonText,
-      recommendedAction: 'Log vehicle odometer, service date, or complete a driver pre-trip inspection before relying on RUL forecasts.',
+      recommendedAction: 'Log vehicle odometer, service date, or complete a pre-trip inspection before relying on RUL forecasts.',
       confidenceScore: 0,
       confidenceLower: 0,
       confidenceUpper: 0,
@@ -349,7 +417,6 @@ export function computeVehicleComponentPrediction(params: {
     }
   }
 
-  // Deterministic wear model aligned with backend_ai/algorithms.py
   const baseWearRate = Math.max(0.08, component.wearRatePer1000Km * (vehicle.dailyAvgKm / 120))
   const serviceOverdueMultiplier = daysSinceLastService > 150 ? 1 + Math.min(0.6, (daysSinceLastService - 150) / 250) : 1
   const ageMultiplier = 1 + Math.min(0.45, vehicleAgeYears * 0.05)
@@ -379,7 +446,6 @@ export function computeVehicleComponentPrediction(params: {
     priority = 'medium'
   }
 
-  // Confidence scales with availability of service dates, inspections, and trip telemetry
   const hasRecentInspection = recentInspections.length > 0 ? 0.06 : 0
   const hasTelemetry = vehicle.telemetry.connectionState === 'connected' ? 0.06 : 0.01
   const hasServiceHistory = daysSinceLastService < 365 ? 0.05 : 0
@@ -406,7 +472,6 @@ export function computeVehicleComponentPrediction(params: {
   const potentialSavingsInr = Math.max(0, delayCostInr - repairCostInr)
   const costOfDelayPerDayInr = Math.max(150, Math.round(potentialSavingsInr / Math.max(5, estimatedDaysToFailure)))
 
-  // Causal breakdown normalized to 1.0
   const rawWeights = [
     {
       factor: 'usage_and_odometer',
@@ -460,6 +525,7 @@ export function computeVehicleComponentPrediction(params: {
     environment: vehicle.environment,
     vehicleId: vehicle.id,
     componentName: component.componentName,
+    healthArea,
     priority,
     predictedIssue: costProfile.issueTitle,
     evidenceSummary: evidenceParts.join(' · '),
@@ -512,7 +578,6 @@ export function generateFleetPredictions(params: {
   for (const vehicle of vehicles) {
     if (vehicle.decommissioned || vehicle.components.length === 0) continue
     const corridor = corridors.find((c) => c.id === vehicle.corridorId)
-    // Generate predictions for any component below 82% health OR the lowest-health component
     const sorted = [...vehicle.components].sort((a, b) => a.healthScore - b.healthScore)
     const candidates = sorted.filter((c, index) => c.healthScore < 82 || index === 0)
 
@@ -549,6 +614,155 @@ export function generateFleetPredictions(params: {
   })
 }
 
+export function computeVehicleFiveAreaHealth(params: {
+  vehicle: Vehicle
+  fuelTransactions: FuelTransaction[]
+  drivers: Driver[]
+  driverEvents: DriverBehaviorEvent[]
+  tyrePositions: TyrePositionRecord[]
+  inspections: VehicleInspection[]
+  smallIssues: SmallIssueLog[]
+  nowMs?: number
+}): VehicleFiveAreaHealth {
+  const { vehicle, fuelTransactions, drivers, driverEvents, tyrePositions, inspections, smallIssues } = params
+  const nowMs = params.nowMs ?? Date.now()
+  const statusOf = (score: number): 'healthy' | 'at-risk' | 'critical' =>
+    score <= 50 ? 'critical' : score <= 75 ? 'at-risk' : 'healthy'
+
+  // 1. Fuel Health
+  const vFuel = fuelTransactions.filter((tx) => tx.vehicleId === vehicle.id)
+  const flaggedFuel = vFuel.filter((tx) => tx.verificationStatus === 'needs_review')
+  let fuelHealth: VehicleFiveAreaHealth['fuelHealth']
+  if (vFuel.length === 0) {
+    fuelHealth = {
+      score: 0,
+      status: 'insufficient_data',
+      detail: 'Insufficient fuel/charging entries logged for efficiency variance scoring.',
+    }
+  } else {
+    const avgCostPerKm = vFuel
+      .map((tx) => tx.costPerKmInr ?? 0)
+      .filter((n) => n > 0)
+    const meanCost = avgCostPerKm.length > 0 ? avgCostPerKm.reduce((a, b) => a + b, 0) / avgCostPerKm.length : 0
+    const score = Math.max(30, Math.min(98, Math.round(94 - flaggedFuel.length * 16 - (meanCost > 16 ? 8 : 0))))
+    fuelHealth = {
+      score,
+      status: statusOf(score),
+      detail: `${vFuel.length} ${vehicle.powertrain === 'EV' ? 'charging' : 'fuel'} log(s) · ${flaggedFuel.length} flagged for review${meanCost > 0 ? ` · avg ₹${meanCost.toFixed(1)}/km` : ''}`,
+    }
+  }
+
+  // 2. Engine Health (or EV Powertrain Thermal)
+  const engineComp = vehicle.components.find((c) => c.componentName === 'Engine' || c.componentName === 'EV Battery')
+  const coolingComp = vehicle.components.find((c) => c.componentName === 'Cooling System')
+  const transComp = vehicle.components.find((c) => c.componentName === 'Transmission')
+  const engineList = [engineComp, coolingComp, transComp].filter((c): c is VehicleComponent => Boolean(c))
+  let engineHealth: VehicleFiveAreaHealth['engineHealth']
+  if (engineList.length === 0) {
+    engineHealth = {
+      score: 0,
+      status: 'insufficient_data',
+      detail: 'No engine/powertrain subsystem health baseline recorded.',
+    }
+  } else {
+    const openEngineIssues = smallIssues.filter(
+      (iss) => iss.vehicleId === vehicle.id && iss.healthArea === 'Engine Health' && iss.status !== 'resolved',
+    ).length
+    const minScore = Math.min(...engineList.map((c) => c.healthScore))
+    const avgScore = Math.round(engineList.reduce((s, c) => s + c.healthScore, 0) / engineList.length)
+    const blended = Math.max(25, Math.min(99, Math.round(minScore * 0.55 + avgScore * 0.45 - openEngineIssues * 6)))
+    engineHealth = {
+      score: blended,
+      status: statusOf(blended),
+      detail: `${vehicle.powertrain === 'EV' ? 'EV Motor/BMS & Thermal' : 'Engine/Cooling/Drivetrain'} baseline ${blended}% · ${openEngineIssues} open issue(s)`,
+    }
+  }
+
+  // 3. Tyre Health
+  const vTyres = tyrePositions.filter((t) => t.vehicleId === vehicle.id)
+  const tyreComp = vehicle.components.find((c) => c.componentName === 'Tyres')
+  let tyreHealth: VehicleFiveAreaHealth['tyreHealth']
+  if (vTyres.length === 0 && !tyreComp) {
+    tyreHealth = {
+      score: 0,
+      status: 'insufficient_data',
+      detail: 'No multi-axle tread inspection or tyre baseline logged.',
+    }
+  } else if (vTyres.length > 0) {
+    const minTread = Math.min(...vTyres.map((t) => t.treadDepthMm))
+    const replaceCount = vTyres.filter((t) => t.status === 'replace_soon').length
+    const watchCount = vTyres.filter((t) => t.status === 'wear_watch').length
+    const score = Math.max(28, Math.min(98, Math.round(minTread * 9.5 - replaceCount * 14 - watchCount * 5)))
+    tyreHealth = {
+      score,
+      status: statusOf(score),
+      detail: `${vTyres.length} axle positions tracked · min tread ${minTread.toFixed(1)} mm (${replaceCount} replace soon)`,
+    }
+  } else {
+    const score = tyreComp!.healthScore
+    tyreHealth = {
+      score,
+      status: statusOf(score),
+      detail: `Subsystem tyre baseline ${score}% · add axle tread scan for per-wheel map`,
+    }
+  }
+
+  // 4. Driver Health (Safety & Compliance ONLY — zero medical diagnoses)
+  const assignedDriver = drivers.find((d) => d.id === vehicle.assignedDriverId)
+  let driverHealth: VehicleFiveAreaHealth['driverHealth']
+  if (!assignedDriver) {
+    driverHealth = {
+      score: 0,
+      status: 'insufficient_data',
+      detail: 'No active driver currently assigned to this vehicle.',
+    }
+  } else {
+    const activeDriverEvents = driverEvents.filter(
+      (e) => e.driverId === assignedDriver.id && e.disputeStatus !== 'accepted_dismissed',
+    ).length
+    const licenseTier = classifyComplianceExpiryTier(assignedDriver.licenseExpiry, nowMs)
+    const medicalCertTier = classifyComplianceExpiryTier(assignedDriver.medicalFitnessExpiry, nowMs)
+    let compliancePenalty = 0
+    if (licenseTier.tier === 'expired' || medicalCertTier.tier === 'expired') compliancePenalty += 28
+    else if (licenseTier.tier === 'critical_7d' || medicalCertTier.tier === 'critical_7d') compliancePenalty += 15
+    else if (licenseTier.tier === 'urgent_15d' || licenseTier.tier === 'upcoming_30d') compliancePenalty += 8
+    const score = Math.max(25, Math.min(99, Math.round(assignedDriver.safetyScore - compliancePenalty)))
+    driverHealth = {
+      score,
+      status: statusOf(score),
+      detail: `${assignedDriver.name}: safety ${assignedDriver.safetyScore}/100 · ${activeDriverEvents} behavior event(s) · licence ${licenseTier.label}`,
+    }
+  }
+
+  // 5. Vehicle Health (Chassis, Brakes, Suspension, Compliance, Inspections)
+  const vChassis = vehicle.components.filter((c) => c.componentName === 'Brakes' || c.componentName === 'Suspension' || c.componentName === 'Battery')
+  const failedInsp = inspections.filter((i) => i.vehicleId === vehicle.id && !i.passed).length
+  const compTiers = [
+    classifyComplianceExpiryTier(vehicle.insuranceExpiry, nowMs),
+    classifyComplianceExpiryTier(vehicle.registrationExpiry, nowMs),
+    vehicle.fitnessExpiry ? classifyComplianceExpiryTier(vehicle.fitnessExpiry, nowMs) : null,
+    vehicle.pucExpiry ? classifyComplianceExpiryTier(vehicle.pucExpiry, nowMs) : null,
+  ].filter(Boolean) as Array<{ tier: ComplianceExpiryTier; daysRemaining: number | null; label: string }>
+  const expiredCompliance = compTiers.filter((t) => t.tier === 'expired').length
+  const baseVehScore = vChassis.length > 0
+    ? Math.round(vChassis.reduce((s, c) => s + c.healthScore, 0) / vChassis.length)
+    : vehicle.healthScore
+  const vehScore = Math.max(25, Math.min(99, Math.round(baseVehScore - failedInsp * 6 - expiredCompliance * 15)))
+  const vehicleHealth: VehicleFiveAreaHealth['vehicleHealth'] = {
+    score: vehScore,
+    status: statusOf(vehScore),
+    detail: `Brakes/Suspension/12V ${vehScore}% · ${failedInsp} failed inspection(s) · ${expiredCompliance} expired compliance cert(s)`,
+  }
+
+  return {
+    fuelHealth,
+    engineHealth,
+    tyreHealth,
+    driverHealth,
+    vehicleHealth,
+  }
+}
+
 export function evaluateDriverSafety(params: {
   driver: Driver
   events: DriverBehaviorEvent[]
@@ -577,7 +791,6 @@ export function evaluateDriverSafety(params: {
   const roadStress = corridor?.roadStressIndex ?? 0.55
   const motionRestricted = vehicle?.telemetry.motionPermissionGranted === false
 
-  // Zero automatic penalty when GPS accuracy > 25m or smartphone motion sensor is restricted
   const penaltyFor = (type: DriverBehaviorEvent['eventType']) =>
     activeEvents
       .filter((e) => e.eventType === type)
@@ -615,7 +828,7 @@ export function evaluateDriverSafety(params: {
     coachingRecommendations.push('Review highway speed thresholds (80 km/h commercial ceiling) on regional expressways.')
   }
   if (fatigueComplianceScore < 82) {
-    coachingRecommendations.push('Enforce mandatory 20-minute rest breaks after every 4 hours of continuous driving.')
+    coachingRecommendations.push('Enforce mandatory rest breaks after every 4 hours of continuous driving.')
   }
   if (coachingRecommendations.length === 0) {
     coachingRecommendations.push(
@@ -626,7 +839,7 @@ export function evaluateDriverSafety(params: {
   }
 
   const fairnessNotes: string[] = [
-    `Adjusted for ${corridor?.name ?? 'regional'} road stress (${roadStress.toFixed(2)}), GPS accuracy, and phone mount stability.`,
+    `Adjusted for ${corridor?.name ?? 'regional'} road stress (${roadStress.toFixed(2)}), GPS accuracy, and mount stability.`,
   ]
   if (excludedGpsCount > 0) {
     fairnessNotes.push(`${excludedGpsCount} inaccurate GPS (>25m) event(s) excluded from automatic penalty.`)
@@ -693,7 +906,7 @@ export function analyzeFuelTransactions(
       }
 
       if (tx.litersOrKwh > 140 && vehicle?.powertrain !== 'EV') {
-        flags.push('Fill volume exceeds typical light/medium commercial tank capacity')
+        flags.push('Fill volume exceeds typical commercial tank capacity')
       }
 
       if (tx.unitPriceInr > 125 && vehicle?.powertrain !== 'EV') {
@@ -728,9 +941,25 @@ export function buildFleetRiskAssessments(params: {
   driverEvents: DriverBehaviorEvent[]
   fuelTransactions: FuelTransaction[]
   trips: Trip[]
+  inspections?: VehicleInspection[]
+  partsInventory?: PartInventoryItem[]
+  invoices?: FinancialInvoice[]
+  corridors?: RegionalCorridor[]
   nowMs?: number
 }): RiskAssessmentItem[] {
-  const { organizationId, vehicles, predictions, drivers, driverEvents, fuelTransactions, trips } = params
+  const {
+    organizationId,
+    vehicles,
+    predictions,
+    drivers,
+    driverEvents,
+    fuelTransactions,
+    trips,
+    inspections = [],
+    partsInventory = [],
+    invoices = [],
+    corridors = [],
+  } = params
   const nowMs = params.nowMs ?? Date.now()
   const items: RiskAssessmentItem[] = []
 
@@ -751,12 +980,12 @@ export function buildFleetRiskAssessments(params: {
         vehicleRegistration: vehicle.registrationNumber,
         category: 'telemetry',
         severity: telemetryState.freshness === 'offline' ? 'high' : 'moderate',
-        title: `Telemetry ${telemetryState.freshness === 'offline' ? 'Disconnected' : 'Stale'}`,
+        title: `Telemetry ${telemetryState.freshness === 'offline' ? 'Disconnected' : 'Stale'} (Insufficient Data)`,
         evidence: `${telemetryState.label} · Signal ${vehicle.telemetry.signalQualityPct}% · GPS ±${vehicle.telemetry.gpsAccuracyMeters}m`,
         confidencePct: 92,
         insufficientData: true,
         timestamp: vehicle.telemetry.lastUpdatedAt,
-        recommendedAction: 'Check driver phone GPS/battery optimization settings before dispatching.',
+        recommendedAction: 'Check telemetry connectivity or log manual odometer update before dispatching.',
         actionRoute: '/dashboard/map',
       })
     }
@@ -764,7 +993,7 @@ export function buildFleetRiskAssessments(params: {
     // 2. Maintenance risk from open predictions
     const openVehiclePredictions = predictions.filter((p) => p.vehicleId === vehicle.id && p.status !== 'resolved')
     const topPred = openVehiclePredictions[0]
-    if (topPred) {
+    if (topPred && !topPred.insufficientData) {
       const severity: RiskSeverity =
         topPred.priority === 'critical'
           ? 'critical'
@@ -813,7 +1042,7 @@ export function buildFleetRiskAssessments(params: {
           insufficientData: false,
           timestamp: recentEvents[0]?.timestamp ?? new Date(nowMs).toISOString(),
           recommendedAction: driver.coachingRecommendations[0] ?? 'Assign driver safety coaching session.',
-          actionRoute: '/dashboard/drivers',
+          actionRoute: `/dashboard/drivers/${driver.id}`,
         })
       }
     }
@@ -835,7 +1064,7 @@ export function buildFleetRiskAssessments(params: {
         confidencePct: 84,
         insufficientData: false,
         timestamp: flaggedFuel[0].timestamp,
-        recommendedAction: 'Review receipt and odometer photo before approving reimbursement.',
+        recommendedAction: 'Review receipt and odometer reading before verifying transaction.',
         actionRoute: '/dashboard/fuel',
       })
     }
@@ -858,13 +1087,130 @@ export function buildFleetRiskAssessments(params: {
         confidencePct: 88,
         insufficientData: false,
         timestamp: trip.startTime,
-        recommendedAction: 'Verify corridor delay or unplanned stop reason with driver.',
+        recommendedAction: 'Verify corridor delay or unplanned stop reason.',
         actionRoute: '/dashboard/trips',
+      })
+    }
+
+    // 6. Compliance expiry (Indian vehicle documents + assigned driver DL/medical)
+    const complianceChecks = [
+      { label: 'Insurance', res: classifyComplianceExpiryTier(vehicle.insuranceExpiry, nowMs) },
+      { label: 'Registration / RC', res: classifyComplianceExpiryTier(vehicle.registrationExpiry, nowMs) },
+      ...(vehicle.fitnessExpiry ? [{ label: 'Fitness Cert (Form 38)', res: classifyComplianceExpiryTier(vehicle.fitnessExpiry, nowMs) }] : []),
+      ...(vehicle.pucExpiry ? [{ label: 'PUC Emission', res: classifyComplianceExpiryTier(vehicle.pucExpiry, nowMs) }] : []),
+      ...(driver ? [{ label: `Driver Licence (${driver.name})`, res: classifyComplianceExpiryTier(driver.licenseExpiry, nowMs) }] : []),
+    ]
+    const urgentCompliance = complianceChecks.find((c) =>
+      c.res.tier === 'expired' || c.res.tier === 'critical_7d' || c.res.tier === 'urgent_15d' || c.res.tier === 'upcoming_30d',
+    )
+    if (urgentCompliance) {
+      const tier = urgentCompliance.res.tier
+      const severity: RiskSeverity =
+        tier === 'expired' ? 'critical' : tier === 'critical_7d' || tier === 'urgent_15d' ? 'high' : 'moderate'
+      items.push({
+        id: `risk-comp-${vehicle.id}`,
+        organizationId,
+        vehicleId: vehicle.id,
+        vehicleRegistration: vehicle.registrationNumber,
+        category: 'compliance_expiry',
+        severity,
+        title: `Compliance Alert: ${urgentCompliance.label}`,
+        evidence: urgentCompliance.res.label,
+        confidencePct: 98,
+        insufficientData: false,
+        timestamp: new Date(nowMs).toISOString(),
+        recommendedAction: 'Renew document and upload verified certificate to Compliance Vault.',
+        actionRoute: `/dashboard/fleet/vehicles/${vehicle.id}`,
+      })
+    }
+
+    // 7. Inspection defects
+    const latestInsp = inspections.find((i) => i.vehicleId === vehicle.id)
+    if (latestInsp && !latestInsp.passed) {
+      items.push({
+        id: `risk-insp-${vehicle.id}`,
+        organizationId,
+        vehicleId: vehicle.id,
+        vehicleRegistration: vehicle.registrationNumber,
+        category: 'inspection_defects',
+        severity: latestInsp.warningLightsOn || latestInsp.fluidLeaksDetected || latestInsp.tyreCondition === 'critical' ? 'high' : 'moderate',
+        title: 'Pre-Trip Inspection Defect Logged',
+        evidence: latestInsp.notes || `Tyres: ${latestInsp.tyreCondition} · Brakes: ${latestInsp.brakeFeel}`,
+        confidencePct: 95,
+        insufficientData: false,
+        timestamp: latestInsp.timestamp,
+        recommendedAction: 'Convert inspection defect to Work Order before next highway dispatch.',
+        actionRoute: '/dashboard/inspections',
+      })
+    }
+
+    // 8. Climate & road corridor risk
+    const corridor = corridors.find((c) => c.id === vehicle.corridorId)
+    if (corridor && (corridor.climateImpactScore >= 0.78 || corridor.roadStressIndex >= 0.72)) {
+      items.push({
+        id: `risk-clim-${vehicle.id}`,
+        organizationId,
+        vehicleId: vehicle.id,
+        vehicleRegistration: vehicle.registrationNumber,
+        category: 'climate_corridor',
+        severity: corridor.climateImpactScore >= 0.83 ? 'high' : 'moderate',
+        title: `High Thermal / Road Stress — ${corridor.name}`,
+        evidence: `Road stress ${corridor.roadStressIndex.toFixed(2)} · Climate impact ${corridor.climateImpactScore.toFixed(2)} (${corridor.avgAmbientTempC}°C avg)`,
+        confidencePct: 84,
+        insufficientData: false,
+        timestamp: new Date(nowMs).toISOString(),
+        recommendedAction: 'Inspect coolant reserve, tyre tread pressure before afternoon haulage.',
+        actionRoute: '/dashboard/roads',
       })
     }
   }
 
-  // Ensure vehicles with no elevated risk still show up cleanly under Normal
+  // 9. Inventory shortage risk (org-wide spare stock)
+  const lowParts = partsInventory.filter((p) => p.stockQty <= p.reorderThreshold)
+  if (lowParts.length > 0) {
+    const firstPart = lowParts[0]
+    items.push({
+      id: `risk-inv-${organizationId}`,
+      organizationId,
+      vehicleId: 'org-inventory',
+      vehicleRegistration: `${lowParts.length} SKU(s) Below Reorder`,
+      category: 'inventory_shortage',
+      severity: firstPart.stockQty === 0 ? 'critical' : 'moderate',
+      title: `Spare Parts Reorder Trigger — ${firstPart.name}`,
+      evidence: `${firstPart.stockQty} ${firstPart.unit} remaining (threshold ${firstPart.reorderThreshold}) at ${firstPart.warehouseLocation}`,
+      confidencePct: 99,
+      insufficientData: false,
+      timestamp: firstPart.updatedAt,
+      recommendedAction: 'Issue Purchase Order to preferred supplier to avoid Work Order parts delay.',
+      actionRoute: '/dashboard/inventory',
+    })
+  }
+
+  // 10. Financial variance / overdue payables
+  const unverifiedOrOverdueInv = invoices.filter((inv) => {
+    const dueMs = new Date(inv.dueDate).getTime()
+    return inv.status === 'recorded' || (inv.status !== 'paid' && !Number.isNaN(dueMs) && dueMs < nowMs)
+  })
+  if (unverifiedOrOverdueInv.length > 0) {
+    const topInv = unverifiedOrOverdueInv[0]
+    items.push({
+      id: `risk-fin-${organizationId}`,
+      organizationId,
+      vehicleId: topInv.vehicleId ?? 'org-finance',
+      vehicleRegistration: topInv.invoiceNumber,
+      category: 'financial_variance',
+      severity: topInv.status !== 'paid' && new Date(topInv.dueDate).getTime() < nowMs ? 'high' : 'moderate',
+      title: `${unverifiedOrOverdueInv.length} Pending / Unverified Vendor Invoice(s)`,
+      evidence: `${topInv.vendorName}: ₹${topInv.amountInr.toLocaleString('en-IN')} (${topInv.status.replace('_', ' ')}, due ${topInv.dueDate})`,
+      confidencePct: 96,
+      insufficientData: false,
+      timestamp: topInv.issuedDate,
+      recommendedAction: 'Verify bill against completed Work Order / PO receipt before releasing payment.',
+      actionRoute: '/dashboard/financials',
+    })
+  }
+
+  // Ensure healthy vehicles with zero findings appear explicitly under Normal (never mislabeled)
   for (const vehicle of vehicles) {
     if (vehicle.decommissioned) continue
     const hasRisk = items.some((i) => i.vehicleId === vehicle.id)
@@ -882,7 +1228,7 @@ export function buildFleetRiskAssessments(params: {
         insufficientData: false,
         timestamp: vehicle.telemetry.lastUpdatedAt,
         recommendedAction: 'Continue scheduled preventive inspections.',
-        actionRoute: `/dashboard/fleet/${vehicle.id}`,
+        actionRoute: `/dashboard/fleet/vehicles/${vehicle.id}`,
       })
     }
   }
@@ -897,12 +1243,62 @@ export function buildFleetRiskAssessments(params: {
   return items.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity])
 }
 
+export function computeFinancialLedgerSummary(params: {
+  invoices: FinancialInvoice[]
+  payments: PaymentRecord[]
+  workOrders: WorkOrder[]
+  purchaseOrders: PurchaseOrder[]
+  fuelTransactions: FuelTransaction[]
+}) {
+  const { invoices, payments, workOrders, purchaseOrders, fuelTransactions } = params
+
+  const recordedInvoicesInr = invoices
+    .filter((i) => i.status === 'recorded')
+    .reduce((s, i) => s + i.amountInr, 0)
+  const verifiedInvoicesInr = invoices
+    .filter((i) => i.status === 'verified' || i.status === 'partially_paid')
+    .reduce((s, i) => s + i.amountInr, 0)
+  const paidInvoicesInr = invoices.reduce((s, i) => s + i.paidAmountInr, 0)
+  const totalInvoicedInr = invoices.reduce((s, i) => s + i.amountInr, 0)
+  const outstandingPayablesInr = Math.max(0, totalInvoicedInr - paidInvoicesInr)
+
+  const recordedFuelInr = fuelTransactions
+    .filter((f) => f.verificationStatus !== 'verified')
+    .reduce((s, f) => s + f.amountInr, 0)
+  const verifiedFuelInr = fuelTransactions
+    .filter((f) => f.verificationStatus === 'verified')
+    .reduce((s, f) => s + f.amountInr, 0)
+
+  const workOrderSpendInr = workOrders
+    .filter((w) => w.status === 'completed' || w.status === 'closed')
+    .reduce((s, w) => s + w.totalCostInr, 0)
+  const purchaseOrderSpendInr = purchaseOrders
+    .filter((po) => po.status !== 'cancelled' && po.status !== 'draft')
+    .reduce((s, po) => s + po.totalAmountInr, 0)
+
+  const paymentsClearedInr = payments.reduce((s, p) => s + p.amountInr, 0)
+
+  return {
+    totalInvoicedInr,
+    recordedInvoicesInr,
+    verifiedInvoicesInr,
+    paidInvoicesInr,
+    outstandingPayablesInr,
+    recordedFuelInr,
+    verifiedFuelInr,
+    workOrderSpendInr,
+    purchaseOrderSpendInr,
+    paymentsClearedInr,
+  }
+}
+
 export function computeFinancialIntelligence(params: {
   vehicles: Vehicle[]
   fuelTransactions: FuelTransaction[]
   maintenanceRecords: MaintenanceRecord[]
   predictions: AIPrediction[]
   trips: Trip[]
+  workOrders?: WorkOrder[]
   period: ReportingPeriod
   nowMs?: number
 }): {
@@ -934,7 +1330,7 @@ export function computeFinancialIntelligence(params: {
   }>
   methodologyNotes: string[]
 } {
-  const { vehicles, fuelTransactions, maintenanceRecords, predictions, trips, period } = params
+  const { vehicles, fuelTransactions, maintenanceRecords, predictions, trips, workOrders = [], period } = params
   const days = period === '7d' ? 7 : period === '30d' ? 30 : 90
   const allTimestamps = [
     ...fuelTransactions.map((t) => new Date(t.timestamp).getTime()),
@@ -955,15 +1351,23 @@ export function computeFinancialIntelligence(params: {
   const activeVehicleIds = new Set(activeVehicles.map((v) => v.id))
   const windowFuel = fuelTransactions.filter((tx) => activeVehicleIds.has(tx.vehicleId) && inWindow(tx.timestamp))
   const windowMaint = maintenanceRecords.filter((m) => activeVehicleIds.has(m.vehicleId) && inWindow(m.performedAt))
+  const linkedWoIdsFromMaint = new Set(windowMaint.map((m) => m.linkedWorkOrderId).filter(Boolean))
+  const windowUnlinkedWos = workOrders.filter(
+    (w) =>
+      activeVehicleIds.has(w.vehicleId) &&
+      !linkedWoIdsFromMaint.has(w.id) &&
+      (w.status === 'completed' || w.status === 'closed') &&
+      inWindow(w.completedAt ?? w.createdAt),
+  )
   const windowTrips = trips.filter((t) => activeVehicleIds.has(t.vehicleId) && inWindow(t.startTime))
 
   const vehicleCostBreakdown = activeVehicles.map((v) => {
     const fuelSpendInr = Math.round(
       windowFuel.filter((tx) => tx.vehicleId === v.id).reduce((s, tx) => s + tx.amountInr, 0),
     )
-    const maintenanceSpendInr = Math.round(
-      windowMaint.filter((m) => m.vehicleId === v.id).reduce((s, m) => s + m.costInr, 0),
-    )
+    const maintSpend = windowMaint.filter((m) => m.vehicleId === v.id).reduce((s, m) => s + m.costInr, 0)
+    const woSpend = windowUnlinkedWos.filter((w) => w.vehicleId === v.id).reduce((s, w) => s + w.totalCostInr, 0)
+    const maintenanceSpendInr = Math.round(maintSpend + woSpend)
     const vTripsKm = windowTrips.filter((t) => t.vehicleId === v.id).reduce((s, t) => s + t.distanceKm, 0)
     const vDistance = Math.max(120, Math.round(Math.max(vTripsKm, v.dailyAvgKm * (days * 0.72))))
     const totalSpendInr = fuelSpendInr + maintenanceSpendInr
@@ -991,7 +1395,6 @@ export function computeFinancialIntelligence(params: {
   const openHighPredictions = predictions.filter(
     (p) => p.status !== 'resolved' && !p.insufficientData && (p.priority === 'critical' || p.priority === 'high'),
   )
-  // Consolidate per-vehicle maximum exposure to avoid double-counting overlapping breakdown downtime on one vehicle
   const topByVehicle = new Map<string, AIPrediction>()
   for (const p of openHighPredictions) {
     const existing = topByVehicle.get(p.vehicleId)
@@ -1050,10 +1453,10 @@ export function computeFinancialIntelligence(params: {
     },
     vehicleCostBreakdown,
     methodologyNotes: [
-      `Cost per km = (Fuel/Charging Spend + Maintenance Spend logged in ${period.toUpperCase()} window) / Distance Logged or Scheduled Baseline.`,
-      'Fleet totals match the exact sum of active vehicle breakdown rows with zero synthetic period multipliers.',
-      'Estimated Potential Savings = Per-vehicle highest open high/critical exposure ((Projected Reactive Breakdown Cost + Estimated Daily Revenue Loss during Downtime) − Preventive Repair Cost), consolidated to prevent double-counting overlapping shop visits.',
-      'EV vs ICE operating comparison isolates energy/fuel and service costs per kilometer; capital depreciation and battery lease terms are excluded unless configured.',
+      `Cost per km = (Fuel/Charging Spend + Maintenance & Work Order Spend logged in ${period.toUpperCase()} window) / Distance Logged or Scheduled Baseline.`,
+      'Fleet totals match the exact sum of active vehicle breakdown rows without double-counting Work Orders linked to completed maintenance records.',
+      'Estimated Potential Savings = Per-vehicle highest open high/critical exposure ((Projected Reactive Breakdown Cost + Estimated Daily Revenue Loss during Downtime) − Preventive Repair Cost).',
+      'Recorded vs Verified vs Paid ledger separates operational fuel/service recordings from verified vendor invoices and cleared payments.',
     ],
   }
 }

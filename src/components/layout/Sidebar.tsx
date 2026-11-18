@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   BarChart3,
+  ClipboardCheck,
   Compass,
   Cpu,
   CreditCard,
@@ -13,17 +14,19 @@ import {
   LogOut,
   MapPin,
   Navigation,
+  Package,
   Settings,
   ShieldAlert,
   ShieldCheck,
-  Smartphone,
   Users,
+  Wrench,
   X,
 } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { useAuth } from '../../hooks/useAuth'
 import { canAccessRoute } from '../../utils/rbac'
 import { BrandLogo } from '../ui/BrandLogo'
+import { useTranslation } from '../../i18n/useTranslation'
 
 interface NavItem {
   to: string
@@ -40,8 +43,9 @@ export default function Sidebar({
   open: boolean
   onClose: () => void
 }) {
-  const { unreadAlertCount, predictions, riskAssessments, environment, activeRole } = useFleet()
+  const { unreadAlertCount, predictions, riskAssessments, workOrders, activeRole } = useFleet()
   const { signOut } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const criticalMaintCount = predictions.filter(
@@ -50,42 +54,51 @@ export default function Sidebar({
   const elevatedRiskCount = riskAssessments.filter(
     (r) => r.severity === 'critical' || r.severity === 'high',
   ).length
+  const openWoCount = workOrders.filter((w) => w.status !== 'completed' && w.status !== 'closed').length
 
   const groups: { title: string; items: NavItem[] }[] = [
     {
       title: 'Operations',
       items: [
-        { to: '/dashboard', label: 'Command Centre', icon: LayoutDashboard, end: true },
-        { to: '/dashboard/map', label: 'Live Operations Map', icon: MapPin },
-        { to: '/dashboard/fleet', label: 'Fleet & Digital Twins', icon: Layers },
-        { to: '/dashboard/trips', label: 'Trip Intelligence', icon: Navigation },
+        { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
+        { to: '/dashboard/map', label: t('nav.map'), icon: MapPin },
+        { to: '/dashboard/fleet', label: t('nav.fleet'), icon: Layers },
+        { to: '/dashboard/trips', label: t('nav.trips'), icon: Navigation },
+      ],
+    },
+    {
+      title: 'Maintenance & ERP',
+      items: [
+        { to: '/dashboard/maintenance', label: t('nav.maintenance'), icon: Cpu, badge: criticalMaintCount || undefined },
+        { to: '/dashboard/inspections', label: t('nav.inspections'), icon: ClipboardCheck },
+        { to: '/dashboard/work-orders', label: t('nav.work_orders'), icon: Wrench, badge: openWoCount || undefined },
+        { to: '/dashboard/inventory', label: t('nav.inventory'), icon: Package },
+        { to: '/dashboard/workshops', label: t('nav.workshops'), icon: ShieldCheck },
       ],
     },
     {
       title: 'Intelligence',
       items: [
-        { to: '/dashboard/maintenance', label: 'Predictive Maintenance', icon: Cpu, badge: criticalMaintCount || undefined },
-        { to: '/dashboard/risk', label: 'Fleet Risk Radar', icon: ShieldAlert, badge: elevatedRiskCount || undefined },
-        { to: '/dashboard/drivers', label: 'Driver Intelligence', icon: Users },
-        { to: '/dashboard/roads', label: 'Corridor Stress', icon: Compass },
+        { to: '/dashboard/risk', label: t('nav.risk'), icon: ShieldAlert, badge: elevatedRiskCount || undefined },
+        { to: '/dashboard/drivers', label: t('nav.drivers'), icon: Users },
+        { to: '/dashboard/roads', label: t('nav.road_intel'), icon: Compass },
       ],
     },
     {
       title: 'Finance & Reporting',
       items: [
-        { to: '/dashboard/fuel', label: 'Fuel Intelligence', icon: Fuel },
-        { to: '/dashboard/financials', label: 'Financial Intelligence', icon: BarChart3 },
-        { to: '/dashboard/reports', label: 'Reports & Exports', icon: FileSpreadsheet },
-        { to: '/dashboard/alerts', label: 'Alerts Feed', icon: AlertTriangle, badge: unreadAlertCount || undefined },
+        { to: '/dashboard/fuel', label: t('nav.fuel'), icon: Fuel },
+        { to: '/dashboard/financials', label: t('nav.financials'), icon: BarChart3 },
+        { to: '/dashboard/reports', label: t('nav.reports'), icon: FileSpreadsheet },
+        { to: '/dashboard/alerts', label: t('nav.alerts'), icon: AlertTriangle, badge: unreadAlertCount || undefined },
       ],
     },
     {
       title: 'Platform',
       items: [
-        { to: '/driver', label: 'Driver Mobile App', icon: Smartphone },
-        { to: '/dashboard/admin', label: 'Admin Console', icon: ShieldCheck },
-        { to: '/dashboard/subscription', label: 'Subscription', icon: CreditCard },
-        { to: '/dashboard/settings', label: 'Settings', icon: Settings },
+        { to: '/dashboard/admin', label: t('nav.admin'), icon: ShieldCheck },
+        { to: '/dashboard/subscription', label: t('nav.subscription'), icon: CreditCard },
+        { to: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
       ],
     },
   ]
@@ -124,13 +137,13 @@ export default function Sidebar({
             aria-label="DriveMitra Command Centre"
             className="flex items-center gap-2.5 text-left"
           >
-            <BrandLogo size="md" className="border border-[#DDD3ED] shadow-subtle" />
+            <BrandLogo size="md" />
             <div>
-              <span className="text-xs font-bold text-[#625346] capitalize block leading-tight">
-                {environment}
+              <span className="text-xs font-bold text-[#4D6E4A] block leading-tight">
+                Production
               </span>
               <span className="text-[11px] text-[#958777] font-medium block">
-                workspace
+                Owner ERP
               </span>
             </div>
           </button>

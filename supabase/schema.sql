@@ -1,15 +1,20 @@
--- DriveMitra Enterprise Fleet Intelligence Platform — Supabase PostgreSQL Schema
--- Complete multi-tenant, organization-isolated schema with Row Level Security (RLS)
+-- DriveMitra Enterprise Fleet Intelligence Platform — PostgreSQL Schema
+-- Complete multi-tenant, organization-isolated production schema with Row Level Security (RLS)
+-- Note: Zero 'pilot' environment and zero 'driver' app login role; Drivers are owner-managed ERP records only.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Enums
 DO $$ BEGIN
-  CREATE TYPE app_role AS ENUM ('platform_admin', 'org_admin', 'fleet_manager', 'maintenance', 'finance', 'driver');
+  CREATE TYPE app_role AS ENUM ('platform_admin', 'org_admin', 'fleet_manager', 'maintenance', 'finance', 'viewer');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
-  CREATE TYPE operating_env AS ENUM ('demo', 'pilot', 'production');
+  CREATE TYPE operating_env AS ENUM ('production');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE org_status AS ENUM ('active', 'payment_pending', 'grace_period', 'suspended', 'terminated', 'archived');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 DO $$ BEGIN
@@ -28,7 +33,7 @@ DO $$ BEGIN
   CREATE TYPE vehicle_type AS ENUM ('ICE', 'EV');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
--- Organizations (Tenant Boundary)
+-- Organizations (Tenant Boundary + Level-2 Governance)
 CREATE TABLE IF NOT EXISTS organizations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
@@ -38,7 +43,17 @@ CREATE TABLE IF NOT EXISTS organizations (
   timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
   currency TEXT NOT NULL DEFAULT 'INR',
   environment operating_env NOT NULL DEFAULT 'production',
+  status org_status NOT NULL DEFAULT 'active',
+  payment_status TEXT NOT NULL DEFAULT 'paid',
   subscription_plan TEXT NOT NULL DEFAULT 'starter',
+  subscription_start_date TIMESTAMPTZ DEFAULT NOW(),
+  subscription_expiry_date TIMESTAMPTZ DEFAULT NOW() + INTERVAL '365 days',
+  grace_period_until TIMESTAMPTZ,
+  suspension_reason TEXT,
+  owner_name TEXT,
+  owner_email TEXT,
+  owner_phone TEXT,
+  gstin TEXT,
   vehicle_limit INTEGER NOT NULL DEFAULT 15,
   driver_limit INTEGER NOT NULL DEFAULT 25,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -50,8 +65,10 @@ CREATE TABLE IF NOT EXISTS organization_members (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  username TEXT UNIQUE,
   role app_role NOT NULL DEFAULT 'fleet_manager',
   status TEXT NOT NULL DEFAULT 'active',
+  password_change_required BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE (organization_id, user_id)
 );
@@ -59,25 +76,29 @@ CREATE TABLE IF NOT EXISTS organization_members (
 CREATE INDEX IF NOT EXISTS idx_org_members_user ON organization_members(user_id);
 CREATE INDEX IF NOT EXISTS idx_org_members_org ON organization_members(organization_id);
 
--- Helper function for RLS organization membership check
+-- Helper functions for RLS organization membership & active-org status checks
 CREATE OR REPLACE FUNCTION is_org_member(org_uuid UUID)
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM organization_members
-    WHERE organization_id = org_uuid
-      AND user_id = auth.uid()
-      AND status = 'active'
+    SELECT 1 FROM organization_members m
+    JOIN organizations o ON o.id = m.organization_id
+    WHERE m.organization_id = org_uuid
+      AND m.user_id = auth.uid()
+      AND m.status = 'active'
+      AND o.status IN ('active', 'payment_pending', 'grace_period')
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 CREATE OR REPLACE FUNCTION has_org_role(org_uuid UUID, allowed_roles app_role[])
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM organization_members
-    WHERE organization_id = org_uuid
-      AND user_id = auth.uid()
-      AND status = 'active'
-      AND role = ANY(allowed_roles)
+    SELECT 1 FROM organization_members m
+    JOIN organizations o ON o.id = m.organization_id
+    WHERE m.organization_id = org_uuid
+      AND m.user_id = auth.uid()
+      AND m.status = 'active'
+      AND o.status IN ('active', 'payment_pending', 'grace_period')
+      AND m.role = ANY(allowed_roles)
   );
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
@@ -133,13 +154,14 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   default_organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+  username TEXT UNIQUE,
   full_name TEXT,
   company_name TEXT,
   phone TEXT,
   avatar_url TEXT,
   preferred_language TEXT DEFAULT 'en',
   role_label TEXT DEFAULT 'Fleet Manager',
-  is_demo_account BOOLEAN DEFAULT FALSE,
+  password_change_required BOOLEAN DEFAULT TRUE,
   onboarding_completed BOOLEAN DEFAULT FALSE,
   subscription_plan TEXT DEFAULT 'starter',
   subscription_status TEXT DEFAULT 'active',
@@ -151,6 +173,29 @@ CREATE TABLE IF NOT EXISTS profiles (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "profiles_own" ON profiles FOR ALL USING (auth.uid() = user_id);
 
+-- Auth Sessions (Server-hashed SHA-256 tokens for immediate suspension revocation)
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL,
+  organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+  token_hash TEXT UNIQUE NOT NULL,
+  revoked BOOLEAN NOT NULL DEFAULT FALSE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE auth_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Password Reset Tokens (Single-use expiring recovery tokens)
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL,
+  token_hash TEXT UNIQUE NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
 -- Subscriptions
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -161,7 +206,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   vehicle_limit INTEGER NOT NULL DEFAULT 15,
   driver_limit INTEGER NOT NULL DEFAULT 25,
   current_period_start TIMESTAMPTZ DEFAULT NOW(),
-  current_period_end TIMESTAMPTZ DEFAULT NOW() + INTERVAL '30 days',
+  current_period_end TIMESTAMPTZ DEFAULT NOW() + INTERVAL '365 days',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -172,7 +217,7 @@ CREATE POLICY "subscriptions_admin_write" ON subscriptions
   FOR ALL USING (has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[]))
   WITH CHECK (has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[]));
 
--- Vehicles
+-- Vehicles & Commercial Technical Specifications
 CREATE TABLE IF NOT EXISTS vehicles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -195,8 +240,19 @@ CREATE TABLE IF NOT EXISTS vehicles (
   insurance_provider TEXT,
   insurance_expiry DATE,
   registration_expiry DATE,
+  fitness_expiry DATE,
+  puc_expiry DATE,
+  permit_expiry DATE,
   last_service_date DATE,
   next_service_due DATE,
+  next_service_due_km INTEGER,
+  height_m NUMERIC(4,2) DEFAULT 3.2,
+  width_m NUMERIC(4,2) DEFAULT 2.3,
+  length_m NUMERIC(5,2) DEFAULT 7.2,
+  gvw_kg INTEGER DEFAULT 16200,
+  axle_count INTEGER DEFAULT 2,
+  payload_capacity_kg INTEGER DEFAULT 9500,
+  hazmat_class TEXT,
   decommissioned BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -226,6 +282,104 @@ CREATE POLICY "vehicles_manager_update" ON vehicles FOR UPDATE USING (
 CREATE POLICY "vehicles_admin_delete" ON vehicles FOR DELETE USING (
   (organization_id IS NOT NULL AND has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[]))
   OR (organization_id IS NULL AND auth.uid() = user_id)
+);
+
+-- Owner-Managed Drivers Master (India Commercial Fleet Compliance — NO Driver Auth)
+CREATE TABLE IF NOT EXISTS drivers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  employee_code TEXT,
+  full_name TEXT NOT NULL,
+  mobile TEXT NOT NULL,
+  alternate_mobile TEXT,
+  email TEXT,
+  date_of_birth DATE,
+  city TEXT,
+  state TEXT,
+  address TEXT,
+  blood_group TEXT,
+  emergency_contact_name TEXT,
+  emergency_contact_relation TEXT,
+  emergency_contact_phone TEXT,
+  license_number TEXT NOT NULL,
+  license_categories TEXT[] DEFAULT ARRAY['TRANS'],
+  license_issuing_rto TEXT,
+  license_issue_date DATE,
+  license_expiry DATE NOT NULL,
+  hazmat_endorsed BOOLEAN DEFAULT FALSE,
+  hazmat_expiry DATE,
+  aadhaar_masked TEXT,
+  pan_masked TEXT,
+  medical_fitness_expiry DATE,
+  police_verification_status TEXT DEFAULT 'not_submitted',
+  digilocker_status TEXT DEFAULT 'not_connected',
+  assigned_vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
+  operational_status TEXT NOT NULL DEFAULT 'active',
+  safety_score INTEGER DEFAULT 85,
+  total_trips INTEGER DEFAULT 0,
+  total_distance_km INTEGER DEFAULT 0,
+  join_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_drivers_org ON drivers(organization_id);
+ALTER TABLE drivers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "drivers_org_read" ON drivers FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "drivers_manager_write" ON drivers FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+);
+
+-- Driver Assignment History
+CREATE TABLE IF NOT EXISTS driver_vehicle_assignments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  driver_id UUID NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
+  vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  unassigned_at TIMESTAMPTZ,
+  assigned_by TEXT,
+  notes TEXT
+);
+ALTER TABLE driver_vehicle_assignments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "driver_assignments_org_read" ON driver_vehicle_assignments FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "driver_assignments_manager_write" ON driver_vehicle_assignments FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+);
+
+-- Private Compliance Document Vault (Strict Uploaded != Verified Policy)
+CREATE TABLE IF NOT EXISTS document_vault (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('vehicle', 'driver')),
+  entity_id UUID NOT NULL,
+  category TEXT NOT NULL,
+  title TEXT NOT NULL,
+  masked_number TEXT,
+  issuing_authority TEXT,
+  issued_date DATE,
+  expiry_date DATE,
+  file_name TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  file_size_bytes INTEGER NOT NULL,
+  storage_key TEXT NOT NULL,
+  verification_status TEXT NOT NULL DEFAULT 'uploaded' CHECK (verification_status IN ('uploaded', 'pending_verification', 'verified', 'rejected', 'expired')),
+  verified_by TEXT,
+  verified_at TIMESTAMPTZ,
+  rejection_reason TEXT,
+  uploaded_by TEXT NOT NULL,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE document_vault ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "doc_vault_org_read" ON document_vault FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "doc_vault_ops_write" ON document_vault FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
 );
 
 -- Vehicle Components
@@ -267,12 +421,12 @@ CREATE POLICY "vehicle_components_maint_write" ON vehicle_components FOR ALL USI
   )
 );
 
--- Trips
+-- Trips (Owner-scheduled & Monitored Commercial Corridors)
 CREATE TABLE IF NOT EXISTS trips (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
-  driver_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  driver_id UUID REFERENCES drivers(id) ON DELETE SET NULL,
   driver_name TEXT,
   origin_address TEXT NOT NULL,
   destination_address TEXT,
@@ -281,10 +435,13 @@ CREATE TABLE IF NOT EXISTS trips (
   end_lat NUMERIC(9,6),
   end_lng NUMERIC(9,6),
   distance_km NUMERIC(10,2) DEFAULT 0,
+  planned_distance_km NUMERIC(10,2) DEFAULT 0,
   duration_minutes INTEGER DEFAULT 0,
+  planned_duration_minutes INTEGER DEFAULT 0,
   avg_speed_kmh NUMERIC(5,1) DEFAULT 0,
   max_speed_kmh NUMERIC(5,1) DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'active',
+  truck_routing_mode TEXT DEFAULT 'highway_geometry_unverified',
   route_points JSONB DEFAULT '[]',
   stops JSONB DEFAULT '[]',
   started_at TIMESTAMPTZ DEFAULT NOW(),
@@ -296,15 +453,13 @@ CREATE INDEX IF NOT EXISTS idx_trips_org ON trips(organization_id);
 CREATE INDEX IF NOT EXISTS idx_trips_vehicle ON trips(vehicle_id);
 ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "trips_org_read" ON trips FOR SELECT USING (is_org_member(organization_id));
-CREATE POLICY "trips_driver_or_manager_insert" ON trips FOR INSERT WITH CHECK (
-  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','driver']::app_role[])
-);
-CREATE POLICY "trips_driver_or_manager_update" ON trips FOR UPDATE USING (
+CREATE POLICY "trips_manager_insert" ON trips FOR INSERT WITH CHECK (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
-  OR (driver_user_id = auth.uid() AND is_org_member(organization_id))
+);
+CREATE POLICY "trips_manager_update" ON trips FOR UPDATE USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
 ) WITH CHECK (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
-  OR (driver_user_id = auth.uid() AND is_org_member(organization_id))
 );
 CREATE POLICY "trips_admin_delete" ON trips FOR DELETE USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[])
@@ -330,14 +485,14 @@ CREATE TABLE IF NOT EXISTS telemetry_points (
 CREATE INDEX IF NOT EXISTS idx_telemetry_vehicle_time ON telemetry_points(vehicle_id, recorded_at DESC);
 ALTER TABLE telemetry_points ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "telemetry_org_read" ON telemetry_points FOR SELECT USING (is_org_member(organization_id));
-CREATE POLICY "telemetry_driver_or_manager_insert" ON telemetry_points FOR INSERT WITH CHECK (
-  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','driver']::app_role[])
+CREATE POLICY "telemetry_manager_insert" ON telemetry_points FOR INSERT WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
 );
 CREATE POLICY "telemetry_admin_delete" ON telemetry_points FOR DELETE USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[])
 );
 
--- Driver Behavior Events (with dispute workflow)
+-- Driver Behavior Events (Owner review & dispute audit)
 CREATE TABLE IF NOT EXISTS driver_events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -359,14 +514,12 @@ CREATE TABLE IF NOT EXISTS driver_events (
 ALTER TABLE driver_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "driver_events_org_read" ON driver_events FOR SELECT USING (is_org_member(organization_id));
 CREATE POLICY "driver_events_insert" ON driver_events FOR INSERT WITH CHECK (
-  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','driver']::app_role[])
-);
-CREATE POLICY "driver_events_manager_or_driver_dispute" ON driver_events FOR UPDATE USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
-  OR (has_org_role(organization_id, ARRAY['driver']::app_role[]) AND dispute_status = 'none')
+);
+CREATE POLICY "driver_events_manager_update" ON driver_events FOR UPDATE USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
 ) WITH CHECK (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager']::app_role[])
-  OR (has_org_role(organization_id, ARRAY['driver']::app_role[]) AND dispute_status = 'disputed')
 );
 CREATE POLICY "driver_events_admin_delete" ON driver_events FOR DELETE USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin']::app_role[])
@@ -384,8 +537,9 @@ CREATE TABLE IF NOT EXISTS fuel_transactions (
   odometer_km INTEGER NOT NULL,
   station TEXT,
   payment_method TEXT DEFAULT 'upi',
-  entry_source TEXT DEFAULT 'manual_driver_entry',
+  entry_source TEXT DEFAULT 'owner_entry',
   verification_status TEXT DEFAULT 'pending',
+  payment_state TEXT DEFAULT 'recorded',
   anomaly_flags JSONB DEFAULT '[]',
   transacted_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -393,7 +547,7 @@ CREATE TABLE IF NOT EXISTS fuel_transactions (
 ALTER TABLE fuel_transactions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "fuel_tx_org_read" ON fuel_transactions FOR SELECT USING (is_org_member(organization_id));
 CREATE POLICY "fuel_tx_member_insert" ON fuel_transactions FOR INSERT WITH CHECK (
-  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','finance','driver']::app_role[])
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','finance']::app_role[])
 );
 CREATE POLICY "fuel_tx_finance_update" ON fuel_transactions FOR UPDATE USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','finance']::app_role[])
@@ -423,7 +577,97 @@ CREATE TABLE IF NOT EXISTS vehicle_inspections (
 ALTER TABLE vehicle_inspections ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "inspections_org_read" ON vehicle_inspections FOR SELECT USING (is_org_member(organization_id));
 CREATE POLICY "inspections_member_insert" ON vehicle_inspections FOR INSERT WITH CHECK (
-  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance','driver']::app_role[])
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+);
+
+-- Small-Issue Logs
+CREATE TABLE IF NOT EXISTS vehicle_issues (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  health_area TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'medium',
+  status TEXT NOT NULL DEFAULT 'open',
+  source TEXT DEFAULT 'owner_manual',
+  reported_by TEXT NOT NULL,
+  reported_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE vehicle_issues ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "vehicle_issues_org_read" ON vehicle_issues FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "vehicle_issues_ops_write" ON vehicle_issues FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+);
+
+-- Work Orders, Parts Inventory, Suppliers & Purchase Orders
+CREATE TABLE IF NOT EXISTS work_orders (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  work_order_number TEXT NOT NULL,
+  vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+  workshop_name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  health_area TEXT NOT NULL,
+  priority maintenance_priority DEFAULT 'medium',
+  status TEXT NOT NULL DEFAULT 'draft',
+  labor_cost_inr NUMERIC(10,2) DEFAULT 0,
+  parts_cost_inr NUMERIC(10,2) DEFAULT 0,
+  total_cost_inr NUMERIC(10,2) DEFAULT 0,
+  payment_state TEXT DEFAULT 'recorded',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "work_orders_org_read" ON work_orders FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "work_orders_maint_write" ON work_orders FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+);
+
+CREATE TABLE IF NOT EXISTS parts_inventory (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  sku TEXT NOT NULL,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  stock_qty INTEGER NOT NULL DEFAULT 0,
+  reorder_threshold INTEGER NOT NULL DEFAULT 2,
+  unit_cost_inr NUMERIC(10,2) NOT NULL DEFAULT 0,
+  warehouse_location TEXT DEFAULT 'Main Depot'
+);
+ALTER TABLE parts_inventory ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "parts_inventory_org_read" ON parts_inventory FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "parts_inventory_maint_write" ON parts_inventory FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
+);
+
+-- Financial Invoices & Payments (Recorded vs Verified vs Paid)
+CREATE TABLE IF NOT EXISTS financial_invoices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  invoice_number TEXT NOT NULL,
+  vendor_name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
+  amount_inr NUMERIC(12,2) NOT NULL,
+  paid_amount_inr NUMERIC(12,2) DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'recorded',
+  due_date DATE,
+  issued_date DATE DEFAULT CURRENT_DATE
+);
+ALTER TABLE financial_invoices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "financial_invoices_org_read" ON financial_invoices FOR SELECT USING (is_org_member(organization_id));
+CREATE POLICY "financial_invoices_fin_write" ON financial_invoices FOR ALL USING (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[])
+) WITH CHECK (
+  has_org_role(organization_id, ARRAY['platform_admin','org_admin','finance']::app_role[])
 );
 
 -- AI Predictions
@@ -433,6 +677,7 @@ CREATE TABLE IF NOT EXISTS ai_predictions (
   vehicle_id UUID REFERENCES vehicles(id) ON DELETE CASCADE,
   prediction_type TEXT,
   component_name TEXT NOT NULL,
+  health_area TEXT,
   priority maintenance_priority DEFAULT 'medium',
   confidence_score NUMERIC(4,3) DEFAULT 0.85,
   confidence_lower NUMERIC(4,3),
@@ -494,6 +739,8 @@ CREATE TABLE IF NOT EXISTS maintenance_history (
   description TEXT,
   notes TEXT,
   cost NUMERIC(10,2),
+  payment_state TEXT DEFAULT 'recorded',
+  bill_number TEXT,
   downtime_days INTEGER DEFAULT 1,
   parts_replaced TEXT[],
   status TEXT DEFAULT 'completed',
@@ -568,7 +815,7 @@ CREATE POLICY "driver_analytics_manager_write" ON driver_analytics FOR ALL USING
   )
 );
 
--- Risk Assessments
+-- Risk Assessments (10 Categories)
 CREATE TABLE IF NOT EXISTS risk_assessments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -591,7 +838,7 @@ CREATE POLICY "risk_assessments_ops_write" ON risk_assessments FOR ALL USING (
   has_org_role(organization_id, ARRAY['platform_admin','org_admin','fleet_manager','maintenance']::app_role[])
 );
 
--- Audit Logs
+-- Immutable Audit Logs (Organization + Level-2 Platform Admin)
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
@@ -599,6 +846,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   action TEXT NOT NULL,
   entity_type TEXT,
   entity_id TEXT,
+  reason TEXT,
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

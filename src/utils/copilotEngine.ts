@@ -47,7 +47,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
   const rawQuery = input.query.trim()
   if (!rawQuery) {
     return {
-      answer: 'Enter an operational question about your active organization fleet, maintenance risk, fuel anomalies, or TCO.',
+      answer: 'Enter an operational question about your active organization fleet, 5-area maintenance risk, fuel anomalies, or TCO.',
       citations: [],
       blocked: true,
       reason: 'empty',
@@ -56,7 +56,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
 
   if (!canPerformAction(input.activeRole, 'use_copilot')) {
     return {
-      answer: `Access denied: Role "${input.activeRole.replace('_', ' ')}" is not permitted to query Fleet Intelligence Copilot.`,
+      answer: `Access denied: Role "${input.activeRole.replace('_', ' ')}" is not permitted to query Dhiyu Fleet Intelligence.`,
       citations: [`RBAC check: ${input.activeRole}`],
       blocked: true,
       reason: 'rbac',
@@ -74,7 +74,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
 
   if (SQL_PROBE_PATTERNS.some((rx) => rx.test(rawQuery))) {
     return {
-      answer: 'Request blocked: raw SQL extraction and schema inspection queries are not permitted in Fleet Copilot.',
+      answer: 'Request blocked: raw SQL extraction and schema inspection queries are not permitted in Dhiyu.',
       citations: ['Safety guard: SQL probe pattern'],
       blocked: true,
       reason: 'sql_probe',
@@ -91,7 +91,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
   )
   if (crossOrgMention || /\ball\s+organizations\b|\bother\s+tenants\b|\bcross[- ]tenant\b/i.test(rawQuery)) {
     return {
-      answer: `Organization isolation enforced: Your active session is scoped strictly to ${input.activeOrganization.name} (${input.activeOrganization.code}). Switch organization in the top bar if you are authorized to inspect another tenant.`,
+      answer: `Organization isolation enforced: Your active session is scoped strictly to ${input.activeOrganization.name} (${input.activeOrganization.code}). Cross-tenant inspection is blocked.`,
       citations: [`Org boundary: ${input.activeOrganization.id}`],
       blocked: true,
       reason: 'cross_org',
@@ -101,24 +101,22 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
   const activeVehicles = input.vehicles.filter((v) => !v.decommissioned)
   if (activeVehicles.length === 0) {
     return {
-      answer: `Insufficient data in ${input.activeOrganization.name}: No active vehicles are registered yet. Add a vehicle or load a pilot fleet before requesting operational analytics.`,
+      answer: `Insufficient data in ${input.activeOrganization.name}: No active vehicles are registered yet. Add a vehicle before requesting operational analytics.`,
       citations: [`Active vehicles in ${input.activeOrganization.name}: 0`],
       blocked: false,
       reason: 'insufficient_data',
     }
   }
 
-  // Unsupported / missing external data domain check (avoid fabricating non-existent metrics)
-  if (/\b(weather|forecast|rainfall|gst\s*invoice|toll\s*fastag|(tyre|tire)\s*(psi|pressure)|cargo\s*weight|payload\s*sensor|coolant\s*temp|oil\s*pressure)\b/i.test(rawQuery)) {
+  if (/\b(gst\s*invoice|toll\s*fastag|(tyre|tire)\s*(psi|pressure)|cargo\s*weight|payload\s*sensor|coolant\s*temp|oil\s*pressure)\b/i.test(rawQuery)) {
     return {
-      answer: `Insufficient sensor/integration data in ${input.activeOrganization.name}: Smartphone telematics does not capture live OBD-II/payload/weather or external toll feeds. Only GPS, motion behavior, pre-trip inspections, maintenance logs, and fuel ledger records are available.`,
+      answer: `Insufficient sensor/integration data in ${input.activeOrganization.name}: Smartphone telematics does not capture live OBD-II/payload/pressure sensors or external FASTag feeds. Only GPS, motion behavior, pre-trip inspections, Work Orders, and fuel ledger records are available.`,
       citations: ['Telemetry scope boundary'],
       blocked: false,
       reason: 'insufficient_data',
     }
   }
 
-  // Specific vehicle match (supports 2-vehicle comparison or single-vehicle lookup)
   const matchedVehicles = activeVehicles.filter((v) => {
     const compactReg = v.registrationNumber.replace(/\s+/g, '').toLowerCase()
     const compactQuery = lower.replace(/\s+/g, '')
@@ -131,7 +129,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
       const openPreds = input.predictions.filter((p) => p.vehicleId === v.id && p.status !== 'resolved' && !p.insufficientData)
       const vehCost = input.financialSummary.vehicleCostBreakdown.find((r) => r.vehicleId === v.id)
       const topPred = openPreds[0]
-      return `• ${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, ${vehCost ? `₹${vehCost.costPerKmInr}/km` : 'N/A cost/km'}, ${openPreds.length} open prediction(s)${topPred ? ` (highest: ${topPred.componentName} ~${topPred.estimatedDaysToFailure}d RUL)` : ''}`
+      return `• ${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, ${vehCost ? `₹${vehCost.costPerKmInr}/km` : 'N/A cost/km'}, ${openPreds.length} open prediction(s)${topPred ? ` (highest: ${topPred.healthArea ?? topPred.componentName} ~${topPred.estimatedDaysToFailure}d RUL)` : ''}`
     }
     return {
       answer: `Vehicle comparison within ${input.activeOrganization.name}:\n${rowFor(v1)}\n${rowFor(v2)}`,
@@ -148,14 +146,13 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     const openPreds = input.predictions.filter((p) => p.vehicleId === v.id && p.status !== 'resolved' && !p.insufficientData)
     const vehCost = input.financialSummary.vehicleCostBreakdown.find((r) => r.vehicleId === v.id)
     return {
-      answer: `${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, Status ${v.operationStatus}, Telemetry ${v.telemetry.connectionState}${vehCost ? `, Operating cost ₹${vehCost.costPerKmInr}/km` : ''}, ${openPreds.length} open predictive maintenance item(s).`,
+      answer: `${v.registrationNumber} (${v.make} ${v.model}, ${v.powertrain}): Health ${v.healthScore}%, Odometer ${v.odometerKm.toLocaleString('en-IN')} km, Status ${v.operationStatus}, Telemetry ${v.telemetry.connectionState}${vehCost ? `, Operating cost ₹${vehCost.costPerKmInr}/km` : ''}, ${openPreds.length} open predictive item(s).`,
       citations: [`${v.id}: ${v.healthScore}%`, `Open predictions: ${openPreds.length}`],
       blocked: false,
     }
   }
 
-  // Maintenance / failure / savings intent
-  if (/maint|predict|repair|saving|component|failure|service/i.test(rawQuery)) {
+  if (/maint|predict|repair|saving|component|failure|service|work\s*order/i.test(rawQuery)) {
     const validOpen = input.predictions.filter((p) => p.status !== 'resolved' && !p.insufficientData)
     if (validOpen.length === 0) {
       return {
@@ -168,7 +165,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     const top = validOpen.slice(0, 3)
     const lines = top.map((p) => {
       const v = activeVehicles.find((item) => item.id === p.vehicleId)
-      return `• ${v?.registrationNumber ?? p.vehicleId} (${p.componentName}): ${p.priority.toUpperCase()}, ~${p.estimatedDaysToFailure} days RUL, est. savings ₹${p.potentialSavingsInr.toLocaleString('en-IN')}`
+      return `• ${v?.registrationNumber ?? p.vehicleId} (${p.healthArea ?? p.componentName} · ${p.componentName}): ${p.priority.toUpperCase()}, ~${p.estimatedDaysToFailure} days RUL, est. savings ₹${p.potentialSavingsInr.toLocaleString('en-IN')}`
     })
     return {
       answer: `${input.activeOrganization.name} has ${validOpen.length} open predictive maintenance item(s). Top priorities:\n${lines.join('\n')}`,
@@ -177,11 +174,10 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     }
   }
 
-  // Fuel / financial / EV vs ICE / cost intent
-  if (/fuel|diesel|ev|electric|cost|tco|spend|mileage|anomal/i.test(rawQuery)) {
-    if (!canPerformAction(input.activeRole, 'verify_fuel') && input.activeRole === 'maintenance') {
+  if (/fuel|diesel|ev|electric|cost|tco|spend|mileage|anomal|invoice/i.test(rawQuery)) {
+    if (!canPerformAction(input.activeRole, 'verify_fuel')) {
       return {
-        answer: `Role "${input.activeRole}" does not have financial/fuel ledger visibility. Switch to Fleet Manager, Finance, or Org Admin to view cost intelligence.`,
+        answer: `Role "${input.activeRole.replace('_', ' ')}" does not have financial/fuel ledger visibility. Use Fleet Manager, Finance, or Org Admin to view cost intelligence.`,
         citations: [`RBAC scope: ${input.activeRole}`],
         blocked: true,
         reason: 'rbac',
@@ -199,8 +195,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     }
   }
 
-  // Driver / safety intent
-  if (/driver|safety|coach|dispute|fatigue|speed/i.test(rawQuery)) {
+  if (/driver|safety|coach|dispute|fatigue|speed|licence|license/i.test(rawQuery)) {
     if (input.drivers.length === 0) {
       return {
         answer: `Insufficient driver data in ${input.activeOrganization.name}: no active driver profiles logged.`,
@@ -210,7 +205,7 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
       }
     }
     const lowest = [...input.drivers].sort((a, b) => a.safetyScore - b.safetyScore).slice(0, 3)
-    const lines = lowest.map((d) => `• ${d.name}: Safety ${d.safetyScore}/100 (${d.totalTrips} trips, status: ${d.status})`)
+    const lines = lowest.map((d) => `• ${d.name}: Safety ${d.safetyScore}/100 (${d.totalTrips} trips, status: ${d.operationalStatus ?? d.status})`)
     return {
       answer: `Lowest safety score drivers in ${input.activeOrganization.name} requiring coaching focus:\n${lines.join('\n')}`,
       citations: lowest.map((d) => `${d.id}: ${d.safetyScore}/100`),
@@ -218,7 +213,6 @@ export function queryFleetCopilot(input: CopilotQueryInput): CopilotResponse {
     }
   }
 
-  // Risk / telemetry / health overview
   const criticalOrHigh = input.riskAssessments.filter((r) => r.severity === 'critical' || r.severity === 'high')
   const offlineCount = activeVehicles.filter((v) => v.telemetry.connectionState === 'disconnected').length
   const avgHealth = Math.round(activeVehicles.reduce((s, v) => s + v.healthScore, 0) / activeVehicles.length)

@@ -1,5 +1,18 @@
-import React, { useRef, useState } from 'react'
-import { Loader2, RotateCcw, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  ArrowUp,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  ShieldCheck,
+  Sparkles,
+  SquarePen,
+  X,
+} from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { queryFleetCopilot, type CopilotResponse } from '../../utils/copilotEngine'
 import {
@@ -7,7 +20,7 @@ import {
   DHIYU_SCOPE_REFUSAL,
   isFleetManagementQuery,
 } from '../../utils/copilotContext'
-import { DhiyuLogo } from '../ui/DhiyuLogo'
+import { DhiyuAvatarMark, DhiyuLogo } from '../ui/DhiyuLogo'
 
 interface CopilotMessage {
   id: string
@@ -17,17 +30,33 @@ interface CopilotMessage {
   blocked?: boolean
 }
 
-const SAMPLE_PROMPTS = [
-  'Which vehicles need preventive maintenance soonest and what is the cost of delay?',
-  'Explain our 8-component predictive maintenance risk for overdue vehicles',
-  'Summarize 30-day maintenance & fuel spend and EV vs ICE TCO',
+const SAFE_DHIYU_UNAVAILABLE_MESSAGE =
+  'Dhiyu is temporarily unable to process this request. Your fleet information has not been changed. Please try again shortly.'
+
+const STARTER_CARDS = [
+  {
+    title: '5-Area Predictive Health & Delay Cost',
+    prompt: 'Summarize our 5 health areas (Fuel, Engine, Tyre, Driver, Vehicle) and vehicles with highest delay cost exposure',
+  },
+  {
+    title: 'Work Orders & Low Spare Parts',
+    prompt: 'Which work orders are active and which spare parts in inventory are below reorder threshold?',
+  },
+  {
+    title: '30-Day Spend & Invoices Ledger',
+    prompt: 'Summarize 30-day maintenance & fuel spend, EV vs ICE TCO, and unpaid vendor invoices',
+  },
+  {
+    title: 'Indian Compliance & Driver Safety',
+    prompt: 'Which drivers or vehicles have upcoming DL, FC, Insurance, or PUC expiries and harsh braking risks?',
+  },
 ]
 
 function renderInlineBold(text: string): React.ReactNode[] {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
   return parts.map((part, idx) =>
     part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
-      <strong key={idx} className="font-bold text-[#625346]">
+      <strong key={idx} className="font-semibold text-[#625346]">
         {part.slice(2, -2)}
       </strong>
     ) : (
@@ -66,11 +95,11 @@ function FormattedCopilotText({ text }: { text: string }) {
         .map(parseRow)
 
       blocks.push(
-        <div key={`tbl-${i}`} className="space-y-1.5 my-1">
+        <div key={`tbl-${i}`} className="space-y-1.5 my-2">
           {dataRows.map((cells, rIdx) => (
             <div
               key={rIdx}
-              className="rounded-lg bg-[#FFFFFF] border border-[#E5E5E5] px-2.5 py-2 text-[11px] space-y-0.5"
+              className="rounded-xl bg-[#FAFAFA] border border-[#E5E5E5] px-3 py-2 text-xs space-y-1"
             >
               {cells.map((cell, cIdx) => (
                 <div key={cIdx} className="flex items-baseline justify-between gap-2">
@@ -90,7 +119,7 @@ function FormattedCopilotText({ text }: { text: string }) {
     }
 
     if (/^([-*_]){3,}$/.test(trimmed)) {
-      blocks.push(<hr key={`hr-${i}`} className="border-[#E5E5E5] my-1.5" />)
+      blocks.push(<hr key={`hr-${i}`} className="border-[#E5E5E5] my-2" />)
       i += 1
       continue
     }
@@ -99,7 +128,7 @@ function FormattedCopilotText({ text }: { text: string }) {
     if (headingMatch) {
       const cleanHeading = headingMatch[1].replace(/\*\*/g, '').trim()
       blocks.push(
-        <h4 key={`h-${i}`} className="text-xs font-bold text-[#625346] pt-1">
+        <h4 key={`h-${i}`} className="text-[13.5px] font-bold text-[#625346] pt-1.5">
           {cleanHeading}
         </h4>,
       )
@@ -114,9 +143,9 @@ function FormattedCopilotText({ text }: { text: string }) {
         i += 1
       }
       blocks.push(
-        <ul key={`ul-${i}`} className="space-y-1 pl-3.5 list-disc marker:text-[#B8A3D9]">
+        <ul key={`ul-${i}`} className="space-y-1.5 pl-4 list-disc marker:text-[#6E5696]">
           {items.map((item, idx) => (
-            <li key={idx} className="text-xs font-medium text-[#625346] leading-relaxed">
+            <li key={idx} className="text-[13.5px] text-[#625346] leading-relaxed">
               {renderInlineBold(item)}
             </li>
           ))}
@@ -134,10 +163,10 @@ function FormattedCopilotText({ text }: { text: string }) {
       blocks.push(
         <ol
           key={`ol-${i}`}
-          className="space-y-1 pl-4 list-decimal marker:text-[#6E5696] marker:font-bold"
+          className="space-y-1.5 pl-4 list-decimal marker:text-[#6E5696] marker:font-semibold"
         >
           {items.map((item, idx) => (
-            <li key={idx} className="text-xs font-medium text-[#625346] leading-relaxed">
+            <li key={idx} className="text-[13.5px] text-[#625346] leading-relaxed">
               {renderInlineBold(item)}
             </li>
           ))}
@@ -147,7 +176,7 @@ function FormattedCopilotText({ text }: { text: string }) {
     }
 
     blocks.push(
-      <p key={`p-${i}`} className="text-xs font-medium text-[#625346] leading-relaxed">
+      <p key={`p-${i}`} className="text-[13.5px] text-[#625346] leading-relaxed">
         {renderInlineBold(trimmed)}
       </p>,
     )
@@ -175,28 +204,31 @@ export default function FleetCopilotDrawer({
     drivers,
     fuelTransactions,
     financialSummary,
+    workOrders,
+    partsInventory,
   } = useFleet()
 
   const [query, setQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [expandedCitations, setExpandedCitations] = useState<Record<string, boolean>>({})
+  const [messages, setMessages] = useState<CopilotMessage[]>([])
+
   const msgSeqRef = useRef(0)
+  const streamEndRef = useRef<HTMLDivElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+
   const nextMsgId = (prefix: string) => {
     msgSeqRef.current += 1
     return `${prefix}-${msgSeqRef.current}`
   }
 
-  const createWelcomeMessage = (): CopilotMessage => ({
-    id: 'welcome',
-    sender: 'copilot',
-    text: `Hi, I’m Dhiyu — your dedicated Fleet Management AI for ${activeOrganization.name} (${activeOrganization.code}). I assist strictly with your fleet’s vehicles, 8-subsystem predictive maintenance, breakdown delay costs, driver safety, fuel verification, and TCO.`,
-    citations: [
-      `Tenant: ${activeOrganization.id}`,
-      `Role: ${activeRole}`,
-      'Scope: Fleet Management Only',
-    ],
-  })
-
-  const [messages, setMessages] = useState<CopilotMessage[]>(() => [createWelcomeMessage()])
+  useEffect(() => {
+    if (open) {
+      streamEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isLoading, open])
 
   if (!open) return null
 
@@ -207,8 +239,29 @@ export default function FleetCopilotDrawer({
 
   const resetChat = () => {
     if (isLoading) return
-    setMessages([createWelcomeMessage()])
+    setMessages([])
     setQuery('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+  }
+
+  const handleCopy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(id)
+      window.setTimeout(() => setCopiedId((prev) => (prev === id ? null : prev)), 1500)
+    } catch {
+      // Clipboard unavailable
+    }
+  }
+
+  const getActiveLanguage = (): string => {
+    try {
+      return localStorage.getItem('dm_language') || 'en'
+    } catch {
+      return 'en'
+    }
   }
 
   const runPrompt = async (text: string) => {
@@ -218,8 +271,11 @@ export default function FleetCopilotDrawer({
     const userMsgId = nextMsgId('u')
     setMessages((prev) => [...prev, { id: userMsgId, sender: 'user', text: clean }])
     setQuery('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
 
-    // Pre-flight RBAC, prompt-injection, SQL-probe, cross-org, and sensor-scope guard
+    // Deterministic RBAC / Tenant Isolation / Insufficient Data Gate
     const guard: CopilotResponse = queryFleetCopilot({
       query: clean,
       activeOrganization,
@@ -248,9 +304,8 @@ export default function FleetCopilotDrawer({
     }
 
     const activeRegs = vehicles.filter((v) => !v.decommissioned).map((v) => v.registrationNumber)
-    const hasPriorHistory = messages.some((m) => m.id !== 'welcome' && !m.blocked)
+    const hasPriorHistory = messages.some((m) => !m.blocked)
 
-    // Strict Fleet-Management-Only enforcement
     if (!isFleetManagementQuery(clean, activeRegs, hasPriorHistory)) {
       setMessages((prev) => [
         ...prev,
@@ -275,10 +330,12 @@ export default function FleetCopilotDrawer({
       drivers,
       fuelTransactions,
       financialSummary,
+      workOrders,
+      partsInventory,
     })
 
     const history = messages
-      .filter((m) => m.id !== 'welcome' && !m.blocked)
+      .filter((m) => !m.blocked)
       .slice(-6)
       .map((m) => ({
         role: m.sender === 'user' ? ('user' as const) : ('model' as const),
@@ -289,27 +346,31 @@ export default function FleetCopilotDrawer({
     try {
       const res = await fetch('/api/copilot', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           query: clean,
           systemInstruction,
           history,
+          language: getActiveLanguage(),
         }),
       })
-      const payload = (await res.json()) as {
+
+      const payload = (await res.json().catch(() => ({}))) as {
         answer?: string
         error?: string
-        model?: string
         scopeRefused?: boolean
+        fallbackRecommended?: boolean
       }
-      if (!res.ok || !payload.answer) {
+
+      if (!res.ok || payload.fallbackRecommended || !payload.answer) {
         setMessages((prev) => [
           ...prev,
           {
             id: nextMsgId('c'),
             sender: 'copilot',
-            text: payload.error ?? 'Unable to generate a response from Dhiyu right now.',
-            citations: ['Status: Unavailable'],
+            text: SAFE_DHIYU_UNAVAILABLE_MESSAGE,
+            citations: ['Status: Temporary Service Notice'],
             blocked: true,
           },
         ])
@@ -332,8 +393,8 @@ export default function FleetCopilotDrawer({
         {
           id: nextMsgId('c'),
           sender: 'copilot',
-          text: 'Network error reaching the Dhiyu backend service. Please try again.',
-          citations: ['Status: Network Error'],
+          text: SAFE_DHIYU_UNAVAILABLE_MESSAGE,
+          citations: ['Status: Temporary Service Notice'],
           blocked: true,
         },
       ])
@@ -349,125 +410,223 @@ export default function FleetCopilotDrawer({
       aria-modal="true"
       aria-label="Dhiyu Fleet Management AI"
     >
-      <div className="w-full max-w-md bg-[#FFFFFF] border-l border-[#E5E5E5] h-full flex flex-col shadow-elevated">
-        <div className="px-5 py-3.5 bg-[#EEE8F7] border-b border-[#DDD3ED] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <DhiyuLogo size="sm" className="shadow-subtle" />
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-[#625346] leading-tight">Dhiyu</h2>
-              <p className="text-[11px] text-[#958777] flex items-center gap-1 truncate">
-                <ShieldCheck className="w-3 h-3 text-[#6E5696] shrink-0" />
-                <span className="truncate">Fleet Management AI · {activeOrganization.name}</span>
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
+      <div
+        className={`w-full ${
+          expanded ? 'max-w-2xl' : 'max-w-[490px]'
+        } bg-[#FFFFFF] border-l border-[#E5E5E5] h-full flex flex-col shadow-elevated transition-[max-width] duration-200`}
+      >
+        <header className="h-14 px-4 border-b border-[#E5E5E5] bg-[#FFFFFF] flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={resetChat}
               disabled={isLoading}
-              title="Reset Dhiyu conversation"
-              aria-label="Reset conversation"
-              className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#E2D8F3] disabled:opacity-50"
+              title="New Dhiyu chat"
+              aria-label="New conversation"
+              className="p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7] disabled:opacity-50 transition-colors"
             >
-              <RotateCcw className="w-4 h-4" />
+              <SquarePen className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <DhiyuLogo size="sm" />
+              <span className="text-xs font-medium text-[#958777] truncate hidden sm:inline">
+                · {activeOrganization.name}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              title={expanded ? 'Compact panel' : 'Expand panel'}
+              aria-label={expanded ? 'Collapse Dhiyu AI panel' : 'Expand Dhiyu AI panel'}
+              className="p-2 rounded-[10px] text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors"
+            >
+              {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close Dhiyu AI"
-              className="p-1.5 rounded-lg text-[#958777] hover:text-[#625346] hover:bg-[#E2D8F3]"
+              className="p-2 rounded-[10px] text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7] transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
-        </div>
+        </header>
 
-        <div className="px-5 py-2 bg-[#FFFFFF] border-b border-[#E5E5E5] flex items-center gap-2 text-[11px] text-[#958777]">
-          <span className="font-semibold text-[#625346] tabular-nums">
-            {activeVehicleCount} vehicles
-          </span>
-          <span aria-hidden="true">·</span>
-          <span className="font-semibold text-[#625346] tabular-nums">
-            {openPredictionsCount} open alerts
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>Fleet-Only Scope</span>
-        </div>
+        <div className="flex-1 overflow-y-auto scrollbar-custom bg-[#FFFFFF]">
+          {messages.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center px-6 py-8">
+              <div className="w-full max-w-md space-y-6 text-center">
+                <div className="flex flex-col items-center space-y-2.5">
+                  <DhiyuLogo size="lg" />
+                  <h2 className="text-xl font-bold text-[#625346] tracking-tight">
+                    How can I help with your fleet today?
+                  </h2>
+                  <p className="text-xs text-[#958777] flex items-center justify-center gap-1.5 flex-wrap">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#6E5696] shrink-0" />
+                    <span className="tabular-nums font-medium text-[#625346]">
+                      {activeVehicleCount} vehicles
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span className="tabular-nums font-medium text-[#625346]">
+                      {openPredictionsCount} open wear signals
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <span>Private Owner Fleet Intelligence</span>
+                  </p>
+                </div>
 
-        <div className="px-4 py-2.5 bg-[#FAFAFA] border-b border-[#E5E5E5] flex flex-wrap gap-1.5">
-          {SAMPLE_PROMPTS.map((sample) => (
-            <button
-              key={sample}
-              type="button"
-              disabled={isLoading}
-              onClick={() => void runPrompt(sample)}
-              className="text-[11px] font-medium px-2.5 py-1 rounded-[8px] bg-[#FFFFFF] border border-[#E5E5E5] text-[#625346] hover:bg-[#EEE8F7] hover:border-[#B8A3D9] text-left disabled:opacity-50"
-            >
-              <Sparkles className="w-3 h-3 inline mr-1 text-[#6E5696]" />
-              {sample}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-custom bg-[#FFFFFF]">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`rounded-xl p-3.5 text-xs leading-relaxed border ${
-                m.sender === 'user'
-                  ? 'ml-8 bg-[#EEE8F7] border-[#B8A3D9] text-[#625346]'
-                  : m.blocked
-                    ? 'mr-6 bg-[#FCECEB] border-[#E7A8A0] text-[#625346]'
-                    : 'mr-6 bg-[#FAFAFA] border-[#E5E5E5] text-[#625346]'
-              }`}
-            >
-              <FormattedCopilotText text={m.text} />
-              {m.citations && m.citations.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-[#E5E5E5] flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-medium text-[#958777]">
-                  {m.citations.map((c, idx) => (
-                    <React.Fragment key={c}>
-                      {idx > 0 && <span aria-hidden="true">·</span>}
-                      <span>{c}</span>
-                    </React.Fragment>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left">
+                  {STARTER_CARDS.map((card) => (
+                    <button
+                      key={card.title}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => void runPrompt(card.prompt)}
+                      className="p-3.5 rounded-2xl border border-[#E5E5E5] bg-[#FFFFFF] hover:bg-[#FAFAFA] hover:border-[#B8A3D9] transition-colors space-y-1 text-left group disabled:opacity-50"
+                    >
+                      <span className="text-xs font-semibold text-[#625346] flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-[#6E5696] shrink-0" />
+                        <span className="line-clamp-1">{card.title}</span>
+                      </span>
+                      <span className="text-[11.5px] text-[#958777] line-clamp-2 block leading-snug">
+                        {card.prompt}
+                      </span>
+                    </button>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
-          ))}
-          {isLoading && (
-            <div className="mr-6 rounded-xl p-3.5 text-xs border bg-[#FAFAFA] border-[#E5E5E5] text-[#958777] flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6E5696]" />
-              <span>Dhiyu is analyzing fleet telemetry & maintenance windows...</span>
+          ) : (
+            <div className="max-w-xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+              {messages.map((m) =>
+                m.sender === 'user' ? (
+                  <div key={m.id} className="flex justify-end">
+                    <div className="max-w-[82%] rounded-3xl px-4 py-2.5 bg-[#EEE8F7] text-[#625346] text-[13.5px] leading-relaxed">
+                      {m.text}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={m.id} className="flex items-start gap-3.5 group">
+                    <DhiyuAvatarMark className="mt-0.5" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div
+                        className={
+                          m.blocked
+                            ? 'rounded-2xl bg-[#FDF3E7]/85 border border-[#E8C290] px-3.5 py-2.5'
+                            : ''
+                        }
+                      >
+                        <FormattedCopilotText text={m.text} />
+                      </div>
+                      <div className="flex items-center justify-between gap-2 text-[11px] text-[#958777]">
+                        {m.citations && m.citations.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCitations((prev) => ({ ...prev, [m.id]: !prev[m.id] }))
+                            }
+                            className="inline-flex items-center gap-1 hover:text-[#625346] font-medium"
+                          >
+                            {expandedCitations[m.id] ? (
+                              <ChevronDown className="w-3 h-3" />
+                            ) : (
+                              <ChevronRight className="w-3 h-3" />
+                            )}
+                            <span>{m.citations.length} fleet context source(s)</span>
+                          </button>
+                        ) : (
+                          <span />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => void handleCopy(m.id, m.text)}
+                          aria-label="Copy response"
+                          className="p-1 rounded-md text-[#958777] hover:text-[#625346] hover:bg-[#EEE8F7]/70 transition-colors shrink-0"
+                        >
+                          {copiedId === m.id ? (
+                            <Check className="w-3.5 h-3.5 text-[#4D6E4A]" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                      {expandedCitations[m.id] && m.citations && (
+                        <div className="rounded-xl bg-[#FAFAFA] border border-[#E5E5E5] px-3 py-2 text-[11px] text-[#625346] flex flex-wrap gap-2">
+                          {m.citations.map((c) => (
+                            <span key={c} className="px-2 py-0.5 rounded bg-[#FFFFFF] border border-[#E5E5E5]">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
+
+              {isLoading && (
+                <div className="flex items-start gap-3.5">
+                  <DhiyuAvatarMark className="mt-0.5" />
+                  <div className="flex items-center gap-2 text-[13px] text-[#958777] pt-1">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-[#6E5696]" />
+                    <span>Analyzing fleet telemetry & ERP records...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={streamEndRef} />
             </div>
           )}
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            void runPrompt(query)
-          }}
-          className="p-4 border-t border-[#E5E5E5] bg-[#FAFAFA] flex items-center gap-2"
-        >
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            disabled={isLoading}
-            placeholder="Ask Dhiyu about fleet maintenance, RUL, vehicles, or fuel..."
-            aria-label="Ask Dhiyu Fleet Management AI"
-            className="dm-input flex-1 text-xs"
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !query.trim()}
-            className="btn-accent px-3 py-2 shrink-0 disabled:opacity-50"
-            aria-label="Send question to Dhiyu"
+        <div className="px-4 pb-4 pt-2 bg-[#FFFFFF]">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void runPrompt(query)
+            }}
+            className="max-w-xl mx-auto rounded-3xl border border-[#DDD3ED] bg-[#FAFAFA] focus-within:bg-[#FFFFFF] focus-within:border-[#B8A3D9] focus-within:ring-2 focus-within:ring-[#B8A3D9]/25 px-4 py-2.5 flex items-end gap-2 shadow-subtle transition-all"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          </button>
-        </form>
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void runPrompt(query)
+                }
+              }}
+              disabled={isLoading}
+              placeholder="Message Dhiyu about 5-area health, work orders, parts, or compliance..."
+              aria-label="Ask Dhiyu Fleet Management AI"
+              className="flex-1 bg-transparent resize-none outline-none text-[13.5px] text-[#625346] placeholder:text-[#958777] py-1 max-h-[120px] leading-relaxed"
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !query.trim()}
+              aria-label="Send question to Dhiyu"
+              className="w-8 h-8 rounded-full bg-[#625346] text-[#FFFFFF] hover:bg-[#4E4136] disabled:bg-[#E5E5E5] disabled:text-[#958777] flex items-center justify-center shrink-0 transition-colors"
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowUp className="w-4 h-4" />
+              )}
+            </button>
+          </form>
+          <p className="text-[10.5px] text-[#958777] text-center mt-2">
+            Dhiyu assists strictly with DriveMitra fleet management for {activeOrganization.name}. Personal identifiers are masked before analysis.
+          </p>
+        </div>
       </div>
     </div>
   )

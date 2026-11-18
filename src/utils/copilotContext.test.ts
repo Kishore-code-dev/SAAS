@@ -36,10 +36,13 @@ const samplePred = computeVehicleComponentPrediction({
   nowMs: FIXED_NOW_MS,
 })
 
-test('FLEET_MAINTENANCE_KNOWLEDGE covers 8 subsystems, RUL windows, and cost-of-delay concept', () => {
-  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Engine Oil & Thermal System'))
-  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Brake Pads & Rotor Wear'))
-  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Cost-of-Delay Economic Model'))
+test('FLEET_MAINTENANCE_KNOWLEDGE covers 5 intelligence health areas and RUL triage windows', () => {
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Five Intelligence Health Areas'))
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Fuel Health'))
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Engine Health'))
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Tyre Health'))
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Driver Health'))
+  assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Vehicle Health'))
   assert.ok(FLEET_MAINTENANCE_KNOWLEDGE.includes('Remaining Useful Life'))
 })
 
@@ -74,7 +77,7 @@ test('buildCopilotFleetContext includes active org maintenance predictions and e
   assert.ok('financialAccessNote' in maintCtx)
 })
 
-test('buildMaintenanceSystemInstruction embeds Dhiyu identity, maintenance concept, and fleet citations', () => {
+test('buildMaintenanceSystemInstruction embeds Dhiyu identity, 5-area maintenance concept, and fleet citations', () => {
   const { systemInstruction, citations } = buildMaintenanceSystemInstruction({
     activeOrganization: ORG_KAVERI,
     activeRole: 'fleet_manager',
@@ -88,7 +91,7 @@ test('buildMaintenanceSystemInstruction embeds Dhiyu identity, maintenance conce
   })
   assert.ok(systemInstruction.includes('You are Dhiyu'))
   assert.ok(systemInstruction.includes('STRICT FLEET-ONLY BOUNDARY'))
-  assert.ok(systemInstruction.includes('DRIVEMITRA FLEET MAINTENANCE DOMAIN KNOWLEDGE'))
+  assert.ok(systemInstruction.includes('DRIVEMITRA FLEET MANAGEMENT DOMAIN KNOWLEDGE'))
   assert.ok(systemInstruction.includes(SAMPLE_VEHICLE_ICE.registrationNumber))
   assert.ok(citations.some((c) => c.includes('Dhiyu Fleet AI')))
 })

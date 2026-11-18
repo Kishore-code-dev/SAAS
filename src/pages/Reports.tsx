@@ -1,11 +1,49 @@
 import React, { useState } from 'react'
-import { Download, Printer } from 'lucide-react'
+import { Download, FileSpreadsheet, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { REPORT_CATEGORIES } from '../data/seedOrganizations'
 import { useFleet } from '../hooks/useFleet'
 import { generateCsvContent } from '../utils/intelligenceEngine'
 import { canPerformAction } from '../utils/rbac'
 import { formatDateTime, formatInr } from '../components/ui/EnterprisePrimitives'
+
+function escapeXml(value: string | number): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function buildExcelSpreadsheetXml(
+  sheetName: string,
+  headers: string[],
+  rows: Array<Array<string | number>>,
+): string {
+  const safeSheet = escapeXml(sheetName.replace(/[\\/?*[\]:]/g, '').slice(0, 30) || 'Report')
+  const headerXml = `<Row>${headers.map((h) => `<Cell><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`).join('')}</Row>`
+  const rowsXml = rows
+    .map(
+      (r) =>
+        `<Row>${r
+          .map((cell) => {
+            const isNum = typeof cell === 'number' && Number.isFinite(cell)
+            return `<Cell><Data ss:Type="${isNum ? 'Number' : 'String'}">${escapeXml(cell)}</Data></Cell>`
+          })
+          .join('')}</Row>`,
+    )
+    .join('')
+
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+  <Worksheet ss:Name="${safeSheet}">
+    <Table>${headerXml}${rowsXml}</Table>
+  </Worksheet>
+</Workbook>`
+}
 
 export default function Reports() {
   const {
@@ -17,6 +55,7 @@ export default function Reports() {
     trips,
     fuelTransactions,
     maintenanceRecords,
+    workOrders,
     predictions,
     riskAssessments,
     financialSummary,
@@ -36,12 +75,13 @@ export default function Reports() {
     switch (categoryId) {
       case 'predictive_maintenance':
         return {
-          headers: ['Vehicle', 'Component', 'Priority', 'Issue', 'Est Window Days', 'Confidence', 'Repair Cost (INR)', 'Delay Cost (INR)', 'Est Savings (INR)', 'Status'],
+          headers: ['Vehicle', 'Component', '5-Area Scope', 'Priority', 'Issue', 'Est Window Days', 'Confidence', 'Repair Cost (INR)', 'Delay Cost (INR)', 'Est Savings (INR)', 'Status'],
           rows: filterVeh(predictions).map((p) => {
             const v = vehicles.find((x) => x.id === p.vehicleId)
             return [
               v?.registrationNumber ?? p.vehicleId,
               p.componentName,
+              p.healthArea ?? 'Vehicle Health',
               p.insufficientData ? 'insufficient_data' : p.priority,
               p.predictedIssue,
               p.insufficientData ? 'N/A' : `${p.earliestWindowDays}-${p.latestWindowDays}`,
@@ -55,10 +95,20 @@ export default function Reports() {
         }
       case 'driver_safety':
         return {
-          headers: ['Driver', 'License', 'Assigned Vehicle', 'Safety Score', 'Total Trips', 'Total Distance (km)', 'Status'],
+          headers: ['Driver', 'DL Number', 'DL Classes', 'DL Expiry', 'Assigned Vehicle', 'Safety Score', 'Total Trips', 'Total Distance (km)', 'Operational Status'],
           rows: drivers.map((d) => {
             const v = vehicles.find((x) => x.id === d.assignedVehicleId)
-            return [d.name, d.licenseNumber, v?.registrationNumber ?? 'Unassigned', d.safetyScore, d.totalTrips, d.totalDistanceKm, d.status]
+            return [
+              d.name,
+              d.licenseNumber,
+              (d.licenseCategories ?? ['TRANS']).join(', '),
+              d.licenseExpiry,
+              v?.registrationNumber ?? 'Unassigned',
+              d.safetyScore,
+              d.totalTrips,
+              d.totalDistanceKm,
+              d.operationalStatus,
+            ]
           }),
         }
       case 'trip_operations':
@@ -104,11 +154,17 @@ export default function Reports() {
         }
       case 'service_history':
         return {
-          headers: ['Vehicle', 'Service Type', 'Component', 'Service Center', 'Cost (INR)', 'Status', 'Date'],
-          rows: filterVeh(maintenanceRecords).map((m) => {
-            const v = vehicles.find((x) => x.id === m.vehicleId)
-            return [v?.registrationNumber ?? m.vehicleId, m.serviceType, m.componentName, m.serviceCenter, m.costInr, m.status, m.performedAt]
-          }),
+          headers: ['Vehicle', 'Record / WO #', 'Component / Summary', 'Workshop / Center', 'Cost (INR)', 'Status', 'Date'],
+          rows: [
+            ...filterVeh(maintenanceRecords).map((m) => {
+              const v = vehicles.find((x) => x.id === m.vehicleId)
+              return [v?.registrationNumber ?? m.vehicleId, m.serviceType, m.componentName, m.serviceCenter, m.costInr, m.status, m.performedAt]
+            }),
+            ...filterVeh(workOrders).map((wo) => {
+              const v = vehicles.find((x) => x.id === wo.vehicleId)
+              return [v?.registrationNumber ?? wo.vehicleId, wo.workOrderNumber, wo.title, wo.workshopName || 'Internal Bay', wo.totalCostInr, wo.status, wo.createdAt]
+            }),
+          ],
         }
       case 'fleet_utilization':
       default:
@@ -152,7 +208,32 @@ export default function Reports() {
       format: 'CSV',
       rowCount: rows.length,
     })
-    toast.success(`Downloaded ${title} (${rows.length} rows).`)
+    toast.success(`Downloaded CSV: ${title} (${rows.length} rows).`)
+  }
+
+  const handleDownloadXlsx = (categoryId: string, title: string) => {
+    if (!canExport) {
+      toast.error('Your current role does not allow report exports.')
+      return
+    }
+    const { headers, rows } = buildReportRows(categoryId)
+    const xml = buildExcelSpreadsheetXml(title, headers, rows)
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${activeOrganization.code.toLowerCase()}-${categoryId}-${reportingPeriod}.xls`
+    a.click()
+    URL.revokeObjectURL(url)
+    recordReportGeneration({
+      categoryId,
+      title,
+      period: reportingPeriod,
+      generatedBy: activeRole.replace('_', ' '),
+      format: 'XLSX',
+      rowCount: rows.length,
+    })
+    toast.success(`Downloaded Excel workbook: ${title} (${rows.length} rows).`)
   }
 
   const handlePrintPdf = () => {
@@ -177,11 +258,11 @@ export default function Reports() {
         <div>
           <h1 className="dm-page-title">Reports & Exports</h1>
           <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · 8 standardized CSV & printable executive report categories
+            {activeOrganization.name} · 8 standardized CSV, Excel, & printable executive report categories
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <label htmlFor="report-veh-filter" className="sr-only">Filter by vehicle</label>
           <select
             id="report-veh-filter"
@@ -203,6 +284,14 @@ export default function Reports() {
               >
                 <Download className="w-3.5 h-3.5" />
                 Download CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDownloadXlsx(activeCategory.id, activeCategory.title)}
+                className="btn-secondary text-xs"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-[#4D6E4A]" />
+                Export Excel
               </button>
               <button type="button" onClick={handlePrintPdf} className="btn-secondary text-xs">
                 <Printer className="w-3.5 h-3.5" />

@@ -23,8 +23,12 @@ export const ORG_KAVERI: Organization = {
   planId: 'growth',
   vehicleLimit: 60,
   driverLimit: 90,
+  status: 'active',
+  paymentStatus: 'paid',
+  subscriptionStartDate: '2025-01-10',
+  subscriptionExpiryDate: '2027-01-10',
   createdAt: '2025-01-10T08:00:00.000Z',
-  environment: 'demo',
+  environment: 'production',
 }
 
 export const ORG_COROMANDEL: Organization = {
@@ -38,8 +42,12 @@ export const ORG_COROMANDEL: Organization = {
   planId: 'enterprise',
   vehicleLimit: 250,
   driverLimit: 400,
+  status: 'active',
+  paymentStatus: 'paid',
+  subscriptionStartDate: '2025-03-14',
+  subscriptionExpiryDate: '2027-03-14',
   createdAt: '2025-03-14T08:00:00.000Z',
-  environment: 'demo',
+  environment: 'production',
 }
 
 export const SAMPLE_CORRIDOR_MADURAI: RegionalCorridor = {
@@ -55,7 +63,7 @@ export const SAMPLE_CORRIDOR_MADURAI: RegionalCorridor = {
 export const SAMPLE_VEHICLE_ICE: Vehicle = {
   id: 'veh-kav-1',
   organizationId: ORG_KAVERI.id,
-  environment: 'demo',
+  environment: 'production',
   registrationNumber: 'TN 58 AB 4321',
   make: 'Ashok Leyland',
   model: 'Dost Strong',
@@ -147,13 +155,16 @@ export const SAMPLE_VEHICLE_EV: Vehicle = {
 export const SAMPLE_DRIVER_KAVERI: Driver = {
   id: 'drv-kav-1',
   organizationId: ORG_KAVERI.id,
-  environment: 'demo',
+  environment: 'production',
   name: 'Selvam P',
   mobile: '+91 98401 11223',
   email: 'selvam@kaveri.in',
   licenseNumber: 'TN58-2019-004128',
+  licenseCategories: ['TRANS', 'HGMV'],
+  licenseIssuingRto: 'TN-58 Madurai South',
   licenseExpiry: '2028-09-10',
   assignedVehicleId: SAMPLE_VEHICLE_ICE.id,
+  operationalStatus: 'active',
   status: 'on_trip',
   safetyScore: 76,
   speedingScore: 78,
@@ -208,7 +219,7 @@ export const SAMPLE_INSPECTIONS: VehicleInspection[] = [
   {
     id: 'insp-1',
     organizationId: ORG_KAVERI.id,
-    environment: 'demo',
+    environment: 'production',
     vehicleId: SAMPLE_VEHICLE_ICE.id,
     driverId: SAMPLE_DRIVER_KAVERI.id,
     timestamp: new Date(FIXED_NOW_MS - 86_400_000).toISOString(),
@@ -226,7 +237,7 @@ export const SAMPLE_FUEL_TXS: FuelTransaction[] = [
   {
     id: 'f-ice-1',
     organizationId: ORG_KAVERI.id,
-    environment: 'demo',
+    environment: 'production',
     vehicleId: SAMPLE_VEHICLE_ICE.id,
     driverId: SAMPLE_DRIVER_KAVERI.id,
     amountInr: 4000,
@@ -237,14 +248,14 @@ export const SAMPLE_FUEL_TXS: FuelTransaction[] = [
     location: { lat: 9.92, lng: 78.12 },
     timestamp: '2026-06-15T06:00:00.000Z',
     paymentMethod: 'upi',
-    entrySource: 'manual_driver_entry',
+    entrySource: 'owner_entry',
     verificationStatus: 'verified',
     anomalyFlags: [],
   },
   {
     id: 'f-ice-dup',
     organizationId: ORG_KAVERI.id,
-    environment: 'demo',
+    environment: 'production',
     vehicleId: SAMPLE_VEHICLE_ICE.id,
     driverId: SAMPLE_DRIVER_KAVERI.id,
     amountInr: 4000,
@@ -255,7 +266,7 @@ export const SAMPLE_FUEL_TXS: FuelTransaction[] = [
     location: { lat: 9.92, lng: 78.12 },
     timestamp: '2026-06-15T06:30:00.000Z',
     paymentMethod: 'upi',
-    entrySource: 'manual_driver_entry',
+    entrySource: 'owner_entry',
     verificationStatus: 'pending',
     anomalyFlags: [],
   },
@@ -265,7 +276,7 @@ export const SAMPLE_MAINTENANCE: MaintenanceRecord[] = [
   {
     id: 'm-1',
     organizationId: ORG_KAVERI.id,
-    environment: 'demo',
+    environment: 'production',
     vehicleId: SAMPLE_VEHICLE_ICE.id,
     serviceType: 'Scheduled',
     componentName: 'Engine',
@@ -283,7 +294,7 @@ export const SAMPLE_TRIPS: Trip[] = [
   {
     id: 'trp-1',
     organizationId: ORG_KAVERI.id,
-    environment: 'demo',
+    environment: 'production',
     vehicleId: SAMPLE_VEHICLE_ICE.id,
     driverId: SAMPLE_DRIVER_KAVERI.id,
     originAddress: 'Madurai Mattuthavani',
