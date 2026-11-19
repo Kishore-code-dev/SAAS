@@ -1,118 +1,143 @@
-import React from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  AlertTriangle,
-  BarChart3,
-  ClipboardCheck,
-  Compass,
-  Cpu,
-  CreditCard,
-  FileSpreadsheet,
-  Fuel,
-  Layers,
-  LayoutDashboard,
-  LogOut,
-  MapPin,
-  Navigation,
-  Package,
-  Settings,
-  ShieldAlert,
-  ShieldCheck,
-  Users,
-  Wrench,
-  X,
-} from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
 import { useAuth } from '../../hooks/useAuth'
 import { canAccessRoute } from '../../utils/rbac'
 import { BrandLogo } from '../ui/BrandLogo'
 import { useTranslation } from '../../i18n/useTranslation'
+import { FOOTER_NAV, MAIN_NAV, type BadgeKey, type NavEntry, type NavLeaf } from '../../config/nav.config'
 
-interface NavItem {
-  to: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  end?: boolean
-  badge?: number
+const OPEN_KEY = 'dm.nav.open'
+const COLLAPSED_KEY = 'dm.nav.collapsed'
+
+function load<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+function save(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    /* storage unavailable */
+  }
 }
 
-export default function Sidebar({
-  open,
-  onClose,
-}: {
-  open: boolean
-  onClose: () => void
-}) {
+function Badge({ value, active }: { value?: number; active?: boolean }) {
+  if (!value) return null
+  return (
+    <span
+      className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-[6px] border bg-white ${
+        active ? 'text-[#6E5696] border-[#B8A3D9]' : 'text-[#625346] border-[#DDD3ED]'
+      }`}
+    >
+      {value}
+    </span>
+  )
+}
+
+const rowBase =
+  'flex items-center gap-2.5 rounded-[10px] text-[13.5px] transition-colors whitespace-nowrap border'
+const rowActive = 'bg-[#E1D7F2] text-[#6E5696] font-semibold border-[#B8A3D9] shadow-subtle'
+const rowIdle = 'text-[#625346] font-medium border-transparent hover:bg-white/70'
+
+export default function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { unreadAlertCount, predictions, riskAssessments, workOrders, activeRole } = useFleet()
   const { signOut } = useAuth()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
 
-  const criticalMaintCount = predictions.filter(
-    (p) => !p.insufficientData && p.status !== 'resolved' && (p.priority === 'critical' || p.priority === 'high'),
-  ).length
-  const elevatedRiskCount = riskAssessments.filter(
-    (r) => r.severity === 'critical' || r.severity === 'high',
-  ).length
-  const openWoCount = workOrders.filter((w) => w.status !== 'completed' && w.status !== 'closed').length
+  const [collapsed, setCollapsed] = useState<boolean>(() => load(COLLAPSED_KEY, false))
+  const [openGroups, setOpenGroups] = useState<string[]>(() => load(OPEN_KEY, []))
 
-  const groups: { title: string; items: NavItem[] }[] = [
-    {
-      title: 'Operations',
-      items: [
-        { to: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, end: true },
-        { to: '/dashboard/map', label: t('nav.map'), icon: MapPin },
-        { to: '/dashboard/fleet', label: t('nav.fleet'), icon: Layers },
-        { to: '/dashboard/trips', label: t('nav.trips'), icon: Navigation },
-      ],
-    },
-    {
-      title: 'Maintenance & ERP',
-      items: [
-        { to: '/dashboard/maintenance', label: t('nav.maintenance'), icon: Cpu, badge: criticalMaintCount || undefined },
-        { to: '/dashboard/inspections', label: t('nav.inspections'), icon: ClipboardCheck },
-        { to: '/dashboard/work-orders', label: t('nav.work_orders'), icon: Wrench, badge: openWoCount || undefined },
-        { to: '/dashboard/inventory', label: t('nav.inventory'), icon: Package },
-        { to: '/dashboard/workshops', label: t('nav.workshops'), icon: ShieldCheck },
-      ],
-    },
-    {
-      title: 'Intelligence',
-      items: [
-        { to: '/dashboard/risk', label: t('nav.risk'), icon: ShieldAlert, badge: elevatedRiskCount || undefined },
-        { to: '/dashboard/drivers', label: t('nav.drivers'), icon: Users },
-        { to: '/dashboard/roads', label: t('nav.road_intel'), icon: Compass },
-      ],
-    },
-    {
-      title: 'Finance & Reporting',
-      items: [
-        { to: '/dashboard/fuel', label: t('nav.fuel'), icon: Fuel },
-        { to: '/dashboard/financials', label: t('nav.financials'), icon: BarChart3 },
-        { to: '/dashboard/reports', label: t('nav.reports'), icon: FileSpreadsheet },
-        { to: '/dashboard/alerts', label: t('nav.alerts'), icon: AlertTriangle, badge: unreadAlertCount || undefined },
-      ],
-    },
-    {
-      title: 'Platform',
-      items: [
-        { to: '/dashboard/admin', label: t('nav.admin'), icon: ShieldCheck },
-        { to: '/dashboard/subscription', label: t('nav.subscription'), icon: CreditCard },
-        { to: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
-      ],
-    },
-  ]
+  const badges: Record<BadgeKey, number> = {
+    maintenance: predictions.filter(
+      (p) => !p.insufficientData && p.status !== 'resolved' && (p.priority === 'critical' || p.priority === 'high'),
+    ).length,
+    risk: riskAssessments.filter((r) => r.severity === 'critical' || r.severity === 'high').length,
+    workOrders: workOrders.filter((w) => w.status !== 'completed' && w.status !== 'closed').length,
+    alerts: unreadAlertCount,
+  }
 
-  const visibleGroups = groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter((item) => canAccessRoute(activeRole, item.to)),
-    }))
-    .filter((group) => group.items.length > 0)
+  const allowed = (to: string) => canAccessRoute(activeRole, to)
+  const entries = MAIN_NAV.map((e) =>
+    e.children ? { ...e, children: e.children.filter((c) => allowed(c.to)) } : e,
+  ).filter((e) => (e.children ? e.children.length > 0 : e.to && allowed(e.to)))
+  const footer = FOOTER_NAV.filter((f) => allowed(f.to))
+
+  const isInside = (e: NavEntry) =>
+    !!e.children?.some((c) => pathname === c.to || pathname.startsWith(`${c.to}/`))
+
+  // Auto-open the group that holds the active route
+  useEffect(() => {
+    const active = entries.find(isInside)
+    if (active && !openGroups.includes(active.id)) {
+      setOpenGroups((prev) => {
+        const next = [...prev, active.id]
+        save(OPEN_KEY, next)
+        return next
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
+
+  const toggleGroup = (id: string) =>
+    setOpenGroups((prev) => {
+      const next = prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
+      save(OPEN_KEY, next)
+      return next
+    })
+
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      save(COLLAPSED_KEY, !c)
+      return !c
+    })
 
   const handleSignOut = async () => {
     await signOut()
     navigate('/auth', { replace: true })
+  }
+
+  // Rail mode only applies on desktop; the mobile drawer is always full width
+  const rail = collapsed
+
+  const renderLeaf = (leaf: NavLeaf | NavEntry, opts: { child?: boolean } = {}) => {
+    const to = leaf.to as string
+    const Icon = leaf.icon
+    const label = t((leaf as NavLeaf).labelKey ?? '')
+    const badge = (leaf as NavLeaf).badge ? badges[(leaf as NavLeaf).badge as BadgeKey] : 0
+    return (
+      <NavLink
+        key={to}
+        to={to}
+        end={(leaf as NavEntry).end}
+        onClick={onClose}
+        title={rail ? label : undefined}
+        className={({ isActive }) =>
+          `${rowBase} ${opts.child ? 'px-2.5 py-1.5 text-[13px]' : 'px-2.5 py-2'} ${
+            rail && !opts.child ? 'lg:justify-center' : 'justify-between'
+          } ${isActive ? rowActive : rowIdle}`
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <span className="flex items-center gap-2.5 min-w-0">
+              {Icon && <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#6E5696]' : 'text-[#958777]'}`} />}
+              <span className={`truncate ${rail && !opts.child ? 'lg:hidden' : ''}`}>{label}</span>
+            </span>
+            <span className={rail && !opts.child ? 'lg:hidden' : ''}>
+              <Badge value={badge} active={isActive} />
+            </span>
+          </>
+        )}
+      </NavLink>
+    )
   }
 
   return (
@@ -126,25 +151,21 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-[268px] bg-[#EEE8F7] border-r border-[#DDD3ED] flex flex-col transition-transform duration-200 lg:static lg:translate-x-0 shrink-0 ${
-          open ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-[268px] bg-[#EEE8F7] border-r border-[#DDD3ED] flex flex-col transition-all duration-200 lg:static lg:translate-x-0 shrink-0 ${
+          rail ? 'lg:w-[72px]' : 'lg:w-[268px]'
+        } ${open ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        <div className="h-16 px-5 border-b border-[#DDD3ED] flex items-center justify-between shrink-0">
+        <div className="h-16 px-4 border-b border-[#DDD3ED] flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={() => navigate('/dashboard')}
             aria-label="DriveMitra Command Centre"
-            className="flex items-center gap-2.5 text-left"
+            className="flex items-center gap-2.5 text-left min-w-0"
           >
             <BrandLogo size="md" />
-            <div>
-              <span className="text-xs font-bold text-[#4D6E4A] block leading-tight">
-                Production
-              </span>
-              <span className="text-[11px] text-[#958777] font-medium block">
-                Owner ERP
-              </span>
+            <div className={rail ? 'lg:hidden' : ''}>
+              <span className="text-xs font-bold text-[#4D6E4A] block leading-tight">Production</span>
+              <span className="text-[11px] text-[#958777] font-medium block">Owner ERP</span>
             </div>
           </button>
           <button
@@ -155,66 +176,90 @@ export default function Sidebar({
           >
             <X className="w-4 h-4" />
           </button>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={`hidden lg:inline-flex p-1.5 rounded-lg text-[#958777] hover:bg-[#E2D8F3] ${rail ? 'lg:hidden' : ''}`}
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto scrollbar-custom px-3 py-4 space-y-5" aria-label="Dashboard navigation">
-          {visibleGroups.map((group) => (
-            <div key={group.title}>
-              <p className="px-2.5 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#958777]">
-                {group.title}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      onClick={onClose}
-                      className={({ isActive }) =>
-                        `flex items-center justify-between gap-2 px-2.5 py-2 rounded-[10px] text-[13.5px] transition-colors whitespace-nowrap ${
-                          isActive
-                            ? 'bg-[#E1D7F2] text-[#6E5696] font-semibold border border-[#B8A3D9] shadow-subtle'
-                            : 'text-[#625346] font-medium border border-transparent hover:bg-[#FFFFFF]/70'
-                        }`
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <span className="flex items-center gap-2.5 min-w-0">
-                            <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#6E5696]' : 'text-[#958777]'}`} />
-                            <span className="truncate">{item.label}</span>
-                          </span>
-                          {typeof item.badge === 'number' && item.badge > 0 && (
-                            <span
-                              className={`text-xs font-semibold tabular-nums px-1.5 py-0.5 rounded-[6px] border ${
-                                isActive
-                                  ? 'bg-[#FFFFFF] text-[#6E5696] border-[#B8A3D9]'
-                                  : 'bg-[#FFFFFF] text-[#625346] border-[#DDD3ED]'
-                              }`}
-                            >
-                              {item.badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </NavLink>
-                  )
-                })}
+        {rail && (
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Expand sidebar"
+            className="hidden lg:flex mx-auto mt-3 p-1.5 rounded-lg text-[#958777] hover:bg-[#E2D8F3]"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        )}
+
+        <nav className="flex-1 overflow-y-auto scrollbar-custom px-3 py-3 space-y-0.5" aria-label="Dashboard navigation">
+          {entries.map((entry) => {
+            if (!entry.children) return renderLeaf(entry)
+
+            const Icon = entry.icon
+            const expanded = openGroups.includes(entry.id) && !rail
+            const inside = isInside(entry)
+            const panelId = `nav-group-${entry.id}`
+            return (
+              <div key={entry.id}>
+                <button
+                  type="button"
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  title={rail ? entry.label : undefined}
+                  onClick={() => (rail ? navigate(entry.children![0].to) : toggleGroup(entry.id))}
+                  className={`${rowBase} w-full px-2.5 py-2 justify-between border-transparent hover:bg-white/70 ${
+                    inside ? 'text-[#6E5696] font-semibold' : 'text-[#625346] font-medium'
+                  } ${rail ? 'lg:justify-center' : ''}`}
+                >
+                  <span className="flex items-center gap-2.5 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${inside ? 'text-[#6E5696]' : 'text-[#958777]'}`} />
+                    <span className={`truncate ${rail ? 'lg:hidden' : ''}`}>{entry.label}</span>
+                  </span>
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 shrink-0 text-[#958777] transition-transform duration-150 ${
+                      expanded ? 'rotate-180' : ''
+                    } ${rail ? 'lg:hidden' : ''}`}
+                  />
+                </button>
+                <div
+                  id={panelId}
+                  className={`grid transition-[grid-template-rows] duration-150 ease-out ${
+                    expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                  } ${rail ? 'lg:hidden' : ''}`}
+                >
+                  <div className="overflow-hidden">
+                    <div className="ml-[18px] mt-0.5 mb-1 pl-3 border-l border-[#DDD3ED] space-y-0.5">
+                      {entry.children.map((c) => (
+                        <div key={c.to} className={expanded ? '' : 'hidden'}>
+                          {renderLeaf(c, { child: true })}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </nav>
 
-        <div className="p-3 border-t border-[#DDD3ED] shrink-0">
+        <div className="p-3 border-t border-[#DDD3ED] shrink-0 space-y-0.5">
+          {footer.map((f) => renderLeaf(f))}
           <button
             type="button"
             onClick={handleSignOut}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[14px] font-medium text-[#625346] hover:bg-[#FCECEB] transition-colors"
+            title={rail ? 'Sign Out' : undefined}
+            className={`w-full ${rowBase} px-3 py-2 border-transparent hover:bg-[#FCECEB] text-[#625346] font-medium ${
+              rail ? 'lg:justify-center' : ''
+            }`}
           >
             <LogOut className="w-4 h-4 shrink-0 text-[#B84E42]" />
-            <span>Sign Out</span>
+            <span className={rail ? 'lg:hidden' : ''}>Sign Out</span>
           </button>
         </div>
       </aside>
