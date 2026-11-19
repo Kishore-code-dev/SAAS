@@ -1,0 +1,5288 @@
+DRIVEMITRA – UI ALIGNMENT, RESPONSIVE QA, BUG FIXING & AUTHENTICATION TRANSFORMATION
+OBJECTIVE
+Perform a complete UI/UX, responsiveness, functionality and authentication audit of the existing DriveMitra application.
+The objective is to deliver a fully functional, production-ready platform with:
+1.	Correct notification sidebar alignment.
+2.	Correct production text alignment inside its designated container.
+3.	Consistent layouts across desktop, laptop, tablet and mobile.
+4.	Complete bug detection and resolution.
+5.	Campaign-project-style username/password authentication.
+6.	A login area directly on the public DriveMitra landing website.
+7.	Backend-controlled role-based dashboard routing.
+8.	Secure organization-specific sessions and data isolation.
+Do not limit this task to visual improvements. Inspect the complete application and fix actual functional, architectural and responsive issues.
+________________________________________
+PART 1 – UI ALIGNMENT CORRECTIONS
+1. Notification Sidebar Alignment
+Inspect the entire notification sidebar and correct its alignment.
+Check:
+•	Sidebar positioning.
+•	Header alignment.
+•	Notification title alignment.
+•	Close button positioning.
+•	Notification icons.
+•	Notification text.
+•	Timestamps.
+•	Notification badges.
+•	Individual notification cards.
+•	Internal padding and margins.
+•	Vertical and horizontal spacing.
+•	Scrollbar positioning.
+•	Footer alignment, if present.
+Expected behaviour
+•	Notification content must remain properly aligned.
+•	Icons must not overlap text.
+•	Notification titles must not overflow.
+•	Timestamps must remain readable.
+•	Cards must maintain consistent spacing.
+•	The close button must remain accessible.
+•	Scrolling must work independently when necessary.
+•	Opening and closing the sidebar must not shift or distort the underlying dashboard.
+•	The sidebar must remain within the viewport.
+•	On mobile, the notification panel must adapt to the available screen width.
+Check alignment at different viewport sizes and browser zoom levels.
+2. Production Text Alignment Inside Its Box
+Inspect the production-related text element and its containing box.
+Correct:
+•	Horizontal alignment.
+•	Vertical alignment.
+•	Text baseline.
+•	Internal padding.
+•	Line height.
+•	Font size.
+•	Font weight.
+•	Text wrapping.
+•	Container dimensions.
+•	Icon-to-text spacing, if applicable.
+Ensure the production text is visually centered and consistently positioned within its intended container.
+Do not arbitrarily resize or redesign the component. Preserve its existing design intention while correcting the alignment.
+Inspect the actual component and its parent layout to identify the root cause rather than applying random CSS overrides.
+________________________________________
+PART 2 – COMPLETE RESPONSIVE RESPONSIBILITY
+3. Audit Every Page Across All Screen Sizes
+Perform a complete responsive audit of the entire DriveMitra application.
+Do not test only the landing page or dashboard.
+Test every existing production route and major component.
+Required viewport testing
+Use these representative viewport sizes:
+Device	Viewport
+Small mobile	320 × 568
+Standard mobile	375 × 812
+Large mobile	430 × 932
+Tablet portrait	768 × 1024
+Tablet landscape	1024 × 768
+Laptop	1366 × 768
+Desktop	1440 × 900
+Large desktop	1920 × 1080
+Also test intermediate widths to identify breakpoint-related issues.
+Pages to test
+•	Public landing page.
+•	Authentication/login area.
+•	Owner dashboard.
+•	Live Operations map.
+•	Fleet.
+•	Vehicle details.
+•	Drivers.
+•	Driver details.
+•	Driver documents.
+•	Trips.
+•	Maintenance.
+•	Fuel.
+•	Financial Intelligence.
+•	Alerts and Risks.
+•	Reports.
+•	Organization Settings.
+•	Subscription and Billing.
+Responsive requirements
+Mobile
+•	No horizontal page overflow.
+•	Navigation must work correctly.
+•	Sidebar must become an appropriate mobile navigation experience.
+•	Cards must stack properly.
+•	Tables must remain usable through responsive layouts or controlled horizontal scrolling.
+•	Forms must fit the viewport.
+•	Buttons must be accessible.
+•	Modals must remain within the screen.
+•	Notification panels must adapt correctly.
+•	Text must not become clipped or unreadable.
+•	Charts must resize correctly.
+•	Map controls and markers must remain accessible.
+Tablet
+•	Navigation must adapt without overlapping content.
+•	Dashboard columns must resize appropriately.
+•	Tables and charts must remain readable.
+•	Sidebars and modal widths must be appropriate.
+•	Forms must maintain their visual hierarchy.
+Desktop
+•	Preserve the premium enterprise layout.
+•	Maintain appropriate maximum content widths.
+•	Prevent excessive whitespace.
+•	Keep dashboards balanced.
+•	Ensure sidebars, headers and main content align correctly.
+Do not solve mobile issues by simply shrinking desktop components.
+Use responsive layouts designed for each screen size.
+________________________________________
+PART 3 – COMPLETE BUG DETECTION AND FIXING
+4. Perform a Full Application Audit
+Inspect the complete project before making changes.
+Audit:
+•	Frontend components.
+•	React routes.
+•	Authentication.
+•	State management.
+•	API requests.
+•	Supabase connections.
+•	PostgreSQL schema.
+•	Row Level Security.
+•	Supabase Storage.
+•	Forms and validation.
+•	Charts.
+•	Maps.
+•	Notifications.
+•	Responsive styles.
+•	Backend services.
+•	Python AI integration.
+•	Document management.
+•	Organization permissions.
+Identify the root cause of each issue.
+Functional testing
+Verify:
+•	All navigation links work.
+•	All buttons perform their intended actions.
+•	All forms validate correctly.
+•	Create, read, update and archive operations work.
+•	Search works.
+•	Filters work.
+•	Sorting works.
+•	Pagination works.
+•	Notifications open and close correctly.
+•	Modals open and close correctly.
+•	Data refresh works.
+•	Loading states work.
+•	Empty states work.
+•	Error states work.
+•	API failures are handled properly.
+•	Session persistence works.
+•	Logout works.
+•	Protected routes are secure.
+React-specific checks
+Inspect:
+•	Console errors.
+•	React warnings.
+•	Missing keys.
+•	Incorrect state updates.
+•	Unnecessary re-renders.
+•	Memory leaks.
+•	Unhandled promises.
+•	Broken event listeners.
+•	Incorrect effect dependencies.
+•	Failed API requests.
+•	Stale data.
+•	Race conditions.
+CSS checks
+Inspect:
+•	Conflicting media queries.
+•	Duplicate CSS declarations.
+•	Incorrect positioning.
+•	Unexpected fixed heights.
+•	Overflow issues.
+•	Incorrect z-index values.
+•	Broken flexbox layouts.
+•	Broken grid layouts.
+•	Inconsistent spacing.
+•	Typography inconsistencies.
+Do not apply temporary visual fixes that create new problems elsewhere.
+________________________________________
+PART 4 – CAMPAIGN-PROJECT-STYLE AUTHENTICATION
+5. Authentication Architecture
+Implement the same authentication philosophy and account-routing approach used in the Campaign project.
+However, DriveMitra must have its own authentication implementation, organization model and permissions.
+Important difference
+The Campaign project uses campaign-specific or temporary access links.
+DriveMitra must NOT use temporary portal links.
+Instead:
+The main DriveMitra landing website must contain a permanent login area for registered fleet organizations and their authorized personnel.
+There must be one common login experience.
+No separate login URLs for individual roles.
+No manual role selection.
+No driver login.
+No pilot login.
+________________________________________
+6. Public Landing Website Login Area
+Keep the public landing page accessible at /.
+Add a clearly visible Login entry in the main website navigation.
+The login experience must be available directly from the landing website.
+It may open as a dedicated login section or a well-designed authentication interface connected to the landing page.
+Login form
+Fields:
+•	Username.
+•	Password.
+Actions:
+•	Sign In.
+•	Show/Hide Password.
+•	Forgot Password.
+Use the existing DriveMitra visual design system.
+The login interface must be responsive and accessible.
+Important public-route behaviour
+The public landing page must always remain accessible.
+Requirements:
+•	Refreshing / must not redirect users automatically to the dashboard.
+•	An authenticated user must still be able to visit the public landing page.
+•	An unauthenticated user must be able to access the landing page.
+•	Authentication guards must apply only to protected routes.
+•	The landing page must never become inaccessible because of a session state.
+________________________________________
+7. Username and Password Account Provisioning
+Follow the Campaign project's account-provisioning philosophy.
+Each organization and authorized management user must receive their own unique login credentials.
+Account creation
+The platform's authorized organization setup process must create:
+•	Organization record.
+•	Owner account.
+•	Unique username.
+•	Secure password or initial credential.
+•	Assigned organization.
+•	Assigned management role.
+•	Account status.
+Additional authorized personnel must receive individually assigned accounts.
+Do not share one username and password among multiple employees.
+Credential delivery
+Provide secure account activation or initial password setup without using temporary portal URLs.
+Where initial passwords are issued, require the user to change them after the first successful login.
+Never store plaintext passwords.
+Store only secure password hashes using an appropriate password-hashing algorithm.
+Do not expose passwords in logs, URLs, API responses or database records.
+________________________________________
+8. Backend-Controlled Authentication and Role Routing
+The backend must authenticate the supplied username and password.
+After successful authentication:
+1.	Identify the authenticated account.
+2.	Retrieve its trusted organization ID.
+3.	Retrieve its assigned role and permissions.
+4.	Validate its account status.
+5.	Create a secure session.
+6.	Return only the permitted account information.
+7.	Redirect the user to the appropriate dashboard.
+Role routing
+Authenticated role	Destination
+Owner	/dashboard
+Fleet Manager	/dashboard
+Maintenance Manager	/dashboard/maintenance
+Finance Manager	/dashboard/fuel or authorized financial overview
+Viewer	/dashboard with read-only permissions
+Platform Administrator	/platform-admin
+The exact dashboard modules available must depend on backend-enforced permissions.
+Do not add a role selector to the login form.
+The user must never be able to select or modify their own role through frontend controls.
+Organization isolation
+Every authenticated management account must be associated with the correct organization.
+All vehicle, driver, document, trip, maintenance and financial queries must respect the authenticated organization.
+Never trust an organization ID supplied only by the frontend.
+________________________________________
+9. Session Management and Protected Routes
+Follow the Campaign project's secure session-management approach.
+Implement:
+•	Server-managed authentication sessions.
+•	HttpOnly cookies.
+•	Secure cookie configuration in production.
+•	SameSite protection.
+•	Appropriate session expiry.
+•	Secure logout.
+•	Session revocation.
+•	Password recovery.
+•	Account status validation.
+•	Authentication error handling.
+Use cryptographically secure session tokens.
+Store only token hashes server-side, following the established secure session pattern.
+Authentication middleware
+Implement equivalent server-side authorization mechanisms:
+•	requireAuth
+•	requireRole
+•	requireOrganization
+•	Permission/category validation where appropriate.
+Frontend route guards must improve navigation but must never replace server-side authorization.
+Refresh behaviour
+After login:
+•	Refreshing a protected route must preserve a valid authenticated session.
+•	The user must remain on the correct authorized route.
+•	Expired sessions must redirect to login.
+•	Logging out must invalidate the session.
+•	Users must not access another organization's information by modifying URLs or API requests.
+________________________________________
+10. Forgot Password and Account Recovery
+Implement a secure password recovery workflow.
+Requirements:
+•	Identify the account through its registered username and associated recovery email.
+•	Send a secure recovery process to the registered email.
+•	Use expiring, single-use recovery tokens.
+•	Never reveal whether an unrelated username or email exists.
+•	Invalidate relevant sessions after a successful password reset where appropriate.
+Do not implement password recovery through insecure URL parameters or manually exposed credentials.
+________________________________________
+PART 5 – AUTHENTICATION SECURITY TESTING
+11. Mandatory Authentication Tests
+Test the following cases:
+1.	Valid username and password.
+2.	Incorrect username.
+3.	Incorrect password.
+4.	Empty username.
+5.	Empty password.
+6.	Disabled account.
+7.	Archived organization.
+8.	Expired session.
+9.	Valid session after refresh.
+10.	Logout and session invalidation.
+11.	Password recovery.
+12.	Unauthorized dashboard access.
+13.	Unauthorized API requests.
+14.	Cross-organization access attempts.
+15.	Role permission violations.
+16.	Direct URL access to restricted modules.
+17.	Session fixation and cookie security.
+18.	Brute-force protection and login rate limiting.
+Ensure that an authenticated user cannot access another organization's data.
+Ensure that users cannot gain elevated privileges by editing frontend state or API parameters.
+________________________________________
+PART 6 – DESIGN CONSISTENCY
+12. Preserve DriveMitra's Design System
+Use the existing luxury bright design system.
+Colours
+•	Butter Cream: #F7F0D9
+•	Pale Lavender: #EEE8F7
+•	Vanilla Cream: #F4EBD5
+•	Lavender Mist: #E5DDF1
+•	Soft Golden Yellow: #E8C65A
+•	Royal Lavender: #B8A3D9
+•	Lemon Sorbet: #F5E8A8
+•	Lilac: #C9B9E5
+•	Soft Sage: #A4B99A
+•	Golden Apricot: #E6B76B
+•	Warm Cocoa: #625346
+Use Plus Jakarta Sans consistently.
+Preserve existing component styles while correcting inconsistencies.
+Do not introduce an unrelated design system.
+________________________________________
+PART 7 – AUTOMATED TESTING
+13. Testing Framework
+Use the project's existing testing infrastructure.
+Where appropriate, implement:
+•	Vitest for unit testing.
+•	React Testing Library for component testing.
+•	Playwright for browser and responsive testing.
+•	API integration tests.
+•	Database and RLS tests.
+•	Python pytest for AI backend tests.
+Automated responsive testing
+Run browser tests at:
+•	320px.
+•	375px.
+•	430px.
+•	768px.
+•	1024px.
+•	1366px.
+•	1440px.
+•	1920px.
+Check:
+•	Horizontal overflow.
+•	Broken alignment.
+•	Clipped content.
+•	Overlapping elements.
+•	Inaccessible buttons.
+•	Incorrect sidebar behaviour.
+•	Modal overflow.
+•	Broken login layout.
+•	Notification alignment.
+Take screenshots during testing to compare layouts and identify regressions.
+________________________________________
+PART 8 – BUG FIXING WORKFLOW
+14. Mandatory Bug Resolution Process
+For every discovered bug:
+1.	Identify the affected page or component.
+2.	Reproduce the problem.
+3.	Record the viewport and conditions.
+4.	Identify the root cause.
+5.	Classify severity.
+6.	Implement the fix.
+7.	Run the relevant test.
+8.	Perform regression testing.
+9.	Verify that the fix did not break another module.
+Severity classification
+Severity	Meaning
+P0	Security vulnerability, data loss or complete application failure
+P1	Authentication failure, major broken functionality
+P2	Responsive layout failure or significant functional issue
+P3	Minor visual or usability issue
+Resolve P0 and P1 issues before lower-priority issues.
+Do not ignore bugs simply because the application builds successfully.
+________________________________________
+PART 9 – FINAL ACCEPTANCE CRITERIA
+15. Completion Requirements
+The work is complete only when:
+•	Notification sidebar alignment is corrected.
+•	Production text alignment is corrected.
+•	All pages are tested across required viewports.
+•	Mobile layouts work properly.
+•	Tablet layouts work properly.
+•	Desktop layouts remain consistent.
+•	All identified functional bugs are resolved.
+•	No critical console errors remain.
+•	Login is available from the public landing website.
+•	Username/password authentication works.
+•	Role routing works automatically.
+•	Organization isolation is enforced.
+•	Sessions survive refresh appropriately.
+•	Logout works correctly.
+•	Password recovery works.
+•	Protected routes are secured.
+•	No temporary portal links are required.
+•	No pilot or driver-facing authentication is present.
+•	Existing production modules continue functioning.
+________________________________________
+FINAL DELIVERY REPORT
+After implementation, provide a factual report containing:
+1.	UI alignment issues discovered and corrected.
+2.	Responsive issues discovered and corrected.
+3.	Routes and components tested.
+4.	Bugs identified.
+5.	Bugs fixed.
+6.	Bugs still unresolved.
+7.	Authentication architecture implemented.
+8.	Role routing results.
+9.	Security tests performed.
+10.	Responsive viewport test results.
+11.	Automated test results.
+12.	Remaining production blockers.
+Do not claim that every bug has been fixed without evidence.
+Do not replace actual testing with visual inspection alone.
+Do not rewrite working modules unnecessarily.
+Final objective: Deliver DriveMitra as a polished, secure, fully responsive, production-ready fleet-owner platform with the same unified username/password authentication philosophy as the Campaign project, accessed directly through the permanent login area on its public landing website.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# DRIVEMITRA
+## Complete Production-Only Fleet Intelligence Platform Transformation
+
+### 1. PROJECT OBJECTIVE
+
+Transform DriveMitra into a production-ready, enterprise-grade fleet intelligence SaaS platform exclusively designed for fleet owners and their authorized management personnel.
+
+DriveMitra must help fleet owners manage their entire transportation operation through one centralized platform, including:
+
+- Vehicle monitoring and fleet operations.
+- Live location and route intelligence.
+- Driver management and documentation.
+- Predictive vehicle maintenance.
+- Trip and route analysis.
+- Fuel and expense management.
+- Financial intelligence.
+- Driver performance analysis.
+- Operational risk monitoring.
+- Management reports and business insights.
+
+The platform must be production-focused.
+
+It must not contain pilot functionality, driver-facing applications, driver login portals or unnecessary demonstration workflows.
+
+**Product positioning:**
+
+"DriveMitra — Intelligent Fleet Operations. Predictive Decisions. Measurable Savings."
+
+---
+
+# PART A — PRODUCTION-ONLY PLATFORM
+
+## 2. COMPLETELY REMOVE PILOT FUNCTIONALITY
+
+Remove all pilot-related functionality throughout the application.
+
+Remove:
+- Pilot Mode.
+- Pilot Demo.
+- Pilot OTP authentication.
+- Pilot onboarding.
+- Pilot account creation.
+- Pilot registration.
+- Pilot-specific dashboard states.
+- Pilot-specific routes.
+- Pilot subscription logic.
+- Pilot-specific components.
+- Pilot-related API endpoints where no longer required.
+- Pilot terminology from all UI elements, messages and documentation.
+
+### Authentication transformation
+
+The platform must support genuine production organizations and their authorized management accounts.
+
+Implement:
+- Production organization registration.
+- Secure email/password authentication.
+- Organization-specific authentication.
+- Password recovery.
+- Session management.
+- Role-based access.
+- Organization-level data isolation.
+
+Do not offer demo or pilot authentication as an alternative to production access.
+
+Do not create fake production organizations or fabricate operational data.
+
+---
+
+# PART B — FLEET-OWNER-ONLY ACCESS
+
+## 3. REMOVE THE DRIVER APPLICATION COMPLETELY
+
+DriveMitra is exclusively a management platform.
+
+Remove all driver-facing application functionality.
+
+Remove:
+- `/driver/*` routes.
+- `DriverApp.tsx`.
+- Driver login.
+- Driver registration.
+- Driver authentication.
+- Driver mobile cockpit.
+- Driver-controlled trip starting and ending.
+- Driver-facing fuel entry.
+- Driver-facing maintenance reporting.
+- Driver-facing alerts.
+- Driver-facing service logs.
+- Driver application onboarding.
+- Driver application navigation.
+- Driver-specific authentication permissions.
+
+Remove associated APIs and unused dependencies after checking their relationships with existing production modules.
+
+Do not merely hide these features in the interface. Remove obsolete driver-facing functionality from the application architecture.
+
+### Important distinction
+
+Drivers must remain part of DriveMitra as operational personnel.
+
+Fleet owners must be able to:
+- Create driver records.
+- Maintain personal and professional information.
+- Assign drivers to vehicles.
+- Manage licence and identity documentation.
+- Track document validity.
+- Review trip history.
+- Review driving performance.
+- Monitor operational incidents.
+- Maintain driver assignment history.
+
+Drivers are managed records, not platform users.
+
+**Do not create driver accounts, driver login screens or independent driver access.**
+
+---
+
+## 4. FLEET-OWNER-CENTRIC AUTHORIZATION
+
+Support authorized management personnel within each organization.
+
+Suggested permissions:
+
+| Role | Access |
+|---|---|
+| Owner | Complete organization access |
+| Fleet Manager | Fleet, vehicles, trips and drivers |
+| Maintenance Manager | Vehicle health and maintenance |
+| Finance Manager | Fuel, expenses and financial reports |
+| Viewer | Read-only access to permitted information |
+
+These are permissions within the same owner-facing platform, not separate applications.
+
+Implement permissions through server-side authorization and Supabase RLS.
+
+Never depend exclusively on frontend role checks.
+
+---
+
+# PART C — FLEET OWNER COMMAND CENTRE
+
+## 5. CENTRALIZED OWNER DASHBOARD
+
+Create a comprehensive Fleet Command Centre.
+
+The dashboard must answer the most important business questions:
+
+1. Where are my vehicles?
+2. Which vehicles are currently operating?
+3. Which vehicles require maintenance?
+4. Which drivers are assigned to my vehicles?
+5. Are any licences or documents expiring?
+6. How much is my fleet spending?
+7. Which operational risks require immediate attention?
+8. Where can I reduce operating costs?
+9. What decisions should management take today?
+
+### Fleet overview KPIs
+
+- Total vehicles.
+- Vehicles moving.
+- Idle vehicles.
+- Stopped vehicles.
+- Offline vehicles.
+- Active trips.
+- Vehicles requiring maintenance.
+- Critical alerts.
+
+### Operational intelligence
+
+- Live fleet locations.
+- Active and completed trips.
+- Vehicle utilization.
+- Trip duration.
+- Route deviations where reliable route data is available.
+- Operational delays.
+
+### Vehicle intelligence
+
+- Vehicle health.
+- Component condition.
+- Maintenance predictions.
+- Service history.
+- Vehicle availability.
+
+### Driver intelligence
+
+- Total drivers.
+- Active drivers.
+- Assigned and unassigned drivers.
+- Drivers with valid licences.
+- Expiring licences.
+- Missing documents.
+- Pending document verification.
+- Driver performance trends.
+
+### Financial intelligence
+
+- Fuel expenditure.
+- Maintenance expenditure.
+- Operating cost per kilometre.
+- Vehicle-wise operating expenses.
+- Estimated downtime costs.
+- Potential maintenance savings.
+
+### Decision intelligence
+
+- Critical operational problems.
+- Maintenance priorities.
+- Document renewal priorities.
+- Driver-related operational risks.
+- Financial inefficiencies.
+- Recommended management actions.
+
+Every important KPI must navigate to its corresponding detailed module.
+
+---
+
+# PART D — OWNER-FACING NAVIGATION
+
+## 6. APPLICATION NAVIGATION
+
+Organize the application into the following modules:
+
+1. Overview — Central fleet command centre.
+2. Live Operations — Vehicle positions, routes and active trips.
+3. Fleet — Vehicle inventory and vehicle digital profiles.
+4. Drivers — Driver records, assignments and documentation.
+5. Trips — Trip history and route intelligence.
+6. Maintenance — Predictive maintenance and service history.
+7. Fuel — Fuel transactions and consumption analysis.
+8. Financial Intelligence — Fleet expenditure and financial insights.
+9. Alerts & Risks — Operational and vehicle risk monitoring.
+10. Reports — Fleet and management reports.
+11. Organization Settings — Organization profile, users and permissions.
+12. Subscription & Billing — Production subscription management.
+
+All navigation elements must be functional.
+
+---
+
+# PART E — DRIVER MANAGEMENT AND DOCUMENT VAULT
+
+## 7. COMPLETE DRIVER MANAGEMENT MODULE
+
+Create a dedicated `/dashboard/drivers` module.
+
+Fleet owners must be able to create, view, edit, manage, assign, reassign and archive driver records.
+
+### Driver personal information
+
+- Full name.
+- Driver photograph.
+- Date of birth.
+- Gender (optional).
+- Mobile number.
+- Email address (optional).
+- Residential address.
+- Emergency contact name.
+- Emergency contact number.
+
+### Professional information
+
+- Automatically generated Driver ID.
+- Employee ID (optional).
+- Joining date.
+- Employment type.
+- Driving experience.
+- Driver category.
+- Current assigned vehicle.
+- Employment status.
+
+Employment statuses:
+- Active.
+- Inactive.
+- Suspended.
+- Archived.
+
+### Driver listing interface
+
+Display:
+
+- Driver photograph.
+- Driver name.
+- Driver ID.
+- Mobile number.
+- Assigned vehicle.
+- Employment status.
+- Licence validity.
+- Document completion status.
+- Outstanding document alerts.
+
+Include:
+- Search.
+- Sorting.
+- Pagination.
+- Status filters.
+- Licence expiry filters.
+- Document verification filters.
+
+---
+
+## 8. DRIVING LICENCE MANAGEMENT
+
+Create a dedicated driving licence section inside every driver profile.
+
+### Licence information
+
+- Licence number.
+- Licence holder name.
+- Issuing authority.
+- Licence issue date.
+- Licence expiry date.
+- Licence class/category.
+- Applicable vehicle classes.
+- Document upload.
+- Verification status.
+
+Support Indian driving licence formats and appropriate validation without assuming all licences use an identical format.
+
+### Licence management capabilities
+
+- Upload licence documents.
+- Preview licence documents.
+- Update licence details.
+- Replace outdated documents.
+- Record verification information.
+- Track expiry dates.
+- Generate renewal reminders.
+
+Never automatically treat an uploaded licence as officially verified.
+
+---
+
+## 9. DRIVER DOCUMENT VAULT
+
+Create a secure document-management section inside every driver profile.
+
+### Supported documents
+
+1. Driving Licence.
+2. Aadhaar Card, where necessary and lawfully collected.
+3. PAN Card, where required.
+4. Voter ID.
+5. Passport.
+6. Address Proof.
+7. Employment Agreement.
+8. Medical Fitness Certificate, where applicable.
+9. Other organization-defined documents.
+
+All documents must be optional or mandatory according to the organization's legitimate requirements.
+
+### Document upload formats
+
+- PDF.
+- JPG.
+- JPEG.
+- PNG.
+
+### Document metadata
+
+For every document, maintain:
+
+- Document ID.
+- Document type.
+- Document reference number, where applicable.
+- Issue date.
+- Expiry date.
+- Upload date.
+- Uploaded by.
+- Verification status.
+- Verification method.
+- Verification notes.
+- Secure storage reference.
+
+### Document actions
+
+Authorized personnel must be able to:
+
+- Upload documents.
+- Preview documents.
+- Download documents securely.
+- Replace documents.
+- Update document metadata.
+- Delete documents with appropriate authorization.
+- Review document verification history.
+
+Never expose private documents through public URLs.
+
+Use private Supabase Storage buckets and short-lived signed URLs.
+
+---
+
+## 10. DOCUMENT VERIFICATION SYSTEM
+
+Every document must have a clear status.
+
+Supported statuses:
+
+- Not Uploaded.
+- Pending Review.
+- Verified.
+- Rejected.
+- Expired.
+- Renewal Required.
+
+Verification must happen through:
+
+- Authorized manual review.
+- An approved external verification service.
+- An officially authorized DigiLocker verification response, if integration is approved and supported.
+
+Display:
+- Verification date.
+- Verified by.
+- Verification method.
+- Rejection reason, if applicable.
+- Verification notes.
+
+Uploading a document must never automatically change its status to Verified.
+
+Clearly distinguish manually reviewed documents from officially authenticated digital documents.
+
+---
+
+## 11. DOCUMENT EXPIRY INTELLIGENCE
+
+Implement automatic expiry monitoring.
+
+Suggested reminder intervals:
+
+- 60 days before expiry.
+- 30 days before expiry.
+- 15 days before expiry.
+- 7 days before expiry.
+- On the expiry date.
+
+Allow organization-level configuration of reminder intervals.
+
+### Generate alerts for:
+
+- Expiring driving licences.
+- Expired driving licences.
+- Missing mandatory documents.
+- Pending document verification.
+- Rejected documents.
+- Documents requiring renewal.
+
+Provide filters to identify affected drivers.
+
+Display document-related alerts in:
+- Owner dashboard.
+- Driver listing.
+- Individual driver profile.
+- Alerts and Risks module.
+
+Prevent expired documents from silently appearing as valid.
+
+---
+
+# PART F — DIGILOCKER INTEGRATION
+
+## 12. OPTIONAL OFFICIAL DIGILOCKER CONNECTIVITY
+
+Investigate official DigiLocker integration as an optional capability.
+
+The integration must not be a dependency for launching or operating the production platform.
+
+### First investigate
+
+1. Whether DriveMitra is eligible for official DigiLocker Requester integration.
+2. Registration and organization requirements.
+3. API onboarding and approval requirements.
+4. Commercial usage conditions.
+5. Integration charges, if any.
+6. Document retrieval limitations.
+7. Consent requirements.
+8. Applicable document verification capabilities.
+
+Use only official DigiLocker and APISetu partner documentation.
+
+Do not assume that commercial integration is free merely because DigiLocker is free for individual users.
+
+### If officially approved and commercially viable
+
+Implement:
+
+- Official OAuth-based authorization.
+- Explicit driver consent.
+- Authorized document retrieval.
+- Supported document verification.
+- Secure document references.
+- Verification metadata.
+- Consent revocation handling.
+- Access expiry handling.
+- Audit logging.
+
+### Mandatory restrictions
+
+- Never request or store DigiLocker passwords.
+- Never bypass authorization.
+- Never scrape DigiLocker.
+- Never use unofficial APIs.
+- Never retrieve documents without valid consent.
+- Never claim successful verification without an actual authorized verification response.
+
+### Fallback strategy
+
+If DigiLocker integration is:
+- Not approved.
+- Not commercially viable.
+- Subject to unsuitable charges.
+- Technically unavailable.
+
+Then skip the integration and continue with the secure manual document-upload system.
+
+Keep the architecture modular so DigiLocker can be integrated later without rebuilding the Driver Management module.
+
+---
+
+# PART G — VEHICLE AND DRIVER RELATIONSHIPS
+
+## 13. VEHICLE ASSIGNMENT MANAGEMENT
+
+Connect driver records with the existing Fleet and Vehicle Management modules.
+
+Every driver profile must display:
+
+- Currently assigned vehicle.
+- Vehicle registration number.
+- Vehicle model.
+- Assignment start date.
+- Previous vehicle assignments.
+- Trip history.
+- Relevant operational incidents.
+
+Support:
+- Assigning drivers.
+- Reassigning drivers.
+- Ending assignments.
+- Viewing historical assignments.
+- Tracking assignment changes.
+
+Preserve previous assignment records instead of overwriting them.
+
+Prevent conflicting active assignments according to the organization's assignment rules.
+
+---
+
+# PART H — EXISTING FLEET INTELLIGENCE MODULES
+
+## 14. VEHICLE DIGITAL TWIN
+
+Preserve and improve the existing vehicle management module.
+
+Each vehicle must have:
+
+- Registration number.
+- Manufacturer and model.
+- Vehicle category.
+- ICE/EV classification.
+- Fuel type.
+- Manufacturing year.
+- Assigned driver.
+- Odometer.
+- Registration information.
+- Insurance details.
+- Service history.
+- Maintenance history.
+
+Vehicle profile tabs:
+
+1. Overview.
+2. Telemetry.
+3. Trips.
+4. Driver Assignments.
+5. Components.
+6. Maintenance.
+7. Fuel.
+8. Financials.
+9. Predictions.
+10. Activity History.
+
+Preserve vehicle history and support archiving instead of destructive deletion.
+
+## 15. LIVE OPERATIONS
+
+Improve the live map and fleet monitoring experience.
+
+Include:
+- Vehicle markers.
+- Route visualization.
+- Vehicle clustering.
+- Vehicle search.
+- Status filters.
+- Active trip details.
+- Speed where available.
+- Driver information.
+- Trip duration.
+- Last GPS update.
+- GPS accuracy where available.
+- Telemetry freshness.
+
+Statuses:
+- Moving.
+- Idle.
+- Stopped.
+- Offline.
+- Delayed.
+
+Never label stale vehicle coordinates as LIVE.
+
+Display the actual last received timestamp and connection status.
+
+Use a real map provider and routing API when configured.
+
+## 16. TRIP INTELLIGENCE
+
+Support:
+- Active trips.
+- Completed trips.
+- Trip history.
+- Starting and destination locations.
+- Distance.
+- Duration.
+- Vehicle.
+- Assigned driver.
+- Route.
+- Operational events.
+
+Trip detail view:
+- Route map.
+- Stops.
+- Speed timeline where available.
+- Distance and duration.
+- Driver behaviour indicators.
+- Event history.
+
+Support authorized report exports.
+
+Do not fabricate trips or route information.
+
+## 17. PREDICTIVE MAINTENANCE
+
+Preserve and improve the existing Python AI maintenance backend.
+
+Monitor applicable components:
+
+- Engine.
+- Brakes.
+- Tyres.
+- Battery.
+- Suspension.
+- Transmission.
+- Cooling system.
+- EV battery.
+
+Use available evidence:
+
+- Vehicle age.
+- Odometer.
+- Maintenance history.
+- Trip patterns.
+- Driving behaviour.
+- Usage intensity.
+- Road-stress estimates.
+- Inspection records.
+
+Every prediction must explain:
+
+- Predicted issue.
+- Supporting evidence.
+- Contributing factors.
+- Confidence.
+- Estimated maintenance window.
+- Recommended action.
+- Estimated repair expenditure.
+- Cost of delay.
+
+Store model version, prediction timestamp, input features, confidence and explanation.
+
+Do not invent component health measurements.
+
+## 18. DRIVER INTELLIGENCE
+
+Analyze available driving behaviour and trip records.
+
+Possible indicators:
+- Harsh braking.
+- Rapid acceleration.
+- Speeding.
+- Sharp cornering.
+- Extended driving.
+- Safety incidents.
+
+Use explainable scoring.
+
+Account for GPS errors, phone/device placement limitations, road conditions and incomplete telemetry.
+
+Do not produce unreliable scores when sufficient evidence is unavailable.
+
+Driver intelligence is exclusively for authorized fleet management users.
+
+## 19. FUEL INTELLIGENCE
+
+Include:
+- Fuel transactions.
+- UPI/cash transaction records.
+- Quantity.
+- Price per litre.
+- Odometer.
+- Driver.
+- Vehicle.
+- Cost per kilometre.
+- Estimated fuel efficiency.
+
+Support:
+- Duplicate detection.
+- Transaction verification.
+- Unusual expenditure detection.
+- Fuel expense reporting.
+
+Clearly distinguish manually recorded purchases from actual sensor measurements.
+
+Do not automatically label unusual transactions as fraud.
+
+## 20. FINANCIAL INTELLIGENCE
+
+Monitor:
+- Fuel expenditure.
+- Maintenance expenditure.
+- Operating expenditure.
+- Cost per kilometre.
+- Downtime costs.
+- Estimated maintenance savings.
+- Vehicle utilization costs.
+
+Support:
+- Monthly comparisons.
+- Vehicle-wise financial analysis.
+- ICE vs EV comparisons.
+- Financial reports.
+
+Do not describe operating cost as profitability unless revenue data is available.
+
+All calculations must be traceable.
+
+Savings estimates must not be presented as guaranteed financial results.
+
+## 21. FLEET RISK RADAR
+
+Categorize risks:
+
+- Critical.
+- High.
+- Moderate.
+- Normal.
+
+Risk categories:
+- Maintenance.
+- Driver safety.
+- Fuel.
+- Telemetry.
+- Trip exceptions.
+- Document compliance.
+
+Every risk must display:
+- Severity.
+- Affected vehicle or driver.
+- Supporting evidence.
+- Timestamp.
+- Recommended action.
+- Confidence.
+
+Do not generate risk scores without sufficient reliable data.
+
+## 22. DECISION INTELLIGENCE / FLEET COPILOT
+
+Provide an owner-focused intelligence assistant.
+
+Example questions:
+
+- Which vehicles require attention this week?
+- Which driver licences are expiring?
+- Which drivers have missing documents?
+- Why is maintenance expenditure increasing?
+- Which vehicles have the highest operating costs?
+- Compare this month's fuel expenditure with last month.
+- Which vehicles are at maintenance risk?
+- Which drivers are currently unassigned?
+
+Every recommendation must include:
+- Problem.
+- Supporting evidence.
+- Risk.
+- Confidence.
+- Financial impact, if calculable.
+- Recommended action.
+
+Use authorized organization data.
+
+Implement deterministic rules, statistical analysis and predictive models before optional LLM explanations.
+
+The core platform must function without paid LLM APIs.
+
+The assistant must never invent vehicle conditions, document verification or financial facts.
+
+---
+
+# PART I — TELEMETRY ARCHITECTURE
+
+## 23. PRODUCTION TELEMETRY WITHOUT A DRIVER APPLICATION
+
+Removing the driver application must not result in fabricated vehicle telemetry.
+
+Redesign the data collection architecture to support:
+
+- Existing GPS devices.
+- Supported vehicle telematics integrations.
+- Authorized external GPS providers.
+- Organization-managed telemetry devices.
+- Approved vehicle integrations.
+
+Use configurable telemetry providers and a scalable ingestion architecture.
+
+### Data classification
+
+**Observed:** Directly collected from an available sensor or integration.
+
+**Estimated:** Calculated through an algorithm or predictive model.
+
+**Verified:** Confirmed through an inspection, service record or reliable external verification.
+
+**Unavailable:** No reliable information is available.
+
+A smartphone or GPS device alone must not be presented as measuring fuel level, engine temperature, RPM, actual engine fault codes or physical component wear unless the required sensor or integration supports it.
+
+If no real telemetry provider is configured, display a clear unavailable or disconnected state.
+
+Never invent live vehicle positions or movement.
+
+---
+
+# PART J — PRODUCTION DATA AND DATABASE
+
+## 24. PRODUCTION DATA SEPARATION
+
+Remove all mixing of:
+- Pilot data.
+- Demo data.
+- Production data.
+
+Production must use authorized organization-specific records.
+
+If development or testing data is required, isolate it through separate environments and databases.
+
+Never present simulated:
+- Vehicle movement.
+- Trips.
+- Fuel transactions.
+- Maintenance predictions.
+- Driver performance.
+- Document verification.
+
+as real production information.
+
+## 25. DATABASE ARCHITECTURE
+
+Audit the existing Supabase PostgreSQL schema before implementing migrations.
+
+Preserve and improve existing tables:
+
+- `profiles`
+- `user_roles`
+- `vehicles`
+- `vehicle_components`
+- `ai_predictions`
+- `maintenance_history`
+- `driver_analytics`
+- `tn_cities`
+- `chat_history`
+- `audit_logs`
+
+Add or adapt driver-related structures.
+
+### `drivers`
+
+Suggested fields:
+- id
+- organization_id
+- driver_code
+- full_name
+- date_of_birth
+- phone
+- email
+- address
+- emergency_contact
+- joining_date
+- employment_status
+- created_at
+- updated_at
+
+### `driver_documents`
+
+Suggested fields:
+- id
+- organization_id
+- driver_id
+- document_type
+- document_number
+- issue_date
+- expiry_date
+- storage_path
+- verification_status
+- verification_method
+- verified_by
+- verified_at
+- notes
+- created_at
+- updated_at
+
+### `driver_vehicle_assignments`
+
+Suggested fields:
+- id
+- organization_id
+- driver_id
+- vehicle_id
+- assigned_from
+- assigned_until
+- assignment_status
+- created_at
+
+### `document_audit_logs`
+
+Suggested fields:
+- id
+- organization_id
+- driver_id
+- document_id
+- action
+- performed_by
+- performed_at
+- metadata
+
+Adapt these structures to the existing schema instead of creating duplicate or conflicting tables.
+
+Implement:
+- Foreign keys.
+- Appropriate indexes.
+- Data constraints.
+- Organization isolation.
+- Supabase RLS.
+- Secure migrations.
+
+Preserve existing production records.
+
+---
+
+# PART K — SECURITY AND PRIVACY
+
+## 26. ENTERPRISE SECURITY
+
+Implement:
+
+- Organization-level data isolation.
+- Server-side authorization.
+- Supabase RLS.
+- Secure authentication.
+- Session management.
+- Input validation.
+- API protection.
+- Audit logs.
+- Secure document storage.
+- Secure file validation.
+- File size restrictions.
+- MIME type verification.
+- Short-lived signed URLs.
+- Appropriate data retention.
+- Privacy notices and consent management.
+
+### Sensitive document protection
+
+Driver identity and licence documents contain personal information.
+
+Avoid collecting Aadhaar information unless there is a clear and lawful business requirement.
+
+Where appropriate, support masked Aadhaar rather than storing full Aadhaar numbers.
+
+Restrict access to sensitive identifiers and documents to specifically authorized personnel.
+
+Do not collect or retain physical original documents.
+
+Accept authorized digital documents or scanned copies supplied by drivers or organization personnel.
+
+If physical originals are temporarily presented for inspection, return them immediately.
+
+---
+
+# PART L — SUBSCRIPTIONS AND ORGANIZATION SETTINGS
+
+## 27. PRODUCTION SUBSCRIPTION MANAGEMENT
+
+Preserve configurable subscription tiers:
+
+- Starter.
+- Growth.
+- Enterprise.
+
+Potential limits:
+- Number of vehicles.
+- Authorized users.
+- Data retention.
+- Reports.
+- Predictive intelligence features.
+
+Implement real payment processing only when an approved payment provider is configured.
+
+Never simulate successful payments.
+
+## 28. ORGANIZATION SETTINGS
+
+Allow fleet owners to configure:
+
+- Organization profile.
+- Fleet details.
+- Authorized users.
+- Management permissions.
+- Document reminder intervals.
+- Vehicle assignment rules.
+- Notification preferences.
+- Subscription details.
+- Data retention settings.
+
+---
+
+# PART M — DESIGN SYSTEM
+
+## 29. LUXURY ENTERPRISE UI/UX
+
+Maintain the existing DriveMitra visual direction.
+
+### Colour palette
+
+| Colour | Hex |
+|---|---|
+| Butter Cream | `#F7F0D9` |
+| Pale Lavender | `#EEE8F7` |
+| Vanilla Cream | `#F4EBD5` |
+| Lavender Mist | `#E5DDF1` |
+| Soft Golden Yellow | `#E8C65A` |
+| Royal Lavender | `#B8A3D9` |
+| Lemon Sorbet | `#F5E8A8` |
+| Lilac | `#C9B9E5` |
+| Soft Sage | `#A4B99A` |
+| Golden Apricot | `#E6B76B` |
+| Muted Coral | `#D98E83` |
+| Warm Cocoa | `#625346` |
+| Warm Grey | `#958777` |
+
+### Typography
+
+Use **Plus Jakarta Sans** consistently throughout:
+
+- Landing page.
+- Authentication.
+- Owner dashboard.
+- Driver records.
+- Document management.
+- Tables.
+- Charts.
+- Forms.
+- Modals.
+- Dropdowns.
+- Notifications.
+- Reports.
+
+Use suitable multilingual fallback fonts where necessary.
+
+### Design expectations
+
+- Premium enterprise interface.
+- Bright, warm and sophisticated appearance.
+- Clear information hierarchy.
+- Consistent spacing.
+- Elegant cards and tables.
+- Refined charts.
+- Subtle shadows.
+- Accessible forms.
+- Responsive layouts.
+- Meaningful loading, empty and error states.
+
+Avoid:
+- Dark dashboard designs.
+- Pure-white-heavy layouts.
+- Generic admin templates.
+- Excessive glassmorphism.
+- Unnecessary gradients.
+- Overcrowded dashboard cards.
+- Decorative elements that reduce usability.
+
+---
+
+# PART N — EXISTING TECHNICAL ARCHITECTURE
+
+## 30. PRESERVE THE WORKING TECHNOLOGY STACK
+
+Audit the existing project before implementation.
+
+Existing architecture:
+
+**Frontend**
+- React 19.
+- TypeScript.
+- Vite.
+- Tailwind CSS.
+- Framer Motion.
+- Recharts.
+- Lucide React.
+- React-Leaflet.
+
+**Backend and database**
+- Supabase.
+- PostgreSQL.
+- Supabase authentication.
+- Supabase Storage.
+- Row Level Security.
+
+**AI maintenance backend**
+- Python.
+- Random Forest/joblib model where available.
+- Deterministic fallback calculations.
+- Optional CrewAI and LLM enrichment.
+
+Preserve existing functional modules and their dependencies.
+
+Do not rewrite the complete application unnecessarily.
+
+Do not remove existing production data or break working authentication.
+
+---
+
+# PART O — IMPLEMENTATION AND TESTING
+
+## 31. MANDATORY IMPLEMENTATION WORKFLOW
+
+### Phase 1: Complete project audit
+
+Inspect:
+- All frontend routes.
+- Components.
+- Hooks.
+- Authentication.
+- Backend APIs.
+- Database schema.
+- Storage buckets.
+- RLS policies.
+- Existing integrations.
+- Pilot dependencies.
+- Driver application dependencies.
+
+Identify everything that must be removed, modified or preserved.
+
+### Phase 2: Safe architectural transformation
+
+- Remove pilot functionality.
+- Remove driver-facing applications.
+- Preserve operational driver records.
+- Implement production owner authentication.
+- Implement organization-level permissions.
+- Integrate driver management.
+- Integrate document storage.
+- Implement vehicle assignments.
+- Implement document expiry intelligence.
+- Investigate optional DigiLocker integration.
+- Update navigation.
+- Update database migrations.
+
+### Phase 3: Functional integration
+
+Ensure all modules work together.
+
+Examples:
+
+- Adding a driver must update the driver listing.
+- Assigning a driver must update the vehicle profile.
+- Uploading a licence must update document status.
+- Updating an expiry date must update reminder scheduling.
+- Expiring a licence must generate an appropriate alert.
+- Archiving a driver must preserve historical trip and assignment records.
+- Financial and trip reports must use authorized production data.
+
+### Phase 4: Testing
+
+Test:
+
+**Authentication**
+- Organization registration.
+- Login.
+- Logout.
+- Password recovery.
+- Role permissions.
+
+**Driver management**
+- Create driver.
+- Edit driver.
+- Archive driver.
+- Assign vehicle.
+- Reassign vehicle.
+- View assignment history.
+
+**Documents**
+- Upload.
+- Preview.
+- Download.
+- Replace.
+- Delete.
+- Verification.
+- Expiry monitoring.
+- Unauthorized access prevention.
+
+**DigiLocker**
+- Test only with approved credentials.
+- Test consent.
+- Test document retrieval.
+- Test verification responses.
+- Test consent revocation.
+
+**Fleet modules**
+- Fleet dashboard.
+- Live map.
+- Vehicle profiles.
+- Trips.
+- Maintenance.
+- Fuel.
+- Financial intelligence.
+- Alerts.
+- Reports.
+
+**Security**
+- Organization isolation.
+- RLS.
+- Unauthorized API access.
+- Private document access.
+- Session handling.
+- Audit logging.
+
+**Responsive testing**
+- Desktop.
+- Laptop.
+- Tablet.
+- Mobile browser.
+
+Use the project's existing test infrastructure where available. Add appropriate automated tests using Vitest, React Testing Library, Playwright and pytest as applicable.
+
+---
+
+# PART P — FINAL ACCEPTANCE CRITERIA
+
+## 32. COMPLETION REQUIREMENTS
+
+The transformation is complete only when:
+
+1. Pilot functionality is completely removed.
+2. Driver-facing application functionality is completely removed.
+3. Fleet owners can securely access the production platform.
+4. Authorized management personnel can access permitted modules.
+5. Drivers can be registered and maintained as operational records.
+6. Driving licences can be uploaded and managed.
+7. Identity and supporting documents can be uploaded securely.
+8. Documents can be previewed and downloaded by authorized personnel.
+9. Verification statuses work correctly.
+10. Document expiry reminders work.
+11. Driver-to-vehicle assignment history is preserved.
+12. Driver records integrate with trip and performance analytics.
+13. DigiLocker remains optional.
+14. Production data is isolated by organization.
+15. All existing production modules continue functioning.
+16. No fabricated operational or verification data appears.
+17. Sensitive documents are protected.
+18. All critical workflows are tested.
+
+Do not claim that an integration, security control or feature is complete without testing it.
+
+Do not delete existing production records while removing obsolete functionality.
+
+Provide a final implementation report covering:
+- Removed features.
+- New features.
+- Modified components.
+- Database migrations.
+- Security changes.
+- DigiLocker feasibility and integration status.
+- Tests executed.
+- Remaining limitations.
+
+---
+
+# FINAL PRODUCT DEFINITION
+
+DriveMitra is an enterprise fleet intelligence and management platform built exclusively for fleet owners and their authorized management teams.
+
+It provides centralized control over vehicles, drivers, licences, identity documents, trips, maintenance, fuel expenditure, financial intelligence and operational risks.
+
+Fleet owners must be able to manage their entire transportation business without requiring drivers to log into DriveMitra.
+
+**The platform must deliver one unified experience:**
+
+**Manage the Fleet. Manage the People. Secure the Documents. Predict the Risks. Control the Costs.**
+
+
+
+
+ADDITIONAL IMPLEMENTATION – ACCOUNT ACTIVATION & PLATFORM ADMINISTRATION
+1. Mandatory First Login Password Change
+When a new fleet organization is onboarded, its owner must receive:
+•	Unique username.
+•	Initial temporary password.
+•	Login instructions.
+•	Organization/account identification.
+The credentials must be delivered through a secure communication channel, preferably the registered email address.
+First login workflow
+1.	Fleet owner opens the main DriveMitra website.
+2.	Selects Login.
+3.	Enters the provided username and initial password.
+4.	Backend validates the credentials.
+5.	Backend identifies the account as requiring a password change.
+6.	Redirect the owner to a mandatory Change Password screen.
+7.	Owner enters a new password and confirms it.
+8.	Backend securely validates and updates the password.
+9.	Invalidate the temporary password.
+10.	Allow access to the appropriate fleet dashboard.
+Important restrictions
+•	Do not allow dashboard access before the initial password is changed.
+•	Do not allow users to bypass the password-change requirement by refreshing or directly entering dashboard URLs.
+•	Enforce the requirement through backend authentication middleware, not just frontend routing.
+•	Never store plaintext passwords.
+•	Never reuse temporary passwords.
+•	Never expose credentials in URLs, browser storage or application logs.
+Password security
+Implement:
+•	Secure password hashing.
+•	Password complexity validation.
+•	Password confirmation.
+•	Password visibility toggle.
+•	Password change history metadata.
+•	Secure password recovery.
+•	Session invalidation where appropriate.
+After successful activation, the account must be marked as:
+password_change_required = false
+The account should then use its newly established password for future logins.
+________________________________________
+2. Separate DriveMitra Super Admin Panel
+Create a dedicated platform administration panel for the DriveMitra platform owner.
+Route:
+/platform-admin
+This panel is separate from the fleet owner's dashboard.
+It must not be accessible to ordinary fleet owners or their management personnel.
+Super Admin responsibilities
+The platform administrator must be able to:
+•	View all registered organizations.
+•	View organization details.
+•	Monitor subscription status.
+•	Monitor payment status.
+•	View fleet information.
+•	Manage organization access.
+•	Suspend organization access.
+•	Reactivate suspended organizations.
+•	Terminate organizations.
+•	Archive organizations.
+•	Review account activity.
+•	Review administrative audit logs.
+Organization listing
+Display:
+•	Organization name.
+•	Organization ID.
+•	Owner name.
+•	Registered email.
+•	Registration date.
+•	Number of vehicles.
+•	Number of drivers.
+•	Subscription type.
+•	Subscription start date.
+•	Subscription expiry date.
+•	Payment status.
+•	Organization access status.
+Include:
+•	Search.
+•	Filtering.
+•	Sorting.
+•	Pagination.
+•	Organization details view.
+________________________________________
+3. Fleet Access and Subscription Control
+The Super Admin must have direct control over whether an organization can access its DriveMitra fleet workspace.
+Implement the following organization statuses:
+Status	Behaviour
+Active	Normal authorized access
+Payment Pending	Payment awaiting confirmation
+Grace Period	Access continues until the configured deadline
+Suspended	Fleet workspace access blocked
+Terminated	Organization access permanently disabled
+Archived	Organization retained for historical/reference purposes
+Subscription delay workflow
+When a subscription payment is delayed:
+1.	Identify the organization with an overdue payment.
+2.	Update its payment status.
+3.	Notify the organization owner.
+4.	Apply the configured grace period.
+5.	Display payment reminders.
+6.	If payment remains overdue, allow automatic suspension according to the configured subscription policy.
+7.	Allow the Super Admin to manually suspend or reactivate access when necessary.
+Do not automatically suspend an organization without respecting its configured billing terms and grace period.
+Manual suspension
+The Super Admin must be able to suspend an organization for reasons including:
+•	Subscription payment delay.
+•	Non-payment.
+•	Contract expiry.
+•	Policy violations.
+•	Security concerns.
+•	Administrative decisions.
+•	Other documented business reasons.
+Before suspension, require:
+•	Organization selection.
+•	Suspension reason.
+•	Administrative notes.
+•	Confirmation.
+Suspended organization behaviour
+When an organization is suspended:
+•	Fleet owner login must not provide access to the fleet dashboard.
+•	All management accounts belonging to that organization must be blocked from protected workspace operations.
+•	Existing sessions must be revoked.
+•	Protected API requests must be rejected server-side.
+•	Organization data must remain preserved.
+•	Public DriveMitra landing page must remain accessible.
+•	The owner must see a clear account-suspension message.
+•	Provide appropriate payment or support instructions.
+Do not delete the organization's vehicles, drivers, documents, trips or historical records merely because access is suspended.
+________________________________________
+4. Reactivation Workflow
+The Super Admin must be able to reactivate a suspended organization.
+Reactivation must require:
+•	Organization selection.
+•	Reason for reactivation.
+•	Confirmation.
+•	Audit record.
+After successful reactivation:
+•	Update organization access status.
+•	Restore permitted account access.
+•	Allow authorized users to log in again.
+•	Preserve existing organization data.
+•	Recalculate subscription status where applicable.
+Do not automatically reactivate an organization simply because a payment notification is received.
+Verify the payment through the configured payment provider or authorized administrative process.
+________________________________________
+5. Organization Termination and Data Removal
+Provide a separate organization termination workflow.
+Termination must not be the same as temporary suspension.
+Termination requirements
+•	Require explicit Super Admin authorization.
+•	Require a documented reason.
+•	Require confirmation.
+•	Revoke all organization sessions.
+•	Block all organization access.
+•	Preserve records according to applicable contractual and legal retention requirements.
+•	Record the termination action in the audit log.
+Permanent deletion
+Permanent data deletion must be a separate, restricted operation.
+Before deletion:
+•	Verify the organization identity.
+•	Check contractual and legal retention requirements.
+•	Check pending invoices, disputes and obligations.
+•	Provide appropriate notice.
+•	Confirm backup and retention requirements.
+•	Require an explicit final confirmation.
+Never implement automatic permanent deletion solely because a subscription payment is overdue.
+Prefer suspension and archival over destructive deletion.
+________________________________________
+6. Super Admin Security
+The Super Admin panel must use stronger security than ordinary fleet accounts.
+Implement:
+•	Separate Super Admin authorization.
+•	MFA.
+•	Secure session management.
+•	Strong password requirements.
+•	Login rate limiting.
+•	Server-side permission checks.
+•	Audit logging.
+•	Session revocation.
+•	Sensitive-action confirmation.
+Never grant Super Admin permissions through frontend role selection.
+Never allow fleet owners to promote themselves to Super Admin.
+Super Admin credentials and permissions must be provisioned through a secure administrative process.
+________________________________________
+7. Organization-Level Backend Enforcement
+Implement organization access checks at the backend.
+Suggested middleware:
+•	requirePlatformAdmin
+•	requireAuth
+•	requireActiveOrganization
+•	requireSubscriptionAccess
+•	requireRole
+Every protected API must validate:
+1.	Authenticated account.
+2.	Organization association.
+3.	Organization status.
+4.	Subscription access.
+5.	Required permissions.
+A suspended organization must not regain access by:
+•	Refreshing the browser.
+•	Opening an old dashboard URL.
+•	Reusing an existing session.
+•	Modifying frontend state.
+•	Calling backend APIs directly.
+Use database-backed organization status and server-side authorization.
+________________________________________
+8. Administrative Audit Logs
+Record all sensitive Super Admin operations.
+Track:
+•	Administrator ID.
+•	Organization ID.
+•	Action.
+•	Previous status.
+•	New status.
+•	Reason.
+•	Timestamp.
+•	Relevant payment reference, where applicable.
+•	Additional metadata.
+Audit events must include:
+•	Organization creation.
+•	Account activation.
+•	Organization suspension.
+•	Organization reactivation.
+•	Organization termination.
+•	Subscription changes.
+•	Payment-status changes.
+•	Administrative data-access operations.
+•	Permanent deletion approvals.
+Audit logs must not be editable by ordinary fleet owners.
+________________________________________
+9. Super Admin Dashboard Interface
+Create a premium enterprise administration interface consistent with DriveMitra's design system.
+Overview KPIs
+•	Total organizations.
+•	Active organizations.
+•	Suspended organizations.
+•	Payment-pending organizations.
+•	Expired subscriptions.
+•	Total registered vehicles.
+•	Total registered drivers.
+Main sections
+1.	Platform Overview.
+2.	Organizations.
+3.	Subscription Management.
+4.	Payment Monitoring.
+5.	Access Control.
+6.	Administrative Audit Logs.
+7.	Platform Settings.
+Provide organization details with clear subscription and access status indicators.
+Use confirmation dialogs for sensitive actions.
+________________________________________
+10. Mandatory Acceptance Tests
+Verify:
+1.	Newly created fleet owner receives initial credentials.
+2.	First login forces a password change.
+3.	Direct dashboard access before password change is blocked.
+4.	New password works correctly.
+5.	Old temporary password becomes invalid.
+6.	Fleet owner cannot access the Super Admin panel.
+7.	Super Admin can view registered organizations.
+8.	Super Admin can suspend an organization.
+9.	Suspended organization sessions are revoked.
+10.	Suspended organization API access is blocked.
+11.	Other organizations remain unaffected.
+12.	Super Admin can reactivate an organization.
+13.	Reactivated accounts can access their existing fleet data.
+14.	Subscription delays follow configured grace periods.
+15.	Permanent deletion is separate from suspension.
+16.	Administrative actions are recorded in immutable or appropriately protected audit logs.
+Do not claim completion without testing these workflows.
+________________________________________
+FINAL BUSINESS RULE
+DriveMitra must have two clearly separated administrative levels:
+LEVEL 1 – FLEET OWNER
+•	Receives username and initial password.
+•	Changes password during first login.
+•	Accesses their own fleet workspace.
+•	Manages vehicles, drivers, documents, trips, maintenance and finances.
+•	Manages authorized personnel within their organization.
+LEVEL 2 – DRIVEMITRA SUPER ADMIN
+•	Controls the overall platform.
+•	Manages all registered organizations.
+•	Monitors subscriptions and payments.
+•	Suspends and reactivates organization access.
+•	Terminates organizations when necessary.
+•	Maintains platform-level audit records.
+The Super Admin controls platform access, while each fleet owner controls their own fleet operations.
+Critical principle: Suspension must block access, not destroy fleet data.
+
+
+
+
+
+
+
+
+
+DriveMitra — Command Center Intelligence & Truck Route Optimization
+Objective
+Refine the existing DriveMitra Command Center, reporting system, refresh intelligence functionality and Trip Intelligence module.
+The goal is to make the Command Center a genuine fleet-owner operations centre where an owner can continuously monitor the entire fleet, understand vehicle activity and review meaningful operational analysis.
+Do not add decorative dashboard elements, dummy metrics, simulated reports or buttons that do not perform real operations.
+________________________________________
+1. Command Center — Redefine Its Purpose
+The Command Center must concentrate on two primary responsibilities:
+1.	Complete vehicle and fleet monitoring.
+2.	Meaningful fleet analysis and operational reports.
+It must provide an immediate understanding of:
+•	Total registered vehicles.
+•	Active, idle, stopped and offline vehicles.
+•	Vehicles currently on trips.
+•	Vehicle locations and movement.
+•	Trip progress and estimated arrival times.
+•	Distance travelled.
+•	Vehicle utilization.
+•	Vehicle availability.
+•	Fuel consumption and expenses, where verified data exists.
+•	Maintenance status and vehicle condition, where supported by actual records or telemetry.
+•	Fleet performance over selected reporting periods.
+Remove unwanted widgets
+Completely remove the following from the Command Center:
+•	Recent Alerts.
+•	Predictive Maintenance.
+Do not replace them with differently named versions of the same widgets.
+These features may remain accessible through their dedicated modules elsewhere in the application, but they must not occupy space in the Command Center.
+Command Center layout
+Organize the interface around:
+A. Fleet Monitoring
+•	Fleet-wide vehicle status overview.
+•	Live vehicle map.
+•	Active trips and their progress.
+•	Vehicle location and last-seen timestamps.
+•	Vehicle movement and availability.
+•	Selected vehicle information panel.
+•	Clear distinction between live, delayed, stale and unavailable telemetry.
+B. Fleet Performance
+•	Distance travelled.
+•	Trip completion statistics.
+•	Vehicle utilization.
+•	Average trip duration.
+•	Fuel consumption and cost, when reliable data exists.
+•	Operational expenses.
+•	Vehicle-wise performance comparison.
+C. Analysis & Reports
+•	Reporting-period selector.
+•	Fleet performance trends.
+•	Vehicle comparison.
+•	Trip performance analysis.
+•	Utilization trends.
+•	Distance and expense analysis.
+•	Downloadable reports based on actual records.
+Maintain a clean, executive-level layout with a clear visual hierarchy.
+________________________________________
+2. Fix the 7D / 30D / 90D Reporting Window
+The existing 7D, 30D and 90D selectors must not behave like decorative buttons.
+Each selection must retrieve and calculate data from the actual production database.
+Required behaviour
+7D — Last 7 Days
+•	Show the previous seven calendar days.
+•	Calculate distance travelled.
+•	Count completed and active trips.
+•	Calculate average trip duration.
+•	Show vehicle utilization.
+•	Show fuel consumption and fuel expenditure if reliable records exist.
+•	Display daily performance trends.
+30D — Last 30 Days
+•	Show the previous 30 calendar days.
+•	Calculate total distance.
+•	Compare vehicle utilization.
+•	Analyse completed trips and average trip duration.
+•	Analyse recorded fuel consumption and expenditure.
+•	Show daily or weekly operational trends.
+•	Identify vehicles with unusually low or high utilization.
+90D — Last 90 Days
+•	Show the previous 90 calendar days.
+•	Display longer-term fleet performance.
+•	Compare monthly utilization.
+•	Analyse distance and trip trends.
+•	Calculate operational expense trends.
+•	Compare vehicle performance across the selected period.
+•	Highlight measurable changes in fleet efficiency.
+Calculation requirements
+•	Use the actual trip start and end timestamps.
+•	Use verified telemetry and recorded operational data.
+•	Apply consistent date boundaries and timezone handling.
+•	Exclude deleted, invalid or duplicate records.
+•	Do not treat missing telemetry as zero activity.
+•	Clearly distinguish unavailable data from actual zero values.
+•	Use consistent aggregation rules across all three periods.
+Comparison and visualization
+When the reporting period changes:
+•	Update every related KPI.
+•	Update all charts.
+•	Update vehicle comparisons.
+•	Update trip statistics.
+•	Update report summaries.
+•	Update the displayed date range.
+The selected period must apply consistently throughout the report section.
+If meaningful data is unavailable
+Do not generate sample numbers or artificial trends.
+Show an honest empty state explaining that sufficient historical data is not available.
+If the existing backend cannot support a particular metric, either implement the required calculation and data collection or remove that metric until it can be supported properly.
+Important: If the 7D, 30D and 90D filters cannot provide meaningful, working reports, remove them rather than retaining dummy functionality.
+________________________________________
+3. Refresh Intelligence — Implement Real Functionality
+The existing Refresh Intelligence control must perform an actual refresh of available fleet intelligence.
+It must not simply animate an icon, change a timestamp or display fabricated updates.
+On activation
+1.	Request the latest available vehicle telemetry.
+2.	Retrieve updated trip information.
+3.	Refresh relevant vehicle status information.
+4.	Recalculate affected operational metrics.
+5.	Refresh report data where appropriate.
+6.	Update the last-successful-refresh timestamp.
+7.	Display the result of the refresh operation.
+Required states
+•	Refreshing.
+•	Successfully updated.
+•	Partially updated.
+•	Failed.
+•	No new data available.
+Data integrity
+•	Never fabricate new vehicle locations.
+•	Never modify telemetry timestamps to make old data look current.
+•	Never mark an offline vehicle as active without evidence.
+•	Do not overwrite valid historical records.
+•	Prevent duplicate refresh requests.
+•	Handle API timeouts and unavailable providers.
+•	Keep the previous valid data visible if a refresh fails.
+Display:
+•	Last successful refresh.
+•	Latest telemetry timestamp.
+•	Data source.
+•	Refresh result.
+Where possible, automatically refresh live monitoring data at an appropriate interval, while respecting provider limits and API costs.
+Separate live telemetry refresh from historical report recalculation.
+________________________________________
+4. Trip Intelligence — Google Maps Traffic & Truck-Specific Routing
+This module requires particular attention.
+DriveMitra is designed for commercial transportation and logistics. Therefore, route intelligence must be calculated for trucks and commercial vehicles.
+Do not use walking, bicycle, motorcycle or ordinary two-wheeler routing.
+Google Maps Platform integration
+Use the Google Maps Platform Routes API with truck routing capabilities.
+Required routing configuration:
+•	travelMode: TRUCK
+•	routingPreference: TRAFFIC_AWARE_OPTIMAL
+•	Actual origin coordinates.
+•	Actual destination coordinates.
+•	Vehicle-specific physical attributes.
+Use Google Maps traffic information to calculate realistic routes and ETAs.
+Vehicle-specific information
+Maintain vehicle specifications such as:
+•	Vehicle category.
+•	Total vehicle height.
+•	Total vehicle width.
+•	Total vehicle length.
+•	Gross vehicle weight.
+•	Axle count.
+•	Trailer information, where applicable.
+•	Hazardous-goods classification, where relevant.
+Use these attributes when requesting truck routes.
+Never use arbitrary default dimensions as though they represent the actual vehicle.
+If vehicle specifications are missing, request the necessary information or clearly indicate that truck-specific routing cannot yet be calculated.
+Route selection logic
+The system must prioritize:
+1.	Legal and vehicle-compatible roads.
+2.	Road height and weight restrictions.
+3.	Road accessibility for the selected truck.
+4.	Current traffic conditions.
+5.	Realistic estimated travel time.
+6.	Efficient travel distance.
+7.	Avoidance of unsuitable roads and unnecessary manoeuvres.
+The shortest route must not automatically be selected if it is unsuitable for the truck.
+Find the most practical and efficient truck-compatible route considering traffic, road restrictions, travel distance and estimated travel time.
+Alternative routes
+Where available, present:
+•	Recommended truck route.
+•	Alternative truck route.
+•	Distance.
+•	Traffic-adjusted ETA.
+•	Expected traffic conditions.
+•	Relevant road restrictions.
+•	Route differences.
+Clearly explain why the recommended route is preferable.
+Map requirements
+The map must display:
+•	Actual satellite imagery.
+•	Accurate road network.
+•	Origin and destination.
+•	Truck-compatible route polyline.
+•	Live traffic conditions where available.
+•	Vehicle location when telemetry is available.
+•	Trip progress.
+•	Estimated arrival time.
+•	Distance remaining.
+Do not use illustrated road maps, decorative routes or artificially generated traffic indicators.
+Critical Google Maps limitation and fallback
+Google's large-vehicle routing capability has access and provisioning requirements.
+Verify that the production Google Cloud project has the required access before implementing this feature.
+If Google truck routing is unavailable:
+•	Do not silently switch to walking or motorcycle routing.
+•	Do not present ordinary car routing as truck-compliant.
+•	Do not claim that a route is safe for a truck without supporting data.
+•	Investigate an authorized truck-routing provider as an alternative.
+•	Clearly display when truck-specific routing is unavailable.
+Also inspect Google's routeRestrictionsPartiallyIgnored response field. If restrictions were partially ignored, flag the route prominently and do not present it as fully compliant.
+________________________________________
+5. Trip Intelligence — Operational Analysis
+Beyond route calculation, provide meaningful trip intelligence.
+For each trip, display:
+•	Starting location.
+•	Destination.
+•	Assigned vehicle.
+•	Assigned driver record.
+•	Trip start time.
+•	Actual or estimated arrival time.
+•	Total distance.
+•	Distance remaining.
+•	Traffic-adjusted ETA.
+•	Route deviations, if reliable location history exists.
+•	Actual completion status.
+Trip performance analysis
+Analyse:
+•	Planned versus actual travel time.
+•	Planned versus actual distance.
+•	Traffic-related delays.
+•	Vehicle-wise trip performance.
+•	Frequent route patterns.
+•	Trip duration trends.
+•	Route deviation history.
+Do not invent planned values when no planned route exists.
+Clearly differentiate:
+•	Actual values.
+•	Estimated values.
+•	Historical averages.
+•	Unavailable values.
+________________________________________
+6. Backend, API & Data Requirements
+Audit the existing implementation before modifying it.
+Ensure:
+•	Reporting filters use real database queries.
+•	Date ranges are calculated consistently.
+•	Aggregations are performed correctly.
+•	Trip and telemetry records are linked to the correct organization and vehicle.
+•	Google Maps API requests are handled securely through the backend.
+•	API keys are not exposed in frontend source code.
+•	Refresh operations are authenticated and authorized.
+•	Provider errors are handled correctly.
+•	API usage and billing are monitored.
+•	Historical data remains intact.
+Use caching carefully to avoid unnecessary Google Maps API requests.
+Do not introduce mock production data or replace existing working modules unnecessarily.
+________________________________________
+7. Acceptance Criteria
+The implementation is complete only when all of the following work:
+1.	Recent Alerts is completely absent from the Command Center.
+2.	Predictive Maintenance is completely absent from the Command Center.
+3.	The Command Center prioritizes fleet monitoring and operational analysis.
+4.	7D displays real seven-day data.
+5.	30D displays real thirty-day data.
+6.	90D displays real ninety-day data.
+7.	Changing periods updates all related reports and charts.
+8.	Empty or unavailable data is handled honestly.
+9.	Refresh Intelligence retrieves and updates actual available information.
+10.	Failed refreshes do not corrupt or falsify existing data.
+11.	Trip Intelligence uses truck-specific routing.
+12.	Routing considers traffic and actual vehicle specifications.
+13.	Walking and motorcycle routes are never used for truck trips.
+14.	Restricted or partially compliant routes are clearly identified.
+15.	Trip analytics are calculated from actual trip records.
+16.	The interface remains responsive and consistent across desktop, tablet and mobile.
+Final Implementation Principle
+DriveMitra's Command Center must answer three questions immediately:
+•	Where are my vehicles right now?
+•	What is happening across my fleet?
+•	How efficiently is my fleet operating over time?
+Every KPI, chart, map indicator and report must help answer one of these questions.
+Remove anything that does not contribute to these objectives. Prioritize operational accuracy, trustworthy data, truck-specific route intelligence and executive-level clarity over decorative dashboard complexity.
+
+
+
+
+
+
+
+
+
+
+
+DriveMitra — Advanced Fleet Health, Risk & Intelligence Enhancement
+1. Overall Objective
+Upgrade the existing DriveMitra platform into a comprehensive fleet intelligence system.
+Improve:
+1.	Predictive Maintenance.
+2.	Vehicle Service History and Issue Logs.
+3.	Fleet Risk Radar.
+4.	Driver Intelligence.
+5.	Climate Intelligence.
+6.	Remaining fleet intelligence modules.
+7.	Complete multilingual support.
+The system must be production-oriented, data-driven, responsive and useful for actual fleet owners.
+Do not introduce dummy metrics, fabricated predictions, decorative charts or unnecessary empty sections.
+Audit the existing implementation before modifying it. Preserve existing working functionality and historical records.
+________________________________________
+2. Predictive Maintenance — Five Core Intelligence Areas
+Restrict the Predictive Maintenance module to these five categories:
+1.	Fuel Health.
+2.	Engine Health.
+3.	Tyre Health.
+4.	Driver Health.
+5.	Vehicle Health.
+Do not introduce unrelated predictive maintenance categories.
+Each category must have its own detailed analysis, historical records, risk assessment and recommended actions.
+A. Fuel Intelligence
+Monitor fuel efficiency and identify abnormal fuel-related behaviour.
+Required capabilities:
+•	Fuel consumption analysis.
+•	Fuel efficiency (km/l).
+•	Vehicle-wise fuel consumption.
+•	Trip-wise fuel usage.
+•	Fuel expense tracking.
+•	Refuelling history.
+•	Fuel consumption trends.
+•	Unusual consumption detection.
+•	Possible fuel leakage indicators.
+•	Possible fuel theft or unexplained fuel loss.
+•	Fuel efficiency comparison across vehicles.
+•	Excessive idling-related fuel wastage.
+•	Expected versus actual consumption where reliable baseline data exists.
+Identify:
+•	Sudden fuel consumption increases.
+•	Unusual differences between similar vehicles.
+•	Repeated unexplained fuel losses.
+•	Unexpected fuel expenditure.
+•	Vehicles experiencing declining fuel efficiency.
+Important:
+Do not claim fuel theft or leakage as confirmed without supporting evidence. Display suspected anomalies and their confidence levels.
+Fuel tank level monitoring requires compatible sensors or integrations. Never fabricate tank-level information using GPS alone.
+B. Engine Intelligence
+Focus exclusively on engine condition and engine-related operational risks.
+Monitor, where supported:
+•	Engine temperature.
+•	Engine RPM.
+•	Engine fault codes.
+•	Oil pressure.
+•	Engine operating hours.
+•	Coolant temperature.
+•	Battery voltage.
+•	Engine performance anomalies.
+•	Abnormal overheating patterns.
+•	Repeated engine faults.
+•	Engine service intervals.
+Provide:
+•	Engine health score.
+•	Current condition.
+•	Historical condition.
+•	Detected abnormalities.
+•	Possible causes.
+•	Recommended inspection.
+•	Urgency level.
+•	Maintenance history.
+Use actual OBD, OEM, CAN bus or authorized telematics integrations.
+Do not generate engine fault predictions from location data alone.
+C. Tyre Intelligence
+Introduce a dedicated tyre health monitoring system.
+Required capabilities:
+•	Individual tyre records.
+•	Tyre identification numbers.
+•	Tyre position and axle mapping.
+•	Installation date.
+•	Replacement history.
+•	Tyre age.
+•	Recorded mileage.
+•	Tyre pressure, if TPMS is available.
+•	Tyre temperature, if supported.
+•	Tread depth measurements.
+•	Wear pattern records.
+•	Puncture and damage history.
+•	Tyre rotation records.
+•	Tyre replacement reminders.
+For multi-axle commercial vehicles, support appropriate tyre-position configurations.
+Identify:
+•	Abnormal tyre pressure.
+•	Uneven wear.
+•	Excessive tyre age.
+•	Repeated punctures.
+•	Potential overheating.
+•	Replacement requirements.
+Provide a tyre condition overview for every vehicle.
+Never claim real-time pressure or tread depth without appropriate sensors or recorded inspections.
+D. Driver Health Intelligence
+Monitor operational indicators that may affect driver safety and performance.
+Important distinction: This module evaluates operational safety and fitness-related records. It must not attempt to diagnose medical conditions.
+Required capabilities:
+•	Driving licence validity.
+•	Licence expiry monitoring.
+•	Required document availability.
+•	Driving-hour records where available.
+•	Driving duration and rest patterns where reliable records exist.
+•	Repeated harsh braking.
+•	Excessive acceleration.
+•	Speeding events.
+•	Sudden manoeuvres.
+•	Driver-related incident history.
+•	Safety performance trends.
+•	Training and compliance records.
+Provide:
+•	Driver safety score.
+•	Compliance status.
+•	Driving behaviour trends.
+•	Licence and document status.
+•	Risk indicators.
+•	Recommended training or corrective action.
+Do not infer fatigue, illness or medical conditions solely from driving patterns.
+Do not use personal medical data unless there is a legitimate, lawful and explicitly authorized business requirement.
+E. Overall Vehicle Health Intelligence
+Combine the available information about the vehicle's operational condition.
+Evaluate:
+•	Engine condition.
+•	Fuel system indicators.
+•	Tyre condition.
+•	Battery health.
+•	Service history.
+•	Recorded mechanical issues.
+•	Vehicle inspection results.
+•	Insurance and regulatory document validity.
+•	Maintenance overdue status.
+Provide:
+•	Overall vehicle health score.
+•	Component-wise condition.
+•	Active maintenance requirements.
+•	Previous maintenance issues.
+•	Upcoming service requirements.
+•	Recommended actions.
+•	Vehicle availability implications.
+Do not calculate a misleading health score when essential information is unavailable.
+Display the score coverage and missing data clearly.
+________________________________________
+3. Service History & Small-Issue Management
+Build a complete vehicle service and issue management system.
+This is a critical requirement.
+Fleet owners must be able to maintain even small service records, minor repairs, expenses and recurring problems.
+Create a dedicated Service & Issue History section inside every vehicle profile.
+A. Service Record Creation
+Allow authorized users to create service records containing:
+•	Vehicle.
+•	Service date.
+•	Odometer reading.
+•	Service provider/workshop.
+•	Service category.
+•	Description of work.
+•	Parts replaced.
+•	Labour charges.
+•	Spare parts cost.
+•	Additional expenses.
+•	Total bill amount.
+•	Next service date.
+•	Next service kilometre reading.
+•	Service notes.
+•	Uploaded documents.
+•	Person who recorded the service.
+Service categories:
+•	General service.
+•	Engine service.
+•	Oil change.
+•	Brake service.
+•	Tyre replacement.
+•	Battery replacement.
+•	Electrical repair.
+•	Cooling system.
+•	Clutch and transmission.
+•	Suspension.
+•	Minor repair.
+•	Major repair.
+•	Accident repair.
+•	Other.
+Allow custom categories where necessary.
+B. Small Issue Logs
+Provide a quick issue-recording facility for minor problems.
+Examples:
+•	Headlight not working.
+•	Indicator malfunction.
+•	Minor oil leakage.
+•	Unusual engine noise.
+•	Tyre puncture.
+•	Brake noise.
+•	Loose component.
+•	Battery starting problem.
+•	Dashboard warning.
+•	Minor body damage.
+Each issue must support:
+•	Issue title.
+•	Description.
+•	Category.
+•	Date reported.
+•	Vehicle.
+•	Severity.
+•	Reported by.
+•	Photographs.
+•	Uploaded documents.
+•	Assigned service provider.
+•	Resolution status.
+•	Repair date.
+•	Repair cost.
+•	Resolution notes.
+Issue statuses:
+•	Open.
+•	Under Inspection.
+•	Repair Scheduled.
+•	In Progress.
+•	Resolved.
+•	Closed.
+Maintain a complete issue timeline.
+Never delete an issue simply because it has been resolved.
+C. Bill and Document Upload
+Allow uploading:
+•	Service bills.
+•	Repair invoices.
+•	Spare parts invoices.
+•	Oil change receipts.
+•	Tyre replacement bills.
+•	Battery receipts.
+•	Inspection reports.
+•	Insurance inspection records.
+•	Workshop reports.
+•	Vehicle fitness reports.
+•	Other relevant documents.
+Supported formats:
+•	PDF.
+•	JPG.
+•	JPEG.
+•	PNG.
+•	Other formats only when safely supported.
+For every document, store:
+•	Document name.
+•	Document category.
+•	Associated vehicle.
+•	Associated service or issue.
+•	Upload date.
+•	Uploaded by.
+•	File size.
+•	Description.
+•	Reference number, where available.
+Allow:
+•	Preview.
+•	Secure download.
+•	Replace.
+•	Update metadata.
+•	Delete with authorization.
+Use private storage, signed URLs, file validation, malware scanning where available, organization-level access control and audit logging.
+D. Service Cost Intelligence
+Use uploaded bills and recorded service expenses to calculate:
+•	Total maintenance expenditure.
+•	Vehicle-wise maintenance expenditure.
+•	Monthly maintenance cost.
+•	Service provider expenditure.
+•	Average repair cost.
+•	Frequent repair categories.
+•	Repeated component failures.
+•	Cost trends.
+•	Maintenance expenditure per kilometre, where reliable distance data exists.
+Identify vehicles with unusually high maintenance expenditure.
+Provide historical comparisons.
+Do not assume an uploaded bill has been paid. Distinguish recorded, verified and paid expenses.
+E. Service Reminders
+Generate reminders using:
+•	Last service date.
+•	Last recorded odometer reading.
+•	Manufacturer-recommended intervals.
+•	Organization-configured intervals.
+•	Next service date.
+•	Next service kilometre reading.
+Support both date-based and kilometre-based reminders.
+If odometer information is unavailable, clearly indicate that kilometre-based reminders cannot be calculated reliably.
+________________________________________
+4. Fleet Risk Radar — Improve Its Intelligence
+Upgrade Fleet Risk Radar into a fleet-wide operational risk monitoring system.
+It should help fleet owners identify which vehicles, trips and operational activities require attention.
+Risk categories
+1.	Vehicle condition risk.
+2.	Engine risk.
+3.	Fuel anomaly risk.
+4.	Tyre risk.
+5.	Driver safety risk.
+6.	Trip and route risk.
+7.	Document and compliance risk.
+8.	Maintenance overdue risk.
+9.	Weather and climate exposure.
+10.	Operational availability risk.
+Risk levels
+•	Critical.
+•	High.
+•	Moderate.
+•	Low.
+•	No Identified Risk.
+•	Insufficient Data.
+Risk analysis
+For each risk, display:
+•	Affected vehicle or driver.
+•	Risk category.
+•	Detection time.
+•	Evidence.
+•	Data source.
+•	Confidence level.
+•	Severity.
+•	Potential operational impact.
+•	Recommended action.
+•	Resolution status.
+Risk scoring
+Develop a transparent weighted risk model.
+Consider:
+•	Severity.
+•	Probability.
+•	Exposure.
+•	Recurrence.
+•	Data confidence.
+•	Time sensitivity.
+Do not allow missing data to automatically become a low-risk score.
+Separate confirmed incidents from predicted risks.
+Fleet Risk Radar interface
+Provide:
+•	Fleet-wide risk overview.
+•	Risk distribution.
+•	Critical vehicle identification.
+•	Risk trends.
+•	Vehicle-wise risk comparison.
+•	Risk history.
+•	Unresolved risk tracking.
+Allow clicking a risk to open its detailed analysis.
+The purpose is to help owners prioritize operational decisions, not to create unnecessary warning notifications.
+________________________________________
+5. Driver Intelligence — Make It Operationally Useful
+Keep Driver Intelligence only if it provides measurable value to fleet owners.
+It must not become a decorative driver ranking page.
+Core capabilities
+A. Driver Performance
+•	Total assigned trips.
+•	Completed trips.
+•	Trip duration.
+•	Distance travelled.
+•	Route deviation records.
+•	On-time arrival performance.
+•	Vehicle assignment history.
+B. Driving Behaviour
+Where supported by telemetry:
+•	Speeding.
+•	Harsh braking.
+•	Harsh acceleration.
+•	Sudden manoeuvres.
+•	Excessive idling.
+•	Repeated unsafe driving patterns.
+C. Compliance
+•	Driving licence validity.
+•	Licence categories.
+•	Document expiry.
+•	Required document availability.
+•	Employment status.
+•	Training and compliance records.
+D. Safety and Incident History
+•	Reported incidents.
+•	Accident history.
+•	Vehicle damage records.
+•	Safety-related observations.
+•	Corrective actions.
+Driver Safety Score
+Create a transparent scoring model.
+Consider:
+•	Verified safety events.
+•	Driving behaviour.
+•	Incident frequency.
+•	Compliance.
+•	Available driving history.
+Display:
+•	Score.
+•	Calculation coverage.
+•	Relevant evidence.
+•	Period analysed.
+•	Recommended improvement.
+Do not penalize drivers for unavailable telemetry or missing historical data.
+Do not use driver scores as the sole basis for termination, salary reduction or disciplinary action.
+Driver Profile
+Provide a complete operational profile containing:
+•	Personal and employment details.
+•	Licence and document vault.
+•	Current and previous vehicle assignments.
+•	Trip history.
+•	Performance history.
+•	Safety records.
+•	Service or incident associations.
+•	Training and compliance information.
+Maintain the driver as an owner-managed record. Do not introduce a driver-facing application or driver login.
+________________________________________
+6. Climate Intelligence — Build a Strong Environmental Risk System
+Climate Intelligence must become a meaningful fleet-operation capability, especially for commercial transportation.
+It should combine weather conditions, route exposure and vehicle operating risks.
+A. Live Weather Intelligence
+Use authorized weather data providers and real-time APIs.
+Monitor:
+•	Rainfall.
+•	Heavy rainfall.
+•	Flood warnings.
+•	Temperature.
+•	Heatwave conditions.
+•	Wind speed.
+•	Strong winds.
+•	Visibility.
+•	Fog.
+•	Storms.
+•	Lightning.
+•	Severe weather alerts.
+Show:
+•	Current conditions.
+•	Forecast conditions.
+•	Forecast period.
+•	Data source.
+•	Last update.
+•	Geographic coverage.
+B. Route Climate Analysis
+For every active or planned trip, evaluate weather conditions along the route.
+Analyse:
+•	Heavy rainfall exposure.
+•	Flood-prone areas where verified information is available.
+•	Waterlogging reports.
+•	Strong wind exposure.
+•	Low visibility.
+•	Extreme temperatures.
+•	Storm warnings.
+•	Expected weather changes during the journey.
+Show climate conditions by route segment where data permits.
+C. Climate-Based Route Risk
+Calculate a climate exposure score using:
+•	Weather severity.
+•	Route exposure.
+•	Expected exposure duration.
+•	Vehicle category.
+•	Available road-condition information.
+•	Data confidence.
+Display:
+•	Current climate risk.
+•	Expected risk during the trip.
+•	Affected route sections.
+•	Potential delay.
+•	Recommended precaution.
+D. Climate-Based Operational Recommendations
+Examples:
+•	Delay departure during severe weather.
+•	Consider an alternative verified truck-compatible route.
+•	Reduce speed in hazardous weather.
+•	Inspect tyres before travel in heavy rain.
+•	Check vehicle cooling systems during extreme heat.
+•	Review route accessibility during flood warnings.
+•	Inform the fleet manager about affected trips.
+Recommendations must be advisory and evidence-based.
+Do not automatically redirect trucks through an unverified alternative route.
+E. Fleet-Wide Climate Dashboard
+Show:
+•	Vehicles currently exposed to severe weather.
+•	Active trips affected by weather.
+•	High-risk route segments.
+•	Upcoming severe weather exposure.
+•	Geographic weather overview.
+•	Climate risk trends.
+F. India-Specific Environmental Intelligence
+Prioritize relevant regional conditions, including:
+•	South-West monsoon.
+•	North-East monsoon.
+•	Heavy rainfall.
+•	Flooding.
+•	Heatwaves.
+•	Coastal weather.
+•	Cyclonic conditions.
+•	Western Ghats route conditions.
+Use authoritative weather and disaster information sources where available.
+Do not claim to predict floods, landslides or road closures without suitable supporting data.
+G. Data Providers
+Evaluate suitable providers such as:
+•	India Meteorological Department.
+•	Authorized weather API providers.
+•	Government disaster-management alerts.
+•	Verified road-condition and traffic information providers.
+Check API availability, licensing, cost, coverage and update frequency before production integration.
+Do not assume that a provider's data is free or available commercially.
+________________________________________
+7. Improve the Remaining Fleet Intelligence Modules
+Audit the remaining modules and improve them based on actual fleet-owner requirements.
+A. Vehicle Intelligence
+Every vehicle must have a complete digital profile:
+•	Registration information.
+•	Vehicle category.
+•	Manufacturer and model.
+•	Registration date.
+•	Vehicle specifications.
+•	Assigned driver.
+•	Current location, if available.
+•	Current operational status.
+•	Trip history.
+•	Maintenance history.
+•	Issue history.
+•	Fuel history.
+•	Tyre records.
+•	Document records.
+•	Total operational expenses.
+•	Vehicle health history.
+B. Trip Intelligence
+Maintain:
+•	Trip history.
+•	Truck-compatible route information.
+•	Traffic conditions.
+•	Distance.
+•	ETA.
+•	Actual trip duration.
+•	Route deviations.
+•	Weather exposure.
+•	Vehicle assignment.
+•	Driver assignment.
+Differentiate actual and estimated information.
+C. Financial Intelligence
+Improve:
+•	Fuel expenses.
+•	Maintenance expenses.
+•	Repair expenses.
+•	Tyre expenditure.
+•	Operational expenses.
+•	Vehicle-wise cost.
+•	Monthly expenditure.
+•	Cost per kilometre.
+•	Expense comparisons.
+Allow bills and supporting documents to be linked to expenses.
+Do not create revenue or profit metrics unless the required financial data is actually maintained.
+D. Reports
+Provide downloadable reports for:
+•	Fleet performance.
+•	Vehicle health.
+•	Fuel consumption.
+•	Maintenance expenses.
+•	Service history.
+•	Tyre history.
+•	Driver performance.
+•	Trip analysis.
+•	Climate exposure.
+•	Fleet risks.
+•	Compliance.
+Support useful date filters, vehicle filters, category filters and export formats such as PDF, CSV and XLSX where appropriate.
+Reports must respect organization permissions and selected filters.
+________________________________________
+8. Eliminate Unwanted Empty Space — Scrollable Detail Interfaces
+The application must not contain unnecessary blank areas, oversized cards or large unused sections.
+Use space efficiently without making the interface cramped.
+Scrollable modals and drawers
+For detailed operations, use responsive scrollable modals or side drawers.
+Examples:
+•	Create service record.
+•	Upload service bill.
+•	Record vehicle issue.
+•	View complete service history.
+•	Review predictive maintenance findings.
+•	View fleet risk details.
+•	Inspect climate risk.
+•	Review driver intelligence.
+•	View vehicle health breakdown.
+Requirements:
+•	Fixed modal header where appropriate.
+•	Independently scrollable content area.
+•	Fixed footer for primary actions where appropriate.
+•	Proper keyboard navigation.
+•	Escape-key handling.
+•	Mobile-friendly full-screen modal where necessary.
+•	No content overflow outside the modal.
+•	No hidden action buttons.
+•	Proper loading and validation states.
+Use full pages when the workflow is complex enough to deserve its own page. Do not force every feature into a modal.
+Layout standards
+•	Eliminate unnecessary blank space.
+•	Avoid excessive vertical card heights.
+•	Use consistent spacing.
+•	Align section headings and data.
+•	Make charts proportional to their content.
+•	Avoid oversized empty map areas.
+•	Use responsive grids.
+•	Allow detailed sections to expand only when needed.
+________________________________________
+9. Complete Multilingual Architecture — Every Language Must Work
+This is a platform-wide requirement, not an optional translation feature.
+The language selected by the user must be applied consistently across the entire application.
+Initial supported languages
+1.	English.
+2.	Hindi.
+3.	Tamil.
+4.	Kannada.
+5.	Malayalam.
+6.	Telugu.
+7.	Marathi.
+Design the architecture so additional Indian and international languages can be added without rewriting the application.
+Translation coverage
+Translate every user-facing element, including:
+•	Navigation.
+•	Dashboard headings.
+•	Buttons.
+•	Forms.
+•	Labels.
+•	Placeholders.
+•	Tables.
+•	Filters.
+•	Status indicators.
+•	Error messages.
+•	Success messages.
+•	Validation messages.
+•	Confirmation dialogs.
+•	Tooltips.
+•	Empty states.
+•	Notifications.
+•	Reports.
+•	Charts.
+•	Modal content.
+•	Service records.
+•	Maintenance findings.
+•	Driver information.
+•	Risk explanations.
+•	Climate recommendations.
+•	Authentication screens.
+•	Super Admin panel.
+•	Subscription and billing pages.
+Do not translate only the navigation menu while leaving the rest of the application in English.
+Language selection
+Provide a language selector in the user settings.
+When a language is selected:
+•	Apply it across the application immediately.
+•	Save the preference to the user's account.
+•	Restore it after logout and login.
+•	Preserve it after refresh.
+•	Apply it across all authorized modules.
+•	Support organization-level defaults where appropriate.
+•	Allow individual users to select their own language.
+Technical localization requirements
+Use a proper internationalization library such as i18next with React integration.
+Requirements:
+•	Centralized translation files.
+•	Translation namespaces by module.
+•	No hardcoded user-facing strings in components.
+•	Language fallback when a translation is genuinely missing.
+•	Translation completeness validation.
+•	Locale-aware dates.
+•	Locale-aware numbers.
+•	Currency formatting.
+•	Timezone-aware timestamps.
+•	Pluralization support.
+•	Correct sorting where language-specific collation is needed.
+•	Unicode-safe database storage.
+Indian language rendering
+Ensure proper rendering of:
+•	हिन्दी.
+•	தமிழ்.
+•	ಕನ್ನಡ.
+•	മലയാളം.
+•	తెలుగు.
+•	मराठी.
+Use fonts with suitable Unicode and script coverage.
+Use appropriate fallback fonts and verify:
+•	Tamil character rendering.
+•	Malayalam conjuncts.
+•	Kannada character combinations.
+•	Telugu character combinations.
+•	Devanagari matras and conjuncts.
+•	Text wrapping.
+•	Input fields.
+•	Dropdowns.
+•	PDF exports.
+•	Table alignment.
+Do not use image-based translations.
+Do not render Indian languages as broken symbols, empty boxes or disconnected characters.
+Dynamic content
+Translate application-generated messages, labels and recommendations.
+For AI-generated analysis:
+•	Specify the selected output language.
+•	Preserve technical meaning.
+•	Avoid mixing languages unnecessarily.
+•	Keep vehicle registration numbers, VINs, document numbers, IDs and technical codes unchanged.
+•	Preserve numerical accuracy.
+•	Provide a clear fallback if a translation service is unavailable.
+Do not send private driver documents or unnecessary personal information to external translation APIs.
+Reports and exports
+The selected language must also apply to generated PDF, CSV and XLSX reports wherever the format supports it.
+PDF generation must use appropriate Unicode fonts.
+Verify that Tamil, Hindi, Kannada, Malayalam, Telugu and Marathi export correctly.
+Multilingual testing
+Test the entire platform in every initially supported language.
+Check:
+•	Login.
+•	Dashboard.
+•	Fleet.
+•	Vehicle details.
+•	Driver profiles.
+•	Service records.
+•	Maintenance.
+•	Risk Radar.
+•	Climate Intelligence.
+•	Trip Intelligence.
+•	Financial Intelligence.
+•	Reports.
+•	Settings.
+•	Super Admin.
+Do not mark multilingual support complete until each area passes the language-specific checks.
+________________________________________
+10. Technical Implementation & Data Integrity
+Before development:
+1.	Inspect the current frontend and backend.
+2.	Identify existing modules and reusable components.
+3.	Review existing database tables and relationships.
+4.	Identify duplicate or conflicting implementations.
+5.	Review existing telemetry and external API integrations.
+6.	Create a safe implementation plan.
+7.	Apply database changes through migrations.
+Preserve existing production records.
+Use:
+•	Organization-level data isolation.
+•	Backend authorization.
+•	Supabase Row Level Security.
+•	Private document storage.
+•	Secure signed URLs.
+•	Audit logging.
+•	Input validation.
+•	API rate limiting.
+•	Error handling.
+•	Proper database indexes.
+•	Historical record preservation.
+For predictive intelligence, distinguish:
+•	Observed data.
+•	Recorded data.
+•	Estimated values.
+•	Predicted values.
+•	Unavailable information.
+Every prediction must have a traceable data source and appropriate confidence information.
+Do not claim that AI can reliably predict component failure without adequate historical data, validated models and supporting telemetry.
+________________________________________
+11. Final Acceptance Criteria
+The enhancement is complete only when:
+1.	Predictive Maintenance contains only Fuel, Engine, Tyres, Driver Health and Vehicle Health.
+2.	All five categories provide useful, evidence-based information.
+3.	Complete service histories can be maintained.
+4.	Small vehicle issues can be logged and tracked.
+5.	Bills, invoices and service reports can be securely uploaded.
+6.	Historical service expenses can be analysed.
+7.	Fleet Risk Radar provides explainable operational risk analysis.
+8.	Driver Intelligence provides measurable operational value.
+9.	Climate Intelligence analyses live and forecast environmental exposure.
+10.	Active trips can be evaluated against route-specific weather risks.
+11.	Existing modules are improved without introducing unnecessary functionality.
+12.	Unused blank space is removed.
+13.	Long forms and detailed records use properly scrollable interfaces.
+14.	All supported languages work across the complete application.
+15.	Reports and exports support the selected language.
+16.	No fabricated metrics, predictions or telemetry are presented as real.
+17.	Existing fleet records and organization isolation remain intact.
+18.	All modules work responsively across desktop, tablet and mobile.
+Final Product Principle
+DriveMitra must help fleet owners answer:
+•	What is the actual condition of my vehicles?
+•	Which vehicles need servicing?
+•	What small problems have been reported?
+•	How much am I spending on repairs and maintenance?
+•	Which drivers or vehicles require operational attention?
+•	What risks could affect my fleet?
+•	Which trips are exposed to dangerous weather?
+•	How can I reduce unnecessary operating costs?
+Every feature must provide a measurable operational benefit.
+Prioritize reliability, transparency, actionable intelligence, document traceability and multilingual usability over decorative AI features.
+
+
+
+
+
+
+
+
+
+DriveMitra — Dhiyu
+Private Fleet Management AI & Operational Intelligence
+1. Core Identity
+Dhiyu is DriveMitra's private, organization-scoped Fleet Management AI Assistant.
+Dhiyu is exclusively designed to assist authorized fleet owners and their management personnel with understanding, monitoring, analysing and improving their fleet operations.
+It is not a general-purpose chatbot.
+Its primary responsibilities are:
+•	Fleet performance reporting.
+•	Vehicle intelligence.
+•	Driver information and performance analysis.
+•	Predictive maintenance explanations.
+•	Solutions for predicted vehicle problems.
+•	Fuel consumption and expense analysis.
+•	Engine and tyre health analysis.
+•	Trip and route analysis.
+•	Fleet risk analysis.
+•	Climate and weather exposure analysis.
+•	Service history and maintenance expenditure.
+•	Operational recommendations.
+Dhiyu must use actual DriveMitra production data and authorized organization records.
+________________________________________
+2. Strict Data Privacy and Organization Isolation
+This is the highest-priority requirement.
+All fleet information must remain private to the organization that owns it.
+For example:
+Organization A must never access:
+•	Organization B's vehicles.
+•	Organization B's drivers.
+•	Organization B's reports.
+•	Organization B's financial information.
+•	Organization B's service records.
+•	Organization B's maintenance predictions.
+•	Organization B's operational history.
+Backend enforcement
+Never depend on frontend filtering to protect fleet information.
+Implement:
+•	Authenticated user validation.
+•	Organization-level authorization.
+•	Server-side data retrieval.
+•	Supabase Row Level Security.
+•	Role-based permissions.
+•	Secure session validation.
+•	Organization-scoped AI tools.
+•	Audit logging.
+The organization ID must be obtained from the authenticated backend session.
+Never accept an arbitrary organization ID supplied by the chatbot or user as authorization.
+Protect sensitive information
+Do not unnecessarily expose:
+•	Driver personal information.
+•	Phone numbers.
+•	Home addresses.
+•	Identity documents.
+•	Driving licence numbers.
+•	Financial account details.
+•	Authentication credentials.
+•	Private organizational information.
+When a user requests driver details, return only information required for the request and permitted by their role.
+Never expose uploaded identity documents or private files through an ordinary AI response.
+Provide secure links only when the user has the necessary permission and explicitly requests the document.
+________________________________________
+3. OpenCode LLM Integration — Privacy First
+Retain the existing OpenCode LLM integration, but improve its architecture.
+The LLM must not receive unrestricted database access.
+Implement a controlled architecture:
+User → Dhiyu Interface → Authenticated Backend → Authorized Fleet Intelligence Tools → Sanitized Results → OpenCode LLM → Response
+The backend must retrieve the relevant information using authorized database queries.
+Expose only narrowly scoped tools to the AI.
+Examples:
+•	get_fleet_overview
+•	get_vehicle_details
+•	get_driver_profile
+•	get_driver_performance
+•	get_trip_report
+•	get_fuel_report
+•	get_engine_health
+•	get_tyre_health
+•	get_predictive_maintenance
+•	get_service_history
+•	get_maintenance_expenses
+•	get_fleet_risk_report
+•	get_climate_risk_report
+•	get_vehicle_issue_history
+Each tool must:
+•	Validate the user's session.
+•	Check organization membership.
+•	Check role permissions.
+•	Retrieve only authorized information.
+•	Validate input parameters.
+•	Return structured results.
+•	Record sensitive access where appropriate.
+Do not expose unrestricted SQL execution to the LLM.
+Do not give the model database credentials, Supabase service-role keys, storage secrets or unrestricted backend access.
+External LLM privacy
+Before sending any information to OpenCode or its configured model provider:
+•	Identify whether the model is local or cloud-hosted.
+•	Check the provider's data retention and training policies.
+•	Avoid sending unnecessary personal information.
+•	Redact driver identity information unless genuinely required.
+•	Never send passwords, access tokens, identity documents or authentication secrets.
+•	Use local inference for highly sensitive processing where practical.
+•	Make cloud processing subject to the organization's approved privacy policy.
+Do not advertise the system as completely private if cloud providers receive fleet information.
+________________________________________
+4. Dhiyu's Actual Responsibilities
+Dhiyu should answer operational questions using DriveMitra's real records.
+A. Fleet Reports
+Examples:
+•	Give me today's fleet report.
+•	Summarize this week's fleet performance.
+•	Compare fleet performance over 7, 30 and 90 days.
+•	Which vehicles travelled the most?
+•	Which vehicles were underutilized?
+•	How many vehicles are currently active?
+•	Show the total distance covered this month.
+•	What is the total recorded maintenance expenditure?
+•	Compare fuel expenses across my vehicles.
+•	Which vehicles have the highest operating costs?
+Reports must contain:
+•	Reporting period.
+•	Relevant metrics.
+•	Actual values.
+•	Comparisons.
+•	Important observations.
+•	Data coverage.
+•	Actionable recommendations.
+Never invent missing numbers.
+B. Vehicle Details
+Examples:
+•	Show vehicle TN 37 XX 0000.
+•	What is the condition of this vehicle?
+•	When was it last serviced?
+•	What issues were previously reported?
+•	How much was spent on repairs?
+•	What is its current trip status?
+•	Does it have any upcoming service requirements?
+Return only authorized vehicle information.
+C. Driver Details
+Examples:
+•	Show the driver assigned to this vehicle.
+•	Which driver completed the most trips this month?
+•	Show this driver's trip history.
+•	Is the driving licence valid?
+•	Are any mandatory documents expiring?
+•	Show recorded safety incidents.
+•	How has the driver's operational performance changed?
+Driver details must respect the user's permissions and privacy requirements.
+Never expose unnecessary personal or identity information.
+D. Predictive Maintenance Solutions
+This is one of Dhiyu's most important responsibilities.
+When a user asks about a predicted problem, Dhiyu must explain:
+1.	Which vehicle is affected?
+2.	Which component is involved?
+3.	What issue was detected or predicted?
+4.	What evidence supports the prediction?
+5.	How confident is the prediction?
+6.	What could happen if it is ignored?
+7.	What should the fleet owner do?
+8.	How urgently should the issue be inspected?
+9.	What approximate cost is expected, if reliable cost data exists?
+10.	What service history is relevant?
+Examples:
+Fuel
+•	Unusual fuel consumption.
+•	Potential fuel leakage indicators.
+•	Fuel efficiency deterioration.
+•	Excessive idling-related fuel wastage.
+Engine
+•	Overheating indicators.
+•	Repeated engine fault codes.
+•	Unusual engine performance.
+•	Upcoming engine servicing.
+Tyres
+•	Low tyre pressure.
+•	Uneven wear.
+•	Replacement requirements.
+•	Repeated punctures.
+Driver Health and Safety
+•	Licence expiry.
+•	Driving compliance concerns.
+•	Repeated unsafe driving patterns.
+•	Required training or corrective actions.
+Vehicle Health
+•	Battery issues.
+•	Overdue service.
+•	Repeated mechanical issues.
+•	Vehicle inspection requirements.
+Never diagnose a confirmed failure from a prediction alone.
+________________________________________
+5. Problem-Solving Intelligence
+Dhiyu must go beyond reporting problems.
+It must provide practical solutions.
+Example:
+User:
+"Why is vehicle TN 37 XX 0000 showing an engine risk?"
+Dhiyu should respond with:
+Vehicle: TN 37 XX 0000
+Detected concern: Repeated engine temperature warnings.
+Evidence: Three recorded temperature warnings during the selected reporting period.
+Potential causes:
+•	Cooling system malfunction.
+•	Low coolant.
+•	Radiator blockage.
+•	Cooling fan
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DriveMitra — Dhiyu
+Private Fleet Management AI & Operational Intelligence
+1. Core Identity
+Dhiyu is DriveMitra's private, organization-scoped Fleet Management AI Assistant.
+Dhiyu is exclusively designed to assist authorized fleet owners and their management personnel with understanding, monitoring, analysing and improving their fleet operations.
+It is not a general-purpose chatbot.
+Its primary responsibilities are:
+•	Fleet performance reporting.
+•	Vehicle intelligence.
+•	Driver information and performance analysis.
+•	Predictive maintenance explanations.
+•	Solutions for predicted vehicle problems.
+•	Fuel consumption and expense analysis.
+•	Engine and tyre health analysis.
+•	Trip and route analysis.
+•	Fleet risk analysis.
+•	Climate and weather exposure analysis.
+•	Service history and maintenance expenditure.
+•	Operational recommendations.
+Dhiyu must use actual DriveMitra production data and authorized organization records.
+________________________________________
+2. Strict Data Privacy and Organization Isolation
+This is the highest-priority requirement.
+All fleet information must remain private to the organization that owns it.
+For example:
+Organization A must never access:
+•	Organization B's vehicles.
+•	Organization B's drivers.
+•	Organization B's reports.
+•	Organization B's financial information.
+•	Organization B's service records.
+•	Organization B's maintenance predictions.
+•	Organization B's operational history.
+Backend enforcement
+Never depend on frontend filtering to protect fleet information.
+Implement:
+•	Authenticated user validation.
+•	Organization-level authorization.
+•	Server-side data retrieval.
+•	Supabase Row Level Security.
+•	Role-based permissions.
+•	Secure session validation.
+•	Organization-scoped AI tools.
+•	Audit logging.
+The organization ID must be obtained from the authenticated backend session.
+Never accept an arbitrary organization ID supplied by the chatbot or user as authorization.
+Protect sensitive information
+Do not unnecessarily expose:
+•	Driver personal information.
+•	Phone numbers.
+•	Home addresses.
+•	Identity documents.
+•	Driving licence numbers.
+•	Financial account details.
+•	Authentication credentials.
+•	Private organizational information.
+When a user requests driver details, return only information required for the request and permitted by their role.
+Never expose uploaded identity documents or private files through an ordinary AI response.
+Provide secure links only when the user has the necessary permission and explicitly requests the document.
+________________________________________
+3. OpenCode LLM Integration — Privacy First
+Retain the existing OpenCode LLM integration, but improve its architecture.
+The LLM must not receive unrestricted database access.
+Implement a controlled architecture:
+User → Dhiyu Interface → Authenticated Backend → Authorized Fleet Intelligence Tools → Sanitized Results → OpenCode LLM → Response
+The backend must retrieve the relevant information using authorized database queries.
+Expose only narrowly scoped tools to the AI.
+Examples:
+•	get_fleet_overview
+•	get_vehicle_details
+•	get_driver_profile
+•	get_driver_performance
+•	get_trip_report
+•	get_fuel_report
+•	get_engine_health
+•	get_tyre_health
+•	get_predictive_maintenance
+•	get_service_history
+•	get_maintenance_expenses
+•	get_fleet_risk_report
+•	get_climate_risk_report
+•	get_vehicle_issue_history
+Each tool must:
+•	Validate the user's session.
+•	Check organization membership.
+•	Check role permissions.
+•	Retrieve only authorized information.
+•	Validate input parameters.
+•	Return structured results.
+•	Record sensitive access where appropriate.
+Do not expose unrestricted SQL execution to the LLM.
+Do not give the model database credentials, Supabase service-role keys, storage secrets or unrestricted backend access.
+External LLM privacy
+Before sending any information to OpenCode or its configured model provider:
+•	Identify whether the model is local or cloud-hosted.
+•	Check the provider's data retention and training policies.
+•	Avoid sending unnecessary personal information.
+•	Redact driver identity information unless genuinely required.
+•	Never send passwords, access tokens, identity documents or authentication secrets.
+•	Use local inference for highly sensitive processing where practical.
+•	Make cloud processing subject to the organization's approved privacy policy.
+Do not advertise the system as completely private if cloud providers receive fleet information.
+________________________________________
+4. Dhiyu's Actual Responsibilities
+Dhiyu should answer operational questions using DriveMitra's real records.
+A. Fleet Reports
+Examples:
+•	Give me today's fleet report.
+•	Summarize this week's fleet performance.
+•	Compare fleet performance over 7, 30 and 90 days.
+•	Which vehicles travelled the most?
+•	Which vehicles were underutilized?
+•	How many vehicles are currently active?
+•	Show the total distance covered this month.
+•	What is the total recorded maintenance expenditure?
+•	Compare fuel expenses across my vehicles.
+•	Which vehicles have the highest operating costs?
+Reports must contain:
+•	Reporting period.
+•	Relevant metrics.
+•	Actual values.
+•	Comparisons.
+•	Important observations.
+•	Data coverage.
+•	Actionable recommendations.
+Never invent missing numbers.
+B. Vehicle Details
+Examples:
+•	Show vehicle TN 37 XX 0000.
+•	What is the condition of this vehicle?
+•	When was it last serviced?
+•	What issues were previously reported?
+•	How much was spent on repairs?
+•	What is its current trip status?
+•	Does it have any upcoming service requirements?
+Return only authorized vehicle information.
+C. Driver Details
+Examples:
+•	Show the driver assigned to this vehicle.
+•	Which driver completed the most trips this month?
+•	Show this driver's trip history.
+•	Is the driving licence valid?
+•	Are any mandatory documents expiring?
+•	Show recorded safety incidents.
+•	How has the driver's operational performance changed?
+Driver details must respect the user's permissions and privacy requirements.
+Never expose unnecessary personal or identity information.
+D. Predictive Maintenance Solutions
+This is one of Dhiyu's most important responsibilities.
+When a user asks about a predicted problem, Dhiyu must explain:
+1.	Which vehicle is affected?
+2.	Which component is involved?
+3.	What issue was detected or predicted?
+4.	What evidence supports the prediction?
+5.	How confident is the prediction?
+6.	What could happen if it is ignored?
+7.	What should the fleet owner do?
+8.	How urgently should the issue be inspected?
+9.	What approximate cost is expected, if reliable cost data exists?
+10.	What service history is relevant?
+Examples:
+Fuel
+•	Unusual fuel consumption.
+•	Potential fuel leakage indicators.
+•	Fuel efficiency deterioration.
+•	Excessive idling-related fuel wastage.
+Engine
+•	Overheating indicators.
+•	Repeated engine fault codes.
+•	Unusual engine performance.
+•	Upcoming engine servicing.
+Tyres
+•	Low tyre pressure.
+•	Uneven wear.
+•	Replacement requirements.
+•	Repeated punctures.
+Driver Health and Safety
+•	Licence expiry.
+•	Driving compliance concerns.
+•	Repeated unsafe driving patterns.
+•	Required training or corrective actions.
+Vehicle Health
+•	Battery issues.
+•	Overdue service.
+•	Repeated mechanical issues.
+•	Vehicle inspection requirements.
+Never diagnose a confirmed failure from a prediction alone.
+________________________________________
+5. Problem-Solving Intelligence
+Dhiyu must go beyond reporting problems.
+It must provide practical solutions.
+Example:
+User:
+"Why is vehicle TN 37 XX 0000 showing an engine risk?"
+Dhiyu should respond with:
+Vehicle: TN 37 XX 0000
+Detected concern: Repeated engine temperature warnings.
+Evidence: Three recorded temperature warnings during the selected reporting period.
+Potential causes:
+•	Cooling system malfunction.
+•	Low coolant.
+•	Radiator blockage.
+•	Cooling fan issue.
+Recommended action:
+1.	Arrange a safe vehicle inspection.
+2.	Check coolant level and cooling system condition.
+3.	Inspect radiator and cooling fan.
+4.	Review the recorded engine fault history.
+5.	Obtain a mechanic's assessment before returning the vehicle to service if overheating persists.
+Priority: High, subject to confirmation by inspection.
+Estimated repair cost: Show only if supported by actual service records or a clearly identified external estimate.
+The response must be based on the actual evidence available.
+________________________________________
+6. Operational Decision Support
+Dhiyu should help fleet owners make decisions.
+Examples:
+•	Which vehicle should be serviced first?
+•	Which vehicle is becoming expensive to maintain?
+•	Should this vehicle be assigned to another trip?
+•	Which vehicles require tyre replacement?
+•	Which drivers need additional safety training?
+•	Which active trips are affected by severe weather?
+•	Which vehicles are approaching their service intervals?
+•	What are the most important operational concerns today?
+Where multiple options exist, explain the reasoning behind the recommendation.
+Never perform financial transactions, delete records, suspend accounts, modify driver assignments or change vehicle status without an explicitly authorized action and appropriate confirmation.
+________________________________________
+7. Conversational Behaviour
+Dhiyu must understand natural language and maintain conversational context.
+Examples:
+User: "Hi"
+Dhiyu: "Hello! I'm Dhiyu, your DriveMitra fleet intelligence assistant. What would you like to review today?"
+User: "Give me today's report."
+Dhiyu: Retrieves the organization's actual daily fleet data and presents a concise report.
+User: "Which vehicle has the highest maintenance cost?"
+Dhiyu: Retrieves actual maintenance expenses, compares vehicles and identifies the highest-cost vehicle.
+User: "What can I do about it?"
+Dhiyu: Understands that the user is referring to the previously discussed vehicle and provides relevant recommendations.
+User: "Show me that driver's details."
+Dhiyu: Understands the driver referenced in the conversation, validates authorization and retrieves the permitted profile.
+User: "What are you doing?"
+Dhiyu: "I'm here to analyse your fleet records, explain operational risks and help you make better fleet management decisions."
+Conversation context
+Maintain contextual understanding within the authenticated organization.
+However:
+•	Revalidate authorization on every tool call.
+•	Do not reuse stale sensitive information after permissions change.
+•	Do not allow one user's conversation history to become visible to another user.
+•	Apply retention policies to conversation history.
+•	Allow users to clear their own permitted chat history.
+________________________________________
+8. Remove Technical Provider Errors from the User Interface
+The screenshot currently shows:
+"OpenCode AI free-tier anonymous quota for this server IP is temporarily reached."
+This is an internal provider error and must not be displayed directly to fleet owners.
+Implement proper error handling.
+Provider quota reached:
+"Dhiyu is temporarily unable to process this request. Your fleet information has not been changed. Please try again shortly."
+Provider unavailable:
+"Fleet intelligence is temporarily unavailable. Please try again later."
+Database unavailable:
+"Unable to retrieve the latest fleet records. Please retry."
+Insufficient permission:
+"You do not have permission to access this information."
+Insufficient data:
+"There is not enough recorded information to generate a reliable analysis."
+Log the original technical error securely on the backend with a correlation ID.
+Never expose:
+•	API keys.
+•	Provider credentials.
+•	Internal IP addresses.
+•	Environment variables.
+•	Stack traces.
+•	Database connection details.
+•	Raw authentication errors.
+Fallback strategy
+If OpenCode is unavailable:
+•	Preserve chat history.
+•	Display a friendly temporary-unavailability message.
+•	Allow deterministic backend reports where possible.
+•	Do not generate fabricated AI answers.
+•	Retry according to a controlled policy.
+•	Avoid infinite retries and duplicate requests.
+Do not require fleet owners to configure OpenCode API keys themselves.
+Provider credentials and model selection belong to platform administration.
+________________________________________
+9. Improve Dhiyu's Interface
+Retain the existing DriveMitra visual design system.
+Improve the chat interface with:
+•	Clear assistant identity.
+•	Compact organization and role context.
+•	Useful suggested questions.
+•	Clean message bubbles.
+•	Proper message spacing.
+•	Readable report cards.
+•	Scrollable conversation history.
+•	Fixed message composer.
+•	Loading indicators.
+•	Error states.
+•	Copy response.
+•	Regenerate response where safe.
+•	Conversation history.
+Remove unnecessary empty space.
+Suggested questions
+Show contextual suggestions rather than generic sample questions.
+Examples:
+•	Generate today's fleet performance report.
+•	Which vehicles need immediate inspection?
+•	Show vehicles with upcoming service requirements.
+•	Summarize this month's fuel expenditure.
+•	Identify drivers with expiring licences.
+•	Explain the highest-risk vehicle.
+•	Analyse current weather exposure across active trips.
+•	Show vehicles with repeated maintenance issues.
+Suggestions should adapt to the user's permissions and available data.
+Report presentation
+Dhiyu should use structured responses where useful:
+•	KPI summaries.
+•	Compact tables.
+•	Vehicle identification.
+•	Driver identification.
+•	Risk indicators.
+•	Date ranges.
+•	Evidence summaries.
+•	Recommended actions.
+Large reports should use expandable sections rather than excessively long chat messages.
+________________________________________
+10. Multilingual Support
+Dhiyu must follow the language selected in DriveMitra.
+Initially support:
+•	English.
+•	Hindi.
+•	Tamil.
+•	Kannada.
+•	Malayalam.
+•	Telugu.
+•	Marathi.
+Examples:
+If the user selects Tamil, Dhiyu should understand Tamil questions and answer in Tamil.
+If the user selects Kannada, responses should be in Kannada.
+If the user switches to English, responses should switch to English.
+Support natural language questions rather than requiring fixed commands.
+Preserve:
+•	Vehicle registration numbers.
+•	Driver IDs.
+•	Currency values.
+•	Dates.
+•	Technical codes.
+•	Measurement units.
+Do not translate database identifiers or alter numerical values.
+________________________________________
+11. Testing Requirements
+Test the following before release:
+1.	User from Organization A cannot retrieve Organization B's information.
+2.	A restricted role cannot access unauthorized driver details.
+3.	Vehicle reports contain actual database values.
+4.	Maintenance explanations use actual recorded evidence.
+5.	Missing data is not fabricated.
+6.	Chat context works across follow-up questions.
+7.	OpenCode quota errors are handled gracefully.
+8.	No provider secrets appear in frontend responses.
+9.	Provider downtime does not destroy chat history.
+10.	Dhiyu works in all supported languages.
+11.	Reports are readable and correctly formatted.
+12.	Revoked sessions cannot continue using old AI access.
+13.	All AI tool calls enforce organization-level authorization.
+14.	Sensitive information is not unnecessarily transmitted to external providers.
+________________________________________
+Final Product Definition
+Dhiyu is the private intelligence layer of DriveMitra.
+It should not simply answer questions.
+Dhiyu — Understand Your Fleet. Anticipate Problems. Make Better Decisions.
+
+
+
+
+DriveMitra — Fleet Management Inline Details Screen Enhancement
+Objective
+Redesign the Vehicle Details and Driver Details screens inside Fleet Management.
+Both screens must open as dedicated, full-page inline interfaces instead of popup dialogs, modal windows or floating forms.
+The objective is to create professional, information-rich ERP-style detail pages that allow fleet owners to inspect, manage, update and analyse vehicle and driver information without unnecessary navigation or restricted popup space.
+Use the uploaded AI Zamrud ERP – Driver Master screenshot as a structural reference for the Driver Details interface, particularly its identity information, emergency contacts, licence details, safety rating, assigned vehicle and operational eligibility sections.
+Do not copy its Oman-specific fields or branding. Adapt the structure to DriveMitra's Indian commercial fleet requirements.
+________________________________________
+1. Navigation Architecture
+Implement dedicated routes within the existing Fleet Management application.
+Vehicle navigation
+Fleet Management → Vehicles → Select Vehicle → Vehicle Details
+Suggested route:
+/dashboard/fleet/vehicles/:vehicleId
+Driver navigation
+Fleet Management → Drivers → Select Driver → Driver Details
+Suggested route:
+/dashboard/fleet/drivers/:driverId
+Important requirements
+•	Clicking a vehicle or driver record must navigate to its dedicated details page.
+•	Do not open popup dialogs for the main details interface.
+•	Preserve the existing application sidebar and navigation.
+•	Provide breadcrumb navigation.
+•	Include a Back to Vehicles or Back to Drivers action.
+•	Support browser back and forward navigation.
+•	Preserve the selected record when refreshing the page.
+•	Handle invalid IDs and unauthorized access correctly.
+•	Do not introduce duplicate detail pages or unnecessary routes.
+________________________________________
+2. Vehicle Details — Full-Page Interface
+Create a comprehensive vehicle profile with the following sections.
+A. Vehicle Header
+Display:
+•	Vehicle registration number.
+•	Vehicle photograph.
+•	Manufacturer and model.
+•	Vehicle category.
+•	Current operational status.
+•	Assigned driver.
+•	Current location, when available.
+•	Last telemetry update.
+Header actions:
+•	Edit Vehicle.
+•	Assign Driver.
+•	View Trips.
+•	Record Issue.
+•	Add Service Record.
+B. Vehicle Overview
+Show:
+•	Registration number.
+•	Manufacturer.
+•	Model.
+•	Manufacturing year.
+•	Registration date.
+•	Vehicle type.
+•	Fuel type.
+•	Transmission.
+•	Seating or load capacity.
+•	Gross vehicle weight.
+•	Current odometer reading.
+•	Vehicle ownership type.
+•	Insurance validity.
+•	Fitness certificate validity.
+•	Permit validity.
+Only display fields relevant to the vehicle category.
+C. Vehicle Specifications
+Provide detailed technical information:
+•	Vehicle dimensions.
+•	Height.
+•	Width.
+•	Length.
+•	Gross vehicle weight.
+•	Axle configuration.
+•	Engine specifications.
+•	Fuel tank capacity.
+•	Tyre configuration.
+•	Other truck-specific specifications.
+These specifications must also be usable by Truck Route Intelligence when calculating vehicle-compatible routes.
+D. Documents & Compliance
+Maintain:
+•	Registration Certificate.
+•	Insurance.
+•	Fitness Certificate.
+•	National and state permits.
+•	Pollution Under Control Certificate.
+•	Road tax records.
+•	Other applicable documents.
+Display:
+•	Document status.
+•	Expiry date.
+•	Upload date.
+•	Verification status.
+•	Renewal reminders.
+Support secure document upload, preview, download and replacement.
+E. Vehicle Health
+Provide a component-wise overview:
+•	Fuel Health.
+•	Engine Health.
+•	Tyre Health.
+•	Battery Health.
+•	Overall Vehicle Health.
+Display actual observations, historical findings, predicted concerns, data availability and recommended actions.
+Do not fabricate health scores or sensor readings.
+F. Trip History
+Display:
+•	Trip ID.
+•	Starting location.
+•	Destination.
+•	Assigned driver.
+•	Trip date.
+•	Distance.
+•	Duration.
+•	Trip status.
+Allow users to open individual trip records.
+G. Maintenance & Service History
+Display:
+•	Previous service records.
+•	Repair history.
+•	Small issue logs.
+•	Service dates.
+•	Odometer readings.
+•	Workshop details.
+•	Parts replaced.
+•	Labour expenses.
+•	Total service cost.
+•	Next service requirement.
+Allow users to create new service and issue records through dedicated inline pages or appropriately sized scrollable workflows.
+H. Fuel History
+Display:
+•	Refuelling date.
+•	Fuel quantity.
+•	Fuel type.
+•	Recorded price.
+•	Total expense.
+•	Odometer reading.
+•	Fuel efficiency.
+•	Supporting bills.
+I. Expense Overview
+Display:
+•	Maintenance expenditure.
+•	Fuel expenditure.
+•	Insurance expenses.
+•	Permit and compliance expenses.
+•	Other recorded operational expenses.
+•	Total expenditure.
+•	Cost per kilometre when reliable distance data exists.
+J. Driver Assignment History
+Display:
+•	Current assigned driver.
+•	Previous drivers.
+•	Assignment date.
+•	Release date.
+•	Assignment status.
+Never overwrite previous assignment records.
+________________________________________
+3. Driver Details — Full-Page Interface
+Use the uploaded AI Zamrud ERP Driver Master reference as a structural guide.
+Create a clean, professional driver profile with a clear information hierarchy.
+A. Driver Header
+Display:
+•	Driver photograph.
+•	Full name.
+•	Generated Driver ID.
+•	Employee ID, if available.
+•	Employment status.
+•	Current assigned vehicle.
+•	Licence validity status.
+•	Safety score, when sufficient data exists.
+Header actions:
+•	Edit Driver.
+•	Assign Vehicle.
+•	View Trip History.
+•	Upload Document.
+•	Update Employment Status.
+B. Personal Identity & Emergency Information
+Include:
+•	Driver Code.
+•	Full Name.
+•	Photograph.
+•	Date of Birth.
+•	Mobile Number.
+•	Email Address.
+•	Address.
+•	Emergency Contact Name.
+•	Emergency Contact Relationship.
+•	Emergency Contact Number.
+•	Blood Group, only if voluntarily provided and operationally justified.
+Keep sensitive information protected by role-based permissions.
+C. Driving Licence & Qualifications
+Include:
+•	Driving Licence Number.
+•	Licence Holder Name.
+•	Issuing Authority.
+•	Licence Issue Date.
+•	Licence Expiry Date.
+•	Licence Classification.
+•	Vehicle Categories Authorized.
+•	Relevant driving qualifications.
+•	Licence document upload.
+•	Verification status.
+Support Indian commercial driving licence categories and relevant state-specific information.
+Do not copy the Oman ROP licence or Civil ID requirements from the reference.
+D. Document Management
+Maintain:
+•	Driving Licence.
+•	Masked Aadhaar, where lawfully required.
+•	PAN, where required.
+•	Voter ID.
+•	Passport.
+•	Address Proof.
+•	Employment Agreement.
+•	Medical Fitness Certificate, where applicable.
+•	Other organization-defined documents.
+For each document, display:
+•	Document type.
+•	Reference number, where appropriate.
+•	Issue date.
+•	Expiry date.
+•	Upload date.
+•	Verification status.
+•	Uploaded by.
+Allow:
+•	Upload.
+•	Preview.
+•	Secure download.
+•	Replace.
+•	Update metadata.
+Use private storage, access controls and audit logs.
+Uploading a document must not automatically mark it as verified.
+E. Driver Operational Status
+Display:
+•	Active.
+•	Inactive.
+•	Suspended.
+•	Archived.
+Include:
+•	Joining date.
+•	Employment type.
+•	Driving experience.
+•	Assigned vehicle.
+•	Previous assignments.
+•	Operational notes.
+F. Driver Performance & Safety
+Display:
+•	Total assigned trips.
+•	Completed trips.
+•	Total recorded distance.
+•	On-time arrival performance.
+•	Recorded speeding events.
+•	Harsh braking events.
+•	Harsh acceleration events.
+•	Incident history.
+•	Safety score, when sufficient verified data exists.
+Show the reporting period and calculation coverage.
+Do not generate unsupported driver rankings or medical diagnoses.
+G. Trip History
+Display:
+•	Trip ID.
+•	Vehicle registration.
+•	Origin.
+•	Destination.
+•	Start date.
+•	End date.
+•	Distance.
+•	Trip status.
+H. Safety & Compliance
+Display:
+•	Licence validity.
+•	Document completeness.
+•	Upcoming expiries.
+•	Training records.
+•	Compliance observations.
+•	Incident records.
+•	Corrective actions.
+________________________________________
+4. Interface Layout & Design
+Both pages must use the existing DriveMitra design system.
+Maintain:
+•	Existing typography.
+•	Existing colour palette.
+•	Existing sidebar.
+•	Existing navigation hierarchy.
+•	Existing spacing standards.
+•	Existing responsive behaviour.
+Recommended layout
+Top section
+•	Breadcrumbs.
+•	Record identification.
+•	Status badge.
+•	Main actions.
+Main content
+•	Full-width information area.
+•	Clearly organized sections.
+•	Responsive two-column layouts where appropriate.
+•	Expandable sections for detailed information.
+•	Tables for historical records.
+Optional side information
+•	Compact vehicle or driver summary.
+•	Health or compliance status.
+•	Important operational indicators.
+Do not force a fixed right-side panel if it creates unnecessary blank space.
+Visual requirements
+•	Avoid oversized cards.
+•	Avoid unnecessary empty space.
+•	Maintain consistent alignment.
+•	Use readable labels and values.
+•	Use appropriate section dividers.
+•	Use compact but comfortable information density.
+•	Avoid excessive gradients and glassmorphism.
+•	Keep the interface bright, warm and professional.
+________________________________________
+5. Inline Editing & Record Management
+Do not use popup dialogs for the main vehicle or driver detail screens.
+Implement:
+•	Dedicated Edit mode.
+•	Inline editable fields where appropriate.
+•	Clearly grouped forms.
+•	Save Changes.
+•	Cancel Changes.
+•	Unsaved-change warnings.
+•	Field validation.
+•	Success and failure feedback.
+For lengthy editing workflows, use dedicated edit routes or expandable inline sections.
+For document uploads and service records, use properly designed scrollable interfaces instead of oversized or overflowing popup dialogs.
+Preserve all historical records during updates.
+________________________________________
+6. Backend & Database Requirements
+Audit the existing implementation before making changes.
+Reuse existing database tables and components wherever possible.
+Ensure:
+•	Vehicle IDs and driver IDs are stable.
+•	Records are organization-scoped.
+•	Driver assignments maintain history.
+•	Trip records reference the correct vehicle and driver.
+•	Service records reference the correct vehicle.
+•	Uploaded documents are securely associated with their owners.
+•	Changes are validated on the backend.
+•	Unauthorized users cannot modify records.
+•	Audit logs capture important modifications.
+Do not duplicate existing records or introduce conflicting database structures.
+Apply database changes through safe migrations.
+________________________________________
+7. Responsive Behaviour
+Both detail pages must work correctly on:
+•	Desktop.
+•	Laptop.
+•	Tablet.
+•	Mobile.
+On smaller screens:
+•	Stack information sections vertically.
+•	Make tables horizontally scrollable where necessary.
+•	Keep important actions accessible.
+•	Prevent horizontal page overflow.
+•	Maintain readable text sizes.
+•	Ensure document previews adapt to screen size.
+________________________________________
+8. Final Acceptance Criteria
+1.	Vehicle Details opens as a dedicated inline page.
+2.	Driver Details opens as a dedicated inline page.
+3.	Neither main details screen uses a popup dialog.
+4.	Both pages support full-page scrolling.
+5.	All existing vehicle and driver records remain intact.
+6.	All relevant information is grouped into meaningful sections.
+7.	Vehicle service and issue histories remain accessible.
+8.	Driver documents and licence details remain accessible.
+9.	Driver assignment history is preserved.
+10.	Editing and saving work correctly.
+11.	Browser refresh preserves the selected detail page.
+12.	Unauthorized organization access is blocked.
+13.	Responsive layouts work across screen sizes.
+14.	No unnecessary blank space or broken layouts remain.
+Final Direction
+Build these as two professional ERP-style detail screens inside DriveMitra.
+Vehicle Details should provide a complete operational and technical history of the vehicle.
+Driver Details should provide a complete identity, licence, employment, compliance and operational history of the driver.
+Do not redesign unrelated modules or remove existing working functionality.
+
+
+
+
+
+
+
+
+DRIVEMITRA — COMPLETE FLEET MANAGEMENT & INTELLIGENCE PLATFORM
+Master Implementation, Integration & Production Readiness Directive
+1. PROJECT OBJECTIVE
+Transform the existing DriveMitra application into a complete, production-ready fleet management and intelligence platform.
+The platform must combine:
+1.	The complete operational capabilities and interconnected workflows of Fleetio-style fleet management software.
+2.	DriveMitra's own real-time fleet telematics and monitoring capabilities.
+3.	AI-powered predictive maintenance and vehicle health intelligence.
+4.	Intelligent truck routing and trip management.
+5.	Fuel, driver, financial and inventory intelligence.
+6.	Climate intelligence and route-based environmental risk analysis.
+7.	Private AI-powered fleet reporting and decision support.
+Core product positioning:
+DriveMitra — Intelligent Fleet Operations. Predictive Decisions. Measurable Savings.
+This is not a request to create a new demonstration application or redesign a few dashboard screens.
+The objective is to complete and integrate the existing DriveMitra codebase into a fully functional commercial fleet management SaaS platform.
+2. CRITICAL IMPLEMENTATION RULES
+Before making changes:
+•	Inspect the entire existing repository.
+•	Understand the current architecture, routes, components, database schema, authentication, APIs and integrations.
+•	Identify implemented, partially implemented, broken and missing features.
+•	Preserve existing working functionality.
+•	Reuse existing components and services wherever appropriate.
+•	Identify duplicate, disconnected and obsolete implementations.
+•	Create a dependency-aware implementation plan.
+•	Implement changes directly in the existing project.
+Do not:
+•	Replace the application with a generic admin template.
+•	Create placeholder dashboards.
+•	Add buttons without working functionality.
+•	Display fabricated vehicle, driver, financial or telemetry records as real information.
+•	Use random values to make dashboards appear populated.
+•	create duplicate modules that perform the same operation.
+•	break existing database records or authentication.
+•	silently remove useful existing functionality.
+•	mark a feature complete when only its frontend has been implemented.
+Every feature must have its required frontend, backend, database operations, authorization, validation, loading states, error handling and auditability.
+When a live integration is unavailable, provide a clearly identified unavailable or disconnected state rather than fabricated live information.
+________________________________________
+3. PLATFORM ACCESS AND USER STRUCTURE
+DriveMitra is exclusively for fleet owners and authorized management personnel.
+There must be no driver-facing application.
+Platform roles
+Implement:
+Platform Super Admin
+•	Manage organizations.
+•	Manage subscriptions.
+•	Monitor platform-wide usage.
+•	Suspend and reactivate organizations.
+•	Manage platform configuration.
+•	Access platform audit logs.
+Fleet Owner
+•	Complete access to their organization's fleet.
+•	Manage vehicles and drivers.
+•	Manage trips, maintenance and expenses.
+•	Manage authorized staff.
+•	Access fleet analytics and AI intelligence.
+Fleet Manager
+•	Manage vehicles, trips and operational activities according to permissions.
+Maintenance Manager
+•	Manage inspections, issues, work orders, maintenance and inventory.
+Finance Manager
+•	Manage expenses, fuel transactions, invoices, payments and financial reports.
+Viewer
+•	Read-only access to permitted organizational information.
+Enforce permissions on the backend and through Supabase Row Level Security.
+Never depend exclusively on frontend role checks.
+All organization-owned data must be isolated by organization ID.
+Drivers are operational records, not platform users.
+________________________________________
+4. COMMAND CENTRE — FLEET INTELLIGENCE DASHBOARD
+Build a comprehensive customizable fleet dashboard.
+Fleetio-style foundation
+Implement:
+•	Total vehicles.
+•	Active vehicles.
+•	Inactive vehicles.
+•	Vehicles under maintenance.
+•	Vehicle availability.
+•	Maintenance due.
+•	Overdue maintenance.
+•	Open issues.
+•	Open work orders.
+•	Fuel expenditure.
+•	Maintenance expenditure.
+•	Fleet utilization.
+•	Total distance travelled.
+•	Vehicle performance summaries.
+•	Customizable dashboard widgets.
+•	Date-based analytics.
+•	Detailed drill-down navigation.
+DriveMitra enhancements
+Implement:
+•	AI Fleet Intelligence.
+•	Fleet health overview.
+•	Predictive vehicle risk scores.
+•	Vehicle breakdown risk summaries.
+•	Fuel efficiency intelligence.
+•	Fleet operating cost analysis.
+•	Vehicle utilization intelligence.
+•	Route performance insights.
+•	Climate exposure summaries.
+•	Predictive maintenance recommendations.
+•	AI-generated management summaries.
+Dashboard behavior
+Every widget must:
+•	Retrieve information from actual database records.
+•	Support applicable date filters.
+•	Show data freshness.
+•	Display loading, empty and error states.
+•	Navigate to the underlying records when clicked.
+•	Respect user permissions.
+Do not display fabricated KPIs.
+________________________________________
+5. VEHICLE AND ASSET MANAGEMENT
+Implement complete vehicle lifecycle management.
+Vehicle registration
+Support:
+•	Internal vehicle ID.
+•	Registration number.
+•	Manufacturer.
+•	Model.
+•	Manufacturing year.
+•	Vehicle category.
+•	Vehicle type.
+•	Fuel type.
+•	Engine number.
+•	Chassis number.
+•	Engine capacity.
+•	Transmission.
+•	Gross vehicle weight.
+•	Payload capacity.
+•	Axle configuration.
+•	Vehicle dimensions.
+•	Purchase date.
+•	Purchase price.
+•	Ownership type.
+•	Insurance information.
+•	Registration information.
+•	Current odometer.
+•	Vehicle status.
+Vehicle profiles
+Every vehicle must have a dedicated inline details page.
+Required sections:
+1.	Overview.
+2.	Specifications.
+3.	Documents and Compliance.
+4.	Current Driver Assignment.
+5.	Assignment History.
+6.	Vehicle Health.
+7.	Live Location.
+8.	Trip History.
+9.	Maintenance History.
+10.	Service Records.
+11.	Issues.
+12.	Work Orders.
+13.	Fuel History.
+14.	Expenses.
+15.	Cost of Ownership.
+16.	Reports.
+Fleetio-style functionality
+Implement:
+•	Vehicle listing.
+•	Vehicle categories.
+•	Vehicle groups.
+•	Search.
+•	Filters.
+•	Sorting.
+•	Vehicle status management.
+•	Document management.
+•	Utilization tracking.
+•	Cost of ownership.
+•	Vehicle history.
+DriveMitra enhancements
+Implement:
+•	Live GPS location.
+•	Vehicle movement tracking.
+•	Engine health monitoring through supported integrations.
+•	Odometer monitoring.
+•	Vehicle health scoring.
+•	Vehicle performance analysis.
+•	Abnormal operating-condition detection.
+•	Vehicle lifecycle cost forecasting.
+•	Predictive vehicle replacement recommendations.
+________________________________________
+6. DRIVER MANAGEMENT
+Implement complete owner-managed driver records.
+Driver profiles
+Include:
+•	Driver ID.
+•	Name.
+•	Photograph.
+•	Date of birth.
+•	Phone number.
+•	Email, where available.
+•	Address.
+•	Emergency contact.
+•	Employee ID.
+•	Joining date.
+•	Employment status.
+•	Driving experience.
+•	Driving licence details.
+•	Licence categories.
+•	Licence expiry.
+•	Assigned vehicle.
+•	Assignment history.
+Document management
+Support:
+•	Driving licence.
+•	Registration-related supporting documents where relevant.
+•	Address proof.
+•	Employment documents.
+•	Medical fitness documents where applicable.
+•	Other configurable documents.
+Support secure PDF and image uploads.
+Include:
+•	Document preview.
+•	Secure download.
+•	Document replacement.
+•	Verification status.
+•	Expiry tracking.
+•	Renewal reminders.
+•	Document history.
+•	Audit logs.
+Use private storage, strict permissions and short-lived signed URLs.
+Do not treat an uploaded document as automatically verified.
+DigiLocker integration is optional and must only be implemented through an officially authorized, commercially viable integration. Never scrape DigiLocker or collect user credentials.
+DriveMitra enhancements
+Implement:
+•	Driver performance intelligence.
+•	Harsh braking detection.
+•	Harsh acceleration detection.
+•	Overspeeding analysis.
+•	Excessive idling analysis.
+•	Driver safety score.
+•	Driving behaviour trends.
+•	Driver compliance alerts.
+•	Licence expiry alerts.
+•	Driver risk analysis.
+Only calculate behaviour metrics when reliable telemetry supports them.
+Do not create driver login accounts or driver-facing screens.
+________________________________________
+7. LIVE FLEET OPERATIONS
+Implement complete fleet location monitoring.
+Fleetio-style foundation
+•	Fleet map.
+•	Vehicle locations.
+•	Vehicle status.
+•	Vehicle identification.
+•	Location history.
+•	Vehicle-wise location details.
+DriveMitra enhancements
+•	Live satellite map.
+•	Real-time vehicle positions.
+•	Smooth map interaction.
+•	Vehicle movement monitoring.
+•	Route deviation detection.
+•	Geofencing.
+•	Geofence entry and exit alerts.
+•	Unexpected stoppage detection.
+•	Unauthorized movement alerts.
+•	Vehicle location history playback.
+•	Multi-vehicle monitoring.
+•	Live journey progress.
+Data requirements
+Integrate supported GPS devices, authorized telematics providers or organization-managed telemetry sources.
+Show:
+•	Data source.
+•	Last update timestamp.
+•	Connection status.
+•	GPS accuracy where available.
+•	Data freshness.
+Never present simulated coordinates as actual vehicle locations.
+Keep development simulators isolated from production.
+________________________________________
+8. TRIP MANAGEMENT AND ROUTE INTELLIGENCE
+Fleetio-style foundation
+Implement:
+•	Trip records.
+•	Trip creation and management.
+•	Starting location.
+•	Destination.
+•	Vehicle assignment.
+•	Driver assignment.
+•	Departure time.
+•	Arrival time.
+•	Trip distance.
+•	Trip duration.
+•	Trip status.
+•	Trip history.
+•	Trip documentation.
+•	Trip reports.
+DriveMitra enhancements
+Implement:
+•	Truck-specific route planning.
+•	Traffic-aware routing.
+•	Shortest suitable route.
+•	Fastest suitable route.
+•	Estimated arrival time.
+•	Route deviation alerts.
+•	Journey progress.
+•	Toll analysis.
+•	Route expense analysis.
+•	Historical route performance.
+•	Route efficiency scoring.
+•	Trip cost estimation.
+•	Weather-aware routing.
+•	Route risk analysis.
+Use an appropriate routing provider that genuinely supports the required commercial-vehicle restrictions.
+Consider:
+•	Vehicle height.
+•	Vehicle width.
+•	Vehicle weight.
+•	Axle configuration.
+•	Road restrictions.
+•	Truck access restrictions.
+•	Toll roads.
+•	Traffic conditions.
+Do not silently use car, motorcycle, bicycle or pedestrian routes as truck routes.
+Clearly disclose unsupported routing restrictions.
+________________________________________
+9. MAINTENANCE MANAGEMENT
+This module must combine complete Fleetio-style maintenance management with DriveMitra predictive intelligence.
+Fleetio-style foundation
+Implement:
+Preventive Maintenance
+•	Maintenance schedules.
+•	Scheduled servicing.
+•	Recurring maintenance.
+•	Manufacturer recommendations.
+•	Organization-defined maintenance policies.
+•	Distance-based maintenance.
+•	Time-based maintenance.
+•	Combined time and distance schedules.
+•	Service reminders.
+•	Upcoming maintenance.
+•	Due maintenance.
+•	Overdue maintenance.
+Maintenance Records
+•	Maintenance history.
+•	Service records.
+•	Service dates.
+•	Odometer readings.
+•	Maintenance descriptions.
+•	Parts consumed.
+•	Labour costs.
+•	Invoices.
+•	Supporting documents.
+•	Workshop information.
+•	Maintenance reports.
+Maintenance Configuration
+•	Maintenance categories.
+•	Maintenance task templates.
+•	Service intervals.
+•	Reminder thresholds.
+•	Vehicle-specific schedules.
+•	Vehicle-group schedules.
+DriveMitra predictive enhancements
+Implement:
+•	AI predictive maintenance.
+•	Vehicle health analysis.
+•	Engine condition analysis.
+•	Engine fault monitoring through supported integrations.
+•	Tyre wear and health analysis.
+•	Battery health analysis where supported.
+•	Brake condition risk analysis using available inspection or sensor data.
+•	Fuel consumption anomaly detection.
+•	Component failure risk prediction.
+•	Remaining useful life estimation where sufficient data exists.
+•	Breakdown risk estimation.
+•	Maintenance priority scoring.
+•	Predictive service recommendations.
+•	Repair cost forecasting.
+•	Vehicle downtime forecasting.
+Predictive workflow
+1.	Collect authorized vehicle telemetry.
+2.	Retrieve historical maintenance records.
+3.	Retrieve inspection records.
+4.	Analyze odometer and usage history.
+5.	Identify abnormal patterns.
+6.	Calculate risk where supported by sufficient evidence.
+7.	Generate a recommendation.
+8.	Display supporting evidence and data freshness.
+9.	Allow an authorized manager to create an issue or work order.
+10.	Track the result for future model evaluation.
+Predictions must be clearly distinguished from confirmed mechanical faults.
+Never claim that a component is damaged without evidence.
+________________________________________
+10. VEHICLE INSPECTIONS
+Fleetio-style foundation
+Implement:
+•	Custom inspection templates.
+•	Inspection checklists.
+•	Vehicle-specific inspections.
+•	Inspection scheduling.
+•	Pass/fail responses.
+•	Not-applicable responses.
+•	Inspection comments.
+•	Photograph attachments.
+•	Odometer readings.
+•	Inspector information.
+•	Inspection timestamps.
+•	Inspection history.
+•	Inspection reports.
+DriveMitra enhancements
+Implement:
+•	AI-assisted inspection analysis.
+•	Visible damage identification from uploaded photographs.
+•	Repeated defect identification.
+•	Inspection trend analysis.
+•	Vehicle condition scoring.
+•	Inspection-based maintenance recommendations.
+•	High-priority defect identification.
+•	Automatic issue creation from failed inspection items.
+Do not diagnose hidden mechanical problems using photographs alone.
+Failed inspections must be linked to traceable issue records.
+________________________________________
+11. ISSUES AND WORK ORDERS
+Implement a fully connected maintenance workflow.
+Issue management
+Support:
+•	Issue ID.
+•	Vehicle.
+•	Issue category.
+•	Description.
+•	Severity.
+•	Priority.
+•	Reported date.
+•	Reported by.
+•	Photographs.
+•	Attachments.
+•	Assigned person.
+•	Status.
+•	Resolution notes.
+Work order management
+Support:
+•	Work order ID.
+•	Related vehicle.
+•	Linked issues.
+•	Repair tasks.
+•	Assigned workshop.
+•	Assigned technician.
+•	Scheduled date.
+•	Estimated completion.
+•	Actual completion.
+•	Labour.
+•	Parts.
+•	Additional charges.
+•	Estimated cost.
+•	Actual cost.
+•	Approval status.
+•	Invoice attachments.
+•	Repair notes.
+•	Work order history.
+Work order lifecycle
+Implement configurable statuses:
+Draft → Open → Approved → In Progress → Waiting for Parts / Waiting for Approval → Completed → Closed.
+DriveMitra enhancements
+•	AI issue classification.
+•	Issue severity recommendations.
+•	Similar historical issue discovery.
+•	Troubleshooting recommendations.
+•	Repair cost estimation.
+•	Repair duration estimation.
+•	Recurring issue detection.
+•	Downtime intelligence.
+•	Work order priority recommendations.
+•	Maintenance escalation.
+Required relationships
+One work order may resolve multiple issues.
+An issue may remain open without a work order.
+Completed work orders must create or update the relevant service history and financial records without duplicating costs.
+________________________________________
+12. PARTS AND INVENTORY MANAGEMENT
+Fleetio-style foundation
+Implement:
+•	Parts catalogue.
+•	Part numbers.
+•	Part descriptions.
+•	Part categories.
+•	Suppliers.
+•	Stock quantity.
+•	Minimum stock level.
+•	Unit cost.
+•	Storage location.
+•	Purchase orders.
+•	Purchase order status.
+•	Partial receiving.
+•	Full receiving.
+•	Inventory adjustments.
+•	Parts consumption.
+•	Work order allocation.
+•	Stock movement history.
+•	Low-stock alerts.
+Purchase order workflow
+Create:
+1.	Supplier selection.
+2.	Part selection.
+3.	Quantity.
+4.	Unit price.
+5.	Applicable taxes.
+6.	Total amount.
+7.	Purchase order approval.
+8.	Supplier order.
+9.	Stock receiving.
+10.	Inventory update.
+Support partial deliveries and outstanding quantities.
+DriveMitra enhancements
+•	Spare-parts demand forecasting.
+•	Predictive stock requirements.
+•	Automated reorder recommendations.
+•	Maintenance-driven inventory forecasting.
+•	Supplier performance analysis.
+•	Slow-moving stock detection.
+•	Inventory cost optimization.
+•	Critical part availability alerts.
+Every inventory movement must be traceable.
+________________________________________
+13. WORKSHOP AND VENDOR MANAGEMENT
+Fleetio-style foundation
+Implement:
+•	Internal workshops.
+•	External workshop directory.
+•	Vendor profiles.
+•	Workshop locations.
+•	Contact information.
+•	Supported services.
+•	Maintenance records.
+•	External repair records.
+•	Vendor invoices.
+•	Repair approvals.
+•	Payment tracking.
+•	Vendor history.
+DriveMitra enhancements
+•	Workshop performance scoring.
+•	Repair turnaround analysis.
+•	Vendor cost comparisons.
+•	Repair quality tracking.
+•	Vendor reliability analysis.
+•	Workshop recommendations.
+•	Unusual repair expense detection.
+Support both internal maintenance and external workshop workflows.
+________________________________________
+14. FUEL AND EV CHARGING MANAGEMENT
+Fleetio-style foundation
+Implement:
+•	Fuel transaction records.
+•	Fuel types.
+•	Fuel quantity.
+•	Unit price.
+•	Total expenditure.
+•	Fuel station.
+•	Transaction date.
+•	Odometer reading.
+•	Vehicle association.
+•	Fuel receipts.
+•	Fuel history.
+•	Fuel efficiency.
+•	Fuel cost per kilometre.
+•	Vehicle-wise fuel reports.
+•	Charging history for supported electric vehicles.
+DriveMitra enhancements
+•	Live fuel-level monitoring through compatible sensors.
+•	Fuel consumption intelligence.
+•	Abnormal fuel consumption detection.
+•	Fuel anomaly alerts.
+•	Fuel efficiency prediction.
+•	Fuel expense forecasting.
+•	Unusual refuelling pattern detection.
+•	Route-wise fuel efficiency.
+•	Idle fuel consumption analysis.
+•	Fuel optimization recommendations.
+•	Charging efficiency analysis for EVs.
+•	Fuel station intelligence.
+Never infer actual fuel tank levels from location data alone.
+Never declare fuel theft based solely on anomalies.
+Display evidence, confidence and data source.
+________________________________________
+15. FINANCIAL AND EXPENSE MANAGEMENT
+Fleetio-style foundation
+Implement:
+•	Vehicle expenses.
+•	Fuel expenses.
+•	Maintenance expenses.
+•	Repair expenses.
+•	Parts expenses.
+•	Vendor invoices.
+•	Purchase expenses.
+•	Payment records.
+•	Expense categories.
+•	Vehicle-wise expenditure.
+•	Cost of ownership.
+•	Expense history.
+•	Financial reports.
+DriveMitra enhancements
+•	AI expense analysis.
+•	Operating cost per kilometre.
+•	Trip cost prediction.
+•	Vehicle profitability analysis.
+•	Maintenance budget forecasting.
+•	Fuel budget forecasting.
+•	Expense anomaly detection.
+•	Vehicle cost comparison.
+•	Fleet operating efficiency.
+•	Vehicle replacement recommendations.
+•	Total cost of ownership forecasting.
+Prevent duplicate expense entries when a work order, invoice and payment refer to the same underlying transaction.
+Keep invoice amounts, payable amounts and actual payments distinct.
+________________________________________
+16. CLIMATE INTELLIGENCE
+Develop this as a dedicated DriveMitra differentiator.
+Implement:
+•	Live weather monitoring.
+•	Route-based weather forecasting.
+•	Heavy rainfall alerts.
+•	Flood-risk identification.
+•	Cyclone alerts.
+•	Extreme heat alerts.
+•	Visibility warnings.
+•	Strong wind warnings.
+•	Weather-related route risk.
+•	Weather impact on estimated arrival.
+•	Climate-based route recommendations.
+•	Vehicle exposure analysis.
+•	Climate-related operational risk reports.
+Use suitable authoritative weather and environmental data providers.
+Display:
+•	Forecast period.
+•	Geographic coverage.
+•	Data source.
+•	Last update.
+•	Confidence or uncertainty where available.
+Do not claim that a route is flooded unless the source actually supports that conclusion.
+________________________________________
+17. ALERTS AND RISK INTELLIGENCE
+Fleetio-style foundation
+Implement:
+•	Maintenance reminders.
+•	Overdue maintenance alerts.
+•	Failed inspection alerts.
+•	Open issue notifications.
+•	Work order updates.
+•	Low inventory alerts.
+•	Document expiry reminders.
+•	Vehicle status alerts.
+DriveMitra enhancements
+Implement:
+•	Predictive breakdown alerts.
+•	Engine health alerts.
+•	Fuel anomaly alerts.
+•	Driver safety alerts.
+•	Route deviation alerts.
+•	Unauthorized movement alerts.
+•	Geofence alerts.
+•	Climate risk alerts.
+•	Unexpected stoppage alerts.
+•	Vehicle inactivity alerts.
+•	Fleet risk prioritization.
+•	Intelligent alert grouping.
+•	Recommended corrective actions.
+Each alert must have:
+•	Severity.
+•	Category.
+•	Related vehicle or driver.
+•	Detection time.
+•	Data source.
+•	Description.
+•	Recommended action.
+•	Acknowledgement status.
+•	Resolution status.
+•	Audit history.
+Avoid duplicate and excessively noisy notifications.
+________________________________________
+18. REPORTS AND ADVANCED ANALYTICS
+Fleetio-style foundation
+Implement:
+•	Standard reports.
+•	Custom report builder.
+•	Vehicle reports.
+•	Driver reports.
+•	Maintenance reports.
+•	Service history reports.
+•	Inspection reports.
+•	Issue reports.
+•	Work order reports.
+•	Fuel reports.
+•	Inventory reports.
+•	Expense reports.
+•	Utilization reports.
+•	Date filters.
+•	Vehicle filters.
+•	Driver filters.
+•	Grouping.
+•	Sorting.
+•	Calculations.
+•	Tables.
+•	Charts.
+•	Exportable reports.
+•	Saved report configurations.
+DriveMitra enhancements
+Implement:
+•	AI-generated fleet reports.
+•	Predictive maintenance reports.
+•	Vehicle health reports.
+•	Fleet risk reports.
+•	Driver safety reports.
+•	Fuel intelligence reports.
+•	Route efficiency reports.
+•	Climate exposure reports.
+•	Vehicle cost forecasts.
+•	Fleet benchmarking.
+•	Automated management summaries.
+•	Natural-language report queries.
+Report accuracy
+•	Calculate using actual records.
+•	Respect date ranges.
+•	Display reporting periods.
+•	Show data coverage.
+•	Identify missing records.
+•	Prevent double counting.
+•	Enforce organizational permissions.
+•	Show when the report was generated.
+________________________________________
+19. PRIVATE AI INTELLIGENCE ASSISTANT
+Implement an AI assistant that can answer fleet-management questions using authorized organizational data.
+Example questions
+•	Which vehicles need immediate maintenance?
+•	Which truck has the highest operating cost?
+•	Why has fuel efficiency decreased?
+•	Which vehicles have recurring mechanical problems?
+•	Which licences are expiring?
+•	What is our total maintenance expenditure this month?
+•	Which vehicles have the highest breakdown risk?
+•	Which route has the highest operating cost?
+•	Which spare parts should we reorder?
+•	Which workshops have the longest repair turnaround?
+Capabilities
+•	Natural-language queries.
+•	Fleet data retrieval.
+•	Maintenance recommendations.
+•	Predictive analysis.
+•	Report generation.
+•	Expense explanations.
+•	Anomaly investigation.
+•	Operational recommendations.
+•	Historical comparison.
+Security
+•	AI must retrieve only authorized organizational records.
+•	Enforce the same permissions as normal application queries.
+•	Prevent cross-organization data leakage.
+•	Do not expose private information to unauthorized external models.
+•	Prefer private or self-hosted inference where practical.
+•	Never invent records.
+•	Clearly distinguish actual records, estimates and predictions.
+•	Provide data references and timestamps.
+•	Log AI actions appropriately.
+•	Never execute destructive operations without explicit authorized confirmation.
+AI must not bypass RLS or backend authorization.
+________________________________________
+20. ORGANIZATION, SUBSCRIPTION AND PLATFORM ADMINISTRATION
+Implement organization management.
+Organization management
+•	Organization profiles.
+•	Organization users.
+•	Role assignments.
+•	Vehicle and driver limits where applicable.
+•	Subscription status.
+•	Payment status.
+•	Organization activity.
+•	Access status.
+•	Audit history.
+Subscription states
+•	Active.
+•	Payment Pending.
+•	Grace Period.
+•	Suspended.
+•	Terminated.
+•	Archived.
+Super Admin capabilities
+•	Organization management.
+•	Subscription management.
+•	Payment monitoring.
+•	Access control.
+•	Suspension.
+•	Reactivation.
+•	Administrative audit logs.
+•	Platform settings.
+Suspension must revoke active sessions and block protected APIs.
+Do not automatically delete customer data because of overdue payments.
+Permanent deletion must be a separate, authorized, audited process subject to contractual and legal retention requirements.
+________________________________________
+21. NOTIFICATIONS AND DOCUMENT MANAGEMENT
+Implement a centralized notification system.
+Support:
+•	In-app notifications.
+•	Email notifications through configured providers.
+•	Configurable notification preferences.
+•	Maintenance reminders.
+•	Document expiry reminders.
+•	Work order updates.
+•	Payment reminders.
+•	Fleet risk alerts.
+•	Climate alerts.
+Implement a secure document vault for:
+•	Vehicle documents.
+•	Driver documents.
+•	Maintenance invoices.
+•	Service reports.
+•	Work order attachments.
+•	Fuel receipts.
+•	Vendor invoices.
+•	Purchase orders.
+All documents must be associated with the correct organization and relevant record.
+Use private storage, secure access, validation and audit history.
+________________________________________
+22. USER INTERFACE AND DESIGN SYSTEM
+Maintain DriveMitra's existing visual identity and improve consistency.
+Design direction
+Create a premium, bright, sophisticated and professional fleet management interface.
+Avoid:
+•	Dark backgrounds.
+•	Pure-white-heavy layouts.
+•	Generic admin dashboard templates.
+•	Excessive gradients.
+•	Excessive glassmorphism.
+•	Cluttered layouts.
+•	Oversized empty areas.
+•	Unnecessary popups.
+Use the established palette:
+•	Butter Cream: #F7F0D9
+•	Pale Lavender: #EEE8F7
+•	Vanilla Cream: #F4EBD5
+•	Lavender Mist: #E5DDF1
+•	Soft Golden Yellow: #E8C65A
+•	Royal Lavender: #B8A3D9
+•	Lemon Sorbet: #F5E8A8
+•	Lilac: #C9B9E5
+•	Soft Sage: #A4B99A
+•	Golden Apricot: #E6B76B
+•	Muted Coral: #D98E83
+•	Warm Cocoa: #625346
+•	Warm Grey: #958777
+Use Plus Jakarta Sans consistently.
+Navigation
+Organize the application into:
+1.	Command Centre.
+2.	Live Operations.
+3.	Fleet Management.
+4.	Driver Management.
+5.	Trip Management.
+6.	Inspections.
+7.	Issues.
+8.	Maintenance.
+9.	Work Orders.
+10.	Parts & Inventory.
+11.	Workshops & Vendors.
+12.	Fuel Management.
+13.	Financial Intelligence.
+14.	Climate Intelligence.
+15.	Alerts & Risks.
+16.	Reports & Analytics.
+17.	AI Intelligence.
+18.	Organization Settings.
+Navigation must respect user roles.
+Details screens
+Vehicle and driver details must use dedicated inline pages rather than large popup dialogs.
+Maintain:
+•	Breadcrumbs.
+•	Back navigation.
+•	Browser history.
+•	Refresh persistence.
+•	Responsive layouts.
+•	Consistent tabs and sections.
+•	Clear editing states.
+________________________________________
+23. MULTILINGUAL SUPPORT
+Implement a proper internationalization architecture.
+Support:
+•	English.
+•	Hindi.
+•	Tamil.
+•	Kannada.
+•	Malayalam.
+•	Telugu.
+•	Marathi.
+Requirements:
+•	Centralized translation dictionaries.
+•	No hardcoded UI strings.
+•	Locale-aware dates.
+•	Locale-aware numbers.
+•	Currency formatting.
+•	Translated validation errors.
+•	Translated notifications.
+•	Unicode-compatible fonts.
+•	Persistent language preferences.
+•	Layout testing for longer translations.
+•	Sensible fallback translations.
+Changing languages must not break page layouts or data operations.
+________________________________________
+24. TECHNICAL ARCHITECTURE AND DATABASE
+Inspect and preserve the existing architecture.
+The current project is based on:
+•	React.
+•	TypeScript.
+•	Vite.
+•	Tailwind CSS.
+•	Framer Motion.
+•	Recharts.
+•	Lucide icons.
+•	React-Leaflet.
+•	Supabase.
+•	PostgreSQL.
+•	Supabase Authentication.
+•	Supabase Storage.
+•	Python-based AI services.
+Retain compatible existing technology unless a demonstrated technical requirement justifies a change.
+Database requirements
+Create or adapt normalized, relational tables for:
+•	Organizations.
+•	Organization users.
+•	User roles.
+•	Vehicles.
+•	Vehicle documents.
+•	Vehicle components.
+•	Vehicle assignments.
+•	Drivers.
+•	Driver documents.
+•	Driver assignment history.
+•	Trips.
+•	Trip locations.
+•	Telemetry records.
+•	Inspections.
+•	Inspection templates.
+•	Inspection results.
+•	Issues.
+•	Work orders.
+•	Work order tasks.
+•	Maintenance schedules.
+•	Maintenance history.
+•	Service records.
+•	Parts.
+•	Suppliers.
+•	Purchase orders.
+•	Purchase order items.
+•	Inventory transactions.
+•	Workshops.
+•	Fuel transactions.
+•	EV charging transactions.
+•	Expenses.
+•	Invoices.
+•	Payments.
+•	Alerts.
+•	Weather observations.
+•	AI predictions.
+•	AI recommendation records.
+•	Reports.
+•	Notifications.
+•	Audit logs.
+•	Subscription records.
+Use foreign keys, indexes, constraints and appropriate transaction boundaries.
+Add organization-level isolation and RLS policies to every relevant table.
+Use database migrations.
+Never reset or overwrite production data during implementation.
+Data integrity
+•	Prevent duplicate vehicle registration records within the appropriate organizational scope.
+•	Validate odometer progression.
+•	Maintain historical assignments.
+•	Maintain inventory movement history.
+•	Prevent duplicate expense posting.
+•	Preserve completed work order records.
+•	Maintain document audit trails.
+•	Track telemetry source and timestamp.
+•	Preserve deleted-record references where audit or historical integrity requires it.
+________________________________________
+25. INTEGRATIONS
+Review current integrations before adding new providers.
+Potential integration categories:
+•	GPS and telematics providers.
+•	Vehicle diagnostic devices.
+•	Satellite map providers.
+•	Truck-compatible routing services.
+•	Traffic services.
+•	Weather services.
+•	Email providers.
+•	Payment providers.
+•	Document storage.
+•	Private AI inference.
+Do not assume that an API supports a feature merely because its name sounds suitable.
+Verify:
+•	Current availability.
+•	Pricing.
+•	Authentication.
+•	Commercial-use permissions.
+•	Data coverage.
+•	API limitations.
+•	Vehicle compatibility.
+Keep credentials in environment secrets or secure server-side configuration.
+Do not expose API keys in frontend code.
+If an integration is not configured, show an explicit connection state and provide a clear setup path.
+________________________________________
+26. PRODUCTION SECURITY AND RELIABILITY
+Implement:
+•	Secure authentication.
+•	Strong password handling.
+•	Server-side authorization.
+•	Organization isolation.
+•	Supabase RLS.
+•	Private document storage.
+•	Signed document URLs.
+•	Input validation.
+•	File validation.
+•	Rate limiting.
+•	Secure session handling.
+•	Audit logging.
+•	Error monitoring.
+•	Database backups.
+•	API error handling.
+•	Safe background jobs.
+•	Session revocation.
+•	Secure secret management.
+All production operations must use real database and integration services.
+Separate:
+•	Development.
+•	Testing.
+•	Production.
+Never expose test records as production fleet data.
+________________________________________
+27. IMPLEMENTATION ORDER
+Implement in dependency order rather than randomly creating pages.
+Phase 1 — Core Platform Foundation
+•	Inspect existing project.
+•	Authentication.
+•	Organization isolation.
+•	Roles and permissions.
+•	Database migrations.
+•	Audit logs.
+•	Document infrastructure.
+Phase 2 — Fleetio-Style Operational Foundation
+•	Vehicle management.
+•	Driver management.
+•	Vehicle documents.
+•	Maintenance schedules.
+•	Service records.
+•	Inspections.
+•	Issues.
+•	Work orders.
+•	Parts and inventory.
+•	Workshop management.
+•	Fuel management.
+•	Expenses.
+Phase 3 — Fleet Operations
+•	Live fleet monitoring.
+•	Trip management.
+•	Location history.
+•	Geofencing.
+•	Truck routing.
+•	Vehicle utilization.
+Phase 4 — DriveMitra Intelligence
+•	Predictive maintenance.
+•	Vehicle health intelligence.
+•	Driver safety analysis.
+•	Fuel anomaly detection.
+•	Predictive inventory.
+•	Financial intelligence.
+•	Climate intelligence.
+•	Fleet risk intelligence.
+Phase 5 — Analytics and AI
+•	Dashboards.
+•	Standard reports.
+•	Custom reports.
+•	Advanced analytics.
+•	Private AI assistant.
+•	AI-generated reports.
+Phase 6 — Production Readiness
+•	Security review.
+•	RLS verification.
+•	Integration testing.
+•	Performance optimization.
+•	Responsive testing.
+•	Error handling.
+•	Data integrity testing.
+•	Production deployment checks.
+Do not treat this sequence as permission to leave earlier phases partially functional. Each phase must be tested and integrated before dependent phases are considered complete.
+________________________________________
+28. MANDATORY END-TO-END WORKFLOW TESTING
+Test the entire system using controlled development/test data.
+Workflow A — Vehicle Lifecycle
+Create vehicle → Upload documents → Assign driver → Create maintenance schedule → Record inspection → Generate issue → Create work order → Complete repair → Create service record → Update expenses → Generate vehicle report.
+Workflow B — Maintenance
+Create service schedule → Trigger reminder using test odometer/date → Create maintenance work order → Record labour and parts → Complete service → Update maintenance history → Verify dashboard.
+Workflow C — Inventory
+Create supplier → Create part → Generate purchase order → Receive partial quantity → Verify inventory → Consume part in work order → Verify stock deduction and audit history.
+Workflow D — Fuel
+Create fuel transaction → Link vehicle → Record odometer → Calculate distance and efficiency using valid readings → Update fuel expenditure → Generate fuel report.
+Workflow E — Trip
+Create trip → Assign vehicle and driver → Record route → Receive supported GPS updates → Track journey → Calculate distance and duration → Generate trip report.
+Workflow F — Predictive Maintenance
+Load sufficient historical test data → Run prediction → Verify supporting records → Display risk and confidence → Generate recommendation → Create authorized issue/work order.
+Workflow G — Organization Isolation
+Create two test organizations → Add separate vehicles, drivers and financial records → Authenticate separate users → Attempt unauthorized cross-organization access → Verify all unauthorized requests are rejected.
+Workflow H — Financial Integrity
+Create work order → Attach invoice → Record payable amount → Record partial payment → Verify expense, payable and payment values are distinct → Confirm no duplicate expense posting.
+________________________________________
+29. FINAL ACCEPTANCE CRITERIA
+The project is complete only when:
+1.	All Fleetio-style foundation modules are implemented.
+2.	All DriveMitra enhancements are integrated where technically supported.
+3.	Every module has functional backend operations.
+4.	All connected workflows work end to end.
+5.	Vehicle and driver profiles show connected operational history.
+6.	Dashboards use real records.
+7.	Reports use accurate calculations.
+8.	Predictive features show evidence and limitations.
+9.	Live integrations show their actual connection and data status.
+10.	All organizational data is securely isolated.
+11.	Roles and permissions work on the backend.
+12.	No driver-facing application remains.
+13.	No pilot functionality remains.
+14.	No critical actions are represented by nonfunctional buttons.
+15.	No fabricated live telemetry is displayed.
+16.	The interface is responsive and consistent.
+17.	Existing data and functionality are preserved.
+18.	Automated tests and end-to-end workflows pass.
+19.	Production configuration and deployment requirements are documented.
+________________________________________
+30. FINAL EXECUTION INSTRUCTION
+Do not respond with only a plan, architecture document, recommendations or a list of proposed improvements.
+Inspect the existing DriveMitra project and execute the implementation.
+Work directly in the repository.
+Implement the database, backend, frontend, integrations, permissions, workflows and testing.
+If a feature already exists and works, preserve and improve it rather than rebuilding it unnecessarily.
+If an external API, hardware device, paid service or authorization is required, implement the integration architecture and configuration interface, clearly identify the missing dependency and never simulate successful production connectivity.
+Do not sacrifice functional completeness for visual appearance.
+The final product must deliver the complete operational depth of Fleetio-style fleet management combined with DriveMitra's own real-time monitoring, predictive intelligence, route intelligence, climate intelligence and private AI capabilities.
+The final objective is to make DriveMitra a commercially deployable, integrated fleet management and intelligence platform — not a prototype, not a dashboard mockup and not a collection of disconnected modules.
+
+
+
+
+
+
+
+
+
