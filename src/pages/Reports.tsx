@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Download, FileSpreadsheet, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { REPORT_CATEGORIES } from '../data/seedOrganizations'
 import { useFleet } from '../hooks/useFleet'
 import { generateCsvContent } from '../utils/intelligenceEngine'
+import { saveScopedStorage } from '../utils/fleetioConfigStore'
 import { canPerformAction } from '../utils/rbac'
 import { formatDateTime, formatInr } from '../components/ui/EnterprisePrimitives'
 
@@ -65,6 +66,10 @@ export default function Reports() {
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(REPORT_CATEGORIES[0].id)
   const [vehicleFilterId, setVehicleFilterId] = useState<string>('all')
+
+  useEffect(() => {
+    saveScopedStorage(activeOrganization.id, 'visited_reports', true)
+  }, [activeOrganization.id])
 
   const canExport = canPerformAction(activeRole, 'export_reports')
 

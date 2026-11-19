@@ -9,6 +9,7 @@ import {
   FileCheck2,
   Info,
   Lock,
+  Landmark,
   Plus,
   Save,
   ShieldAlert,
@@ -18,6 +19,9 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useOptionalFinance } from '../hooks/useFinance'
+import { FinanceStatusBadge } from '../components/finance/FinancePrimitives'
+import { loanTypeLabel } from '../utils/financeHelpers'
 import {
   classifyComplianceExpiryTier,
   classifyTelemetryFreshness,
@@ -46,6 +50,7 @@ const TABS = [
   'Trips',
   'Fuel',
   'Financials',
+  'Finance',
   'Driver History',
   'Activity History',
 ] as const
@@ -117,6 +122,8 @@ export default function VehicleDetails() {
 
   const [activeTab, setActiveTab] = useState<DigitalTwinTab>('Overview')
   const [editOpen, setEditOpen] = useState(false)
+  const financeCtx = useOptionalFinance()
+  const financeRecords = financeCtx?.records ?? []
 
   const vehicle = vehicles.find((v) => v.id === resolvedId) ?? archivedVehicles.find((v) => v.id === resolvedId)
 
@@ -211,6 +218,11 @@ export default function VehicleDetails() {
   const vehicleDocs = documentVault.filter((d) => d.entityType === 'vehicle' && d.entityId === vehicle.id)
   const vehicleTyres = tyrePositions.filter((t) => t.vehicleId === vehicle.id)
   const vehicleLogs = auditLogs.filter((l) => l.entityId === vehicle.id)
+  const vehicleFinanceList = financeRecords.filter((fr) => fr.vehicleId === vehicle.id)
+  const primaryFinance =
+    vehicleFinanceList.find((fr) => fr.financeStatus !== 'completed' && fr.financeStatus !== 'foreclosed' && fr.financeStatus !== 'cancelled') ??
+    vehicleFinanceList[0] ??
+    null
 
   const totalFuelSpend = vehicleFuel.reduce((s, f) => s + f.amountInr, 0)
   const totalMaintSpend = vehicleMaint.reduce((s, m) => s + m.costInr, 0)
@@ -507,6 +519,46 @@ export default function VehicleDetails() {
               </dl>
             </div>
           </div>
+
+          {canPerformAction(activeRole, 'view_finance') && (
+            <div className="enterprise-card p-5 flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-[#EEE8F7] border border-[#DDD3ED] flex items-center justify-center text-[#6E5696] shrink-0">
+                  <Landmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="dm-card-title text-sm">Vehicle Finance Summary</h2>
+                    {primaryFinance && <FinanceStatusBadge status={primaryFinance.financeStatus} />}
+                  </div>
+                  {primaryFinance ? (
+                    <p className="text-xs text-[#958777] mt-1 tabular-nums">
+                      {primaryFinance.bankName} ({primaryFinance.loanAccountMasked}) · EMI {formatInr(primaryFinance.emiAmount)} · Outstanding{' '}
+                      <strong className="text-[#625346]">{formatInr(primaryFinance.outstandingPrincipal)}</strong>
+                      {primaryFinance.nextDueDate ? ` · Next Due ${formatShortDate(primaryFinance.nextDueDate)}` : ''}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-[#958777] mt-1">No active loan or lease linked to this vehicle.</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => setActiveTab('Finance')} className="btn-secondary text-xs">
+                  View Finance Section
+                </button>
+                {primaryFinance && (
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/finance/vehicles/${primaryFinance.id}`)}
+                    className="btn-primary text-xs"
+                  >
+                    Open Full Finance Record
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex items-start gap-3 p-4 rounded-[10px] bg-[#EEE8F7] border border-[#DDD3ED] text-xs text-[#625346]">
             <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
@@ -999,6 +1051,118 @@ export default function VehicleDetails() {
             <span className="text-xs text-[#958777]">Monthly Revenue Baseline</span>
             <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{formatInr(vehicle.monthlyRevenueInr)}</p>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'Finance' && (
+        <div className="space-y-6">
+          {!primaryFinance ? (
+            <EmptySectionState
+              title="No Finance Facility Linked"
+              description="This vehicle does not have a loan, lease, or hire purchase agreement registered yet."
+              actionLabel={canPerformAction(activeRole, 'view_finance') ? 'Go to Vehicle Finance' : undefined}
+              onAction={canPerformAction(activeRole, 'view_finance') ? () => navigate('/dashboard/finance/vehicles') : undefined}
+            />
+          ) : (
+            <>
+              <div className="enterprise-card p-6 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E5E5E5] pb-4">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="dm-card-title text-base">{primaryFinance.bankName} · {primaryFinance.loanReferenceNumber}</h2>
+                      <FinanceStatusBadge status={primaryFinance.financeStatus} />
+                    </div>
+                    <p className="text-xs text-[#958777] mt-0.5">
+                      {loanTypeLabel(primaryFinance.loanType, primaryFinance.customLoanTypeLabel)} · Account {primaryFinance.loanAccountMasked}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/dashboard/finance/vehicles/${primaryFinance.id}`)}
+                    className="btn-primary text-xs"
+                  >
+                    Open Full Finance Record
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 text-xs">
+                  <div>
+                    <span className="text-[#958777]">Financing Bank</span>
+                    <p className="font-bold text-[#625346] mt-0.5">{primaryFinance.bankName}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Loan Reference (Masked)</span>
+                    <p className="font-mono font-bold text-[#625346] mt-0.5">{primaryFinance.loanReferenceNumber} · {primaryFinance.loanAccountMasked}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Original Loan Amount</span>
+                    <p className="font-bold text-[#625346] tabular-nums mt-0.5">{formatInr(primaryFinance.principalAmount)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Down Payment</span>
+                    <p className="font-bold text-[#625346] tabular-nums mt-0.5">{formatInr(primaryFinance.downPayment)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">EMI Amount</span>
+                    <p className="font-bold text-[#6E5696] tabular-nums mt-0.5">{formatInr(primaryFinance.emiAmount)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Outstanding Principal</span>
+                    <p className="font-bold text-[#6E5696] tabular-nums mt-0.5">{formatInr(primaryFinance.outstandingPrincipal)}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Next EMI Due Date</span>
+                    <p className="font-bold text-[#625346] tabular-nums mt-0.5">
+                      {primaryFinance.nextDueDate ? formatShortDate(primaryFinance.nextDueDate) : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Remaining Instalments</span>
+                    <p className="font-bold text-[#625346] tabular-nums mt-0.5">{primaryFinance.remainingInstalments}</p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Loan Completion Date</span>
+                    <p className="font-bold text-[#625346] tabular-nums mt-0.5">
+                      {primaryFinance.loanCompletionDate ? formatShortDate(primaryFinance.loanCompletionDate) : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[#958777]">Principal Repaid</span>
+                    <p className="font-bold text-[#4D6E4A] tabular-nums mt-0.5">{formatInr(primaryFinance.principalRepaid)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {vehicleFinanceList.length > 1 && (
+                <div className="enterprise-card p-5 space-y-3">
+                  <h3 className="dm-card-title text-sm">All Finance Agreements for {vehicle.registrationNumber} ({vehicleFinanceList.length})</h3>
+                  <div className="divide-y divide-[#E5E5E5] text-xs">
+                    {vehicleFinanceList.map((rec) => (
+                      <div key={rec.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="font-bold text-[#625346]">{rec.bankName} · {rec.loanReferenceNumber}</p>
+                          <p className="text-[#958777]">
+                            {formatShortDate(rec.loanStartDate)} → {formatShortDate(rec.finalEmiDate)} · Outstanding {formatInr(rec.outstandingPrincipal)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <FinanceStatusBadge status={rec.financeStatus} />
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/dashboard/finance/vehicles/${rec.id}`)}
+                            className="btn-secondary text-[11px] px-2.5 py-1"
+                          >
+                            Open Record
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 

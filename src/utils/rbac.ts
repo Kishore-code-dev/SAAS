@@ -34,6 +34,15 @@ export type FleetAction =
   | 'update_telemetry'
   | 'export_reports'
   | 'use_copilot'
+  | 'view_finance'
+  | 'view_finance_unmasked'
+  | 'add_finance_records'
+  | 'edit_finance_records'
+  | 'record_finance_payments'
+  | 'reconcile_finance_payments'
+  | 'manage_bank_details'
+  | 'manage_finance_settings'
+  | 'view_finance_reports'
 
 const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
   platform_admin: new Set<FleetAction>([
@@ -70,6 +79,15 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'update_telemetry',
     'export_reports',
     'use_copilot',
+    'view_finance',
+    'view_finance_unmasked',
+    'add_finance_records',
+    'edit_finance_records',
+    'record_finance_payments',
+    'reconcile_finance_payments',
+    'manage_bank_details',
+    'manage_finance_settings',
+    'view_finance_reports',
   ]),
   org_admin: new Set<FleetAction>([
     'manage_members',
@@ -102,6 +120,15 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'update_telemetry',
     'export_reports',
     'use_copilot',
+    'view_finance',
+    'view_finance_unmasked',
+    'add_finance_records',
+    'edit_finance_records',
+    'record_finance_payments',
+    'reconcile_finance_payments',
+    'manage_bank_details',
+    'manage_finance_settings',
+    'view_finance_reports',
   ]),
   fleet_manager: new Set<FleetAction>([
     'add_vehicle',
@@ -131,6 +158,10 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'update_telemetry',
     'export_reports',
     'use_copilot',
+    'view_finance',
+    'add_finance_records',
+    'record_finance_payments',
+    'view_finance_reports',
   ]),
   maintenance: new Set<FleetAction>([
     'schedule_maintenance',
@@ -150,10 +181,25 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'verify_fuel',
     'manage_financials',
     'manage_subscription',
+    'acknowledge_alert',
     'export_reports',
     'use_copilot',
+    'view_finance',
+    'view_finance_unmasked',
+    'add_finance_records',
+    'edit_finance_records',
+    'record_finance_payments',
+    'reconcile_finance_payments',
+    'manage_bank_details',
+    'manage_finance_settings',
+    'view_finance_reports',
   ]),
-  viewer: new Set<FleetAction>(['export_reports', 'use_copilot']),
+  viewer: new Set<FleetAction>([
+    'export_reports',
+    'use_copilot',
+    'view_finance',
+    'view_finance_reports',
+  ]),
 }
 
 export function canPerformAction(role: OrganizationRole, action: FleetAction): boolean {
@@ -211,23 +257,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     )
   }
 
-  if (
-    clean === '/dashboard/maintenance' ||
-    clean === '/dashboard/work-orders' ||
-    clean === '/dashboard/inspections' ||
-    clean === '/dashboard/inventory' ||
-    clean === '/dashboard/workshops'
-  ) {
-    return (
-      role === 'platform_admin' ||
-      role === 'org_admin' ||
-      role === 'fleet_manager' ||
-      role === 'maintenance' ||
-      role === 'viewer'
-    )
-  }
-
-  if (clean === '/dashboard/fuel') {
+  if (clean === '/dashboard/finance' || clean.startsWith('/dashboard/finance/')) {
     return (
       role === 'platform_admin' ||
       role === 'org_admin' ||
@@ -238,10 +268,60 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
   }
 
   if (
+    clean === '/dashboard/maintenance' ||
+    clean === '/dashboard/work-orders' ||
+    clean.startsWith('/dashboard/inspections') ||
+    clean.startsWith('/dashboard/inventory') ||
+    clean === '/dashboard/workshops' ||
+    clean.startsWith('/dashboard/tools') ||
+    clean.startsWith('/dashboard/issues') ||
+    clean.startsWith('/dashboard/reminders') ||
+    clean.startsWith('/dashboard/service')
+  ) {
+    return (
+      role === 'platform_admin' ||
+      role === 'org_admin' ||
+      role === 'fleet_manager' ||
+      role === 'maintenance' ||
+      role === 'viewer'
+    )
+  }
+
+  if (clean === '/dashboard/fuel' || clean.startsWith('/dashboard/fuel/')) {
+    return (
+      role === 'platform_admin' ||
+      role === 'org_admin' ||
+      role === 'fleet_manager' ||
+      role === 'finance' ||
+      role === 'viewer'
+    )
+  }
+
+  if (
+    clean === '/dashboard/fleet/expenses' ||
+    clean === '/dashboard/fleet/replacement-analysis'
+  ) {
+    return (
+      role === 'platform_admin' ||
+      role === 'org_admin' ||
+      role === 'fleet_manager' ||
+      role === 'finance' ||
+      role === 'viewer'
+    )
+  }
+
+  if (clean === '/dashboard/integrations') {
+    return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager' || role === 'viewer'
+  }
+
+  if (
     clean.startsWith('/dashboard/drivers') ||
     clean.startsWith('/dashboard/fleet/drivers') ||
     clean === '/dashboard/trips' ||
-    clean === '/dashboard/map'
+    clean === '/dashboard/map' ||
+    clean === '/dashboard/documents' ||
+    clean === '/dashboard/warranties' ||
+    clean === '/dashboard/custom-records'
   ) {
     return (
       role === 'platform_admin' ||

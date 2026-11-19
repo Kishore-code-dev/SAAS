@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { buildSeedDataset, type EnvironmentDataset } from '../src/data/seedOrganizations.ts'
 import type { Organization, OrganizationRole, OrganizationStatus } from '../src/types/fleet.ts'
 import { hashPassword } from './authLogic.ts'
+import { ensureFinanceSchemaAndSeed } from './financeDb.ts'
 
 const DATA_DIR = path.resolve(process.cwd(), '.drivemitra-data')
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads')
@@ -138,6 +139,7 @@ export function getDb(): DatabaseSync {
   `)
 
   seedDatabaseIfEmpty(db)
+  ensureFinanceSchemaAndSeed(db)
   dbInstance = db
   return db
 }

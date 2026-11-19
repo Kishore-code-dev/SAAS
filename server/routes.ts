@@ -37,6 +37,22 @@ import {
   type AuthenticatedRequest,
 } from './authMiddleware.ts'
 import { createEmptyOrgDataset, getDb, getUploadsDir, mapOrgRow, mapUserRow } from './db.ts'
+import {
+  ackFinanceAlert,
+  correctFinancePayment,
+  createVehicleFinanceRecord,
+  getFinanceWorkspace,
+  reconcileFinancePayment,
+  recordEmiPayment,
+  syncFinanceAlertsInDb,
+  updateEmiStatusOrLateFee,
+  updateFinanceSettings,
+  updateVehicleFinanceTerms,
+  uploadFinanceDocument,
+  upsertInstitution,
+  verifyFinanceDocument,
+  type FinanceActor,
+} from './financeDb.ts'
 
 const loginLimiter = new LoginRateLimiter(6, 5 * 60 * 1000)
 
@@ -1131,6 +1147,325 @@ export function buildApiRouter(): Router {
           })),
         })
       }
+    },
+  )
+
+  // ===================== VEHICLE FINANCE MANAGEMENT =====================
+  const actorOf = (req: AuthenticatedRequest): FinanceActor => ({
+    userId: req.authUser!.id,
+    username: req.authUser!.username,
+    fullName: req.authUser!.fullName,
+    role: req.authUser!.role,
+  })
+
+  router.get(
+    '/finance/workspace',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('view_finance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const workspace = getFinanceWorkspace(
+        getDb(),
+        req.activeOrg!.id,
+        req.authUser!.role,
+        req.activeOrg!.timezone,
+      )
+      res.json(workspace)
+    },
+  )
+
+  router.post(
+    '/finance/institutions',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('manage_bank_details'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const institution = upsertInstitution(getDb(), req.activeOrg!.id, actorOf(req), req.body)
+        res.status(201).json({ institution })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to save financial institution.' })
+      }
+    },
+  )
+
+  router.patch(
+    '/finance/institutions/:instId',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('manage_bank_details'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const institution = upsertInstitution(getDb(), req.activeOrg!.id, actorOf(req), {
+          ...req.body,
+          id: String(req.params.instId),
+        })
+        res.json({ institution })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to update financial institution.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/records',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('add_finance_records'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const created = createVehicleFinanceRecord(getDb(), req.activeOrg!.id, actorOf(req), req.body)
+        res.status(201).json(created)
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to create vehicle finance record.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/records/:financeId/update-terms',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('edit_finance_records'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const record = updateVehicleFinanceTerms(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.financeId),
+          actorOf(req),
+          req.body,
+        )
+        res.json({ record })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to update loan terms.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/emis/:emiId/pay',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('record_finance_payments'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const result = recordEmiPayment(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.emiId),
+          actorOf(req),
+          req.body,
+        )
+        res.status(201).json(result)
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to record EMI payment.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/emis/:emiId/status',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('edit_finance_records'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const instalment = updateEmiStatusOrLateFee(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.emiId),
+          actorOf(req),
+          req.body,
+        )
+        res.json({ instalment })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to update EMI status.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/payments/:paymentId/reconcile',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('reconcile_finance_payments'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const payment = reconcileFinancePayment(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.paymentId),
+          actorOf(req),
+          req.body?.status ?? 'reconciled',
+          req.body?.notes,
+        )
+        res.json({ payment })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to reconcile payment.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/payments/:paymentId/correct',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('reconcile_finance_payments'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const payment = correctFinancePayment(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.paymentId),
+          actorOf(req),
+          req.body,
+        )
+        res.json({ payment })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to correct payment.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/documents',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('add_finance_records'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const document = uploadFinanceDocument(getDb(), req.activeOrg!.id, actorOf(req), req.body)
+        res.status(201).json({ document })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to upload finance document.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/documents/:docId/verify',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('reconcile_finance_payments'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const document = verifyFinanceDocument(
+          getDb(),
+          req.activeOrg!.id,
+          String(req.params.docId),
+          actorOf(req),
+          req.body?.status ?? 'verified',
+          req.body?.notes,
+        )
+        res.json({ document })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to verify finance document.' })
+      }
+    },
+  )
+
+  router.get(
+    '/finance/documents/:docId/download',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('view_finance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const org = req.activeOrg!
+      const docId = String(req.params.docId)
+      const row = getDb()
+        .prepare('SELECT * FROM finance_documents WHERE id = ? AND organization_id = ?')
+        .get(docId, org.id) as Record<string, unknown> | undefined
+      if (!row) {
+        res.status(404).json({ error: 'Finance document not found in your organization.' })
+        return
+      }
+      const storageKey = String(row.storage_key)
+      if (storageKey.startsWith('seed/')) {
+        const summaryText = [
+          'DRIVEMITRA VEHICLE FINANCE DOCUMENT RECORD',
+          `Title: ${String(row.title)}`,
+          `Category: ${String(row.category)}`,
+          `File: ${String(row.file_name)}`,
+          `Verification: ${String(row.verification_status)}`,
+          `Uploaded By: ${String(row.uploaded_by)} on ${String(row.uploaded_at)}`,
+        ].join('\n')
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.setHeader('Content-Disposition', `inline; filename="${String(row.file_name)}.txt"`)
+        res.send(summaryText)
+        return
+      }
+      const absPath = path.join(getUploadsDir(), storageKey)
+      if (!fs.existsSync(absPath)) {
+        res.status(404).json({ error: 'Stored finance document file is unavailable on disk.' })
+        return
+      }
+      res.setHeader('Content-Type', String(row.mime_type))
+      res.setHeader('Content-Disposition', `inline; filename="${String(row.file_name)}"`)
+      res.sendFile(absPath)
+    },
+  )
+
+  router.put(
+    '/finance/settings',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('manage_finance_settings'),
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const settings = updateFinanceSettings(
+          getDb(),
+          req.activeOrg!.id,
+          actorOf(req),
+          req.body?.settings ?? req.body,
+          req.body?.reason,
+        )
+        res.json({ settings })
+      } catch (err) {
+        res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to save finance settings.' })
+      }
+    },
+  )
+
+  router.post(
+    '/finance/alerts/evaluate',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('view_finance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const alerts = syncFinanceAlertsInDb(getDb(), req.activeOrg!.id, req.activeOrg!.timezone)
+      res.json({ alerts })
+    },
+  )
+
+  router.patch(
+    '/finance/alerts/:alertId/ack',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('acknowledge_alert'),
+    (req: AuthenticatedRequest, res: Response) => {
+      ackFinanceAlert(
+        getDb(),
+        req.activeOrg!.id,
+        String(req.params.alertId),
+        req.body?.mode ?? 'ack',
+      )
+      res.json({ ok: true })
     },
   )
 

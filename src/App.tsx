@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { FleetProvider, useFleet } from './hooks/useFleet'
+import { FinanceProvider } from './hooks/useFinance'
 import { I18nProvider } from './i18n/useTranslation'
 import Layout from './components/layout/Layout'
 import { AccessDeniedState } from './components/ui/EnterprisePrimitives'
@@ -15,8 +16,8 @@ import ForcePasswordChange from './pages/ForcePasswordChange'
 import Dashboard from './pages/Dashboard'
 import NotFound from './pages/NotFound'
 
-function lazyWithRetry<P extends object = Record<string, never>>(
-  importer: () => Promise<{ default: ComponentType<P> }>,
+function lazyWithRetry(
+  importer: () => Promise<{ default: ComponentType<Record<string, never>> }>,
 ) {
   return lazy(async () => {
     try {
@@ -60,6 +61,122 @@ const Reports = lazyWithRetry(() => import('./pages/Reports'))
 const AdminConsole = lazyWithRetry(() => import('./pages/AdminConsole'))
 const Settings = lazyWithRetry(() => import('./pages/Settings'))
 const Subscription = lazyWithRetry(() => import('./pages/Subscription'))
+
+const VehicleAssignmentsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/VehicleSubViews').then((m) => ({ default: m.VehicleAssignmentsView })),
+)
+const MeterHistoryPage = lazyWithRetry(() =>
+  import('./pages/fleetio/VehicleSubViews').then((m) => ({ default: m.MeterHistoryView })),
+)
+const TireReadingsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/VehicleSubViews').then((m) => ({ default: m.TireReadingsView })),
+)
+const ExpenseHistoryPage = lazyWithRetry(() =>
+  import('./pages/fleetio/VehicleSubViews').then((m) => ({ default: m.ExpenseHistoryView })),
+)
+const ReplacementAnalysisPage = lazyWithRetry(() =>
+  import('./pages/fleetio/VehicleSubViews').then((m) => ({ default: m.ReplacementAnalysisView })),
+)
+const ToolsListPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.ToolsHubView tab="list" />,
+  })),
+)
+const ToolsServicePage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.ToolsHubView tab="service" />,
+  })),
+)
+const ToolsRemindersPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.ToolsHubView tab="reminders" />,
+  })),
+)
+const InspectionFailuresPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.InspectionsSubView tab="failures" />,
+  })),
+)
+const InspectionSchedulesPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.InspectionsSubView tab="schedules" />,
+  })),
+)
+const InspectionFormsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.InspectionsSubView tab="forms" />,
+  })),
+)
+const IssuesPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.IssuesHubView mode="issues" />,
+  })),
+)
+const RecallsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.IssuesHubView mode="recalls" />,
+  })),
+)
+const ServiceRemindersPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.RemindersHubView mode="service" />,
+  })),
+)
+const VehicleRenewalsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.RemindersHubView mode="vehicle_renewals" />,
+  })),
+)
+const ContactRenewalsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/OperationsSubViews').then((m) => ({
+    default: () => <m.RemindersHubView mode="contact_renewals" />,
+  })),
+)
+const ServiceTasksPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.ServiceSubView tab="tasks" />,
+  })),
+)
+const ServiceProgramsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.ServiceSubView tab="programs" />,
+  })),
+)
+const InventoryBulkPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.InventorySubView tab="bulk" />,
+  })),
+)
+const PurchaseOrdersPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({
+    default: () => <m.InventorySubView tab="po" />,
+  })),
+)
+const ChargingHistoryPage = lazyWithRetry(() =>
+  import('./pages/fleetio/ServiceAndPartsSubViews').then((m) => ({ default: m.ChargingHistoryView })),
+)
+const DocumentsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.DocumentsView })),
+)
+const WarrantiesPage = lazyWithRetry(() =>
+  import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.WarrantiesView })),
+)
+const CustomRecordsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.CustomRecordsView })),
+)
+const IntegrationsPage = lazyWithRetry(() =>
+  import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.IntegrationsView })),
+)
+const FinanceOverviewPage = lazyWithRetry(() => import('./pages/finance/FinanceOverviewPage'))
+const VehicleFinanceListPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceListPage'))
+const VehicleFinanceDetailsPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceDetailsPage'))
+const EmiSchedulePage = lazyWithRetry(() => import('./pages/finance/EmiSchedulePage'))
+const UpcomingPaymentsPage = lazyWithRetry(() => import('./pages/finance/UpcomingPaymentsPage'))
+const OverduePaymentsPage = lazyWithRetry(() => import('./pages/finance/OverduePaymentsPage'))
+const PaymentHistoryPage = lazyWithRetry(() => import('./pages/finance/PaymentHistoryPage'))
+const BanksDirectoryPage = lazyWithRetry(() => import('./pages/finance/BanksDirectoryPage'))
+const FinanceDocumentsPage = lazyWithRetry(() => import('./pages/finance/FinanceDocumentsPage'))
+const FinanceReportsPage = lazyWithRetry(() => import('./pages/finance/FinanceReportsPage'))
 
 class RouteErrorBoundary extends Component<
   { children: React.ReactNode },
@@ -216,12 +333,32 @@ export function AppRoutes() {
             <Route path="map" element={<RoleProtectedRoute><LiveMap /></RoleProtectedRoute>} />
             <Route path="trips" element={<RoleProtectedRoute><Trips /></RoleProtectedRoute>} />
             <Route path="fleet" element={<RoleProtectedRoute><Vehicles /></RoleProtectedRoute>} />
+            <Route path="fleet/assignments" element={<RoleProtectedRoute><VehicleAssignmentsPage /></RoleProtectedRoute>} />
+            <Route path="fleet/meter-history" element={<RoleProtectedRoute><MeterHistoryPage /></RoleProtectedRoute>} />
+            <Route path="fleet/tire-readings" element={<RoleProtectedRoute><TireReadingsPage /></RoleProtectedRoute>} />
+            <Route path="fleet/expenses" element={<RoleProtectedRoute><ExpenseHistoryPage /></RoleProtectedRoute>} />
+            <Route path="fleet/replacement-analysis" element={<RoleProtectedRoute><ReplacementAnalysisPage /></RoleProtectedRoute>} />
             <Route path="fleet/vehicles/:vehicleId" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
             <Route path="fleet/:id" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
+            <Route path="tools" element={<RoleProtectedRoute><ToolsListPage /></RoleProtectedRoute>} />
+            <Route path="tools/service-entries" element={<RoleProtectedRoute><ToolsServicePage /></RoleProtectedRoute>} />
+            <Route path="tools/reminders" element={<RoleProtectedRoute><ToolsRemindersPage /></RoleProtectedRoute>} />
             <Route path="maintenance" element={<RoleProtectedRoute><Maintenance /></RoleProtectedRoute>} />
+            <Route path="service/tasks" element={<RoleProtectedRoute><ServiceTasksPage /></RoleProtectedRoute>} />
+            <Route path="service/programs" element={<RoleProtectedRoute><ServiceProgramsPage /></RoleProtectedRoute>} />
             <Route path="inspections" element={<RoleProtectedRoute><Inspections /></RoleProtectedRoute>} />
+            <Route path="inspections/failures" element={<RoleProtectedRoute><InspectionFailuresPage /></RoleProtectedRoute>} />
+            <Route path="inspections/schedules" element={<RoleProtectedRoute><InspectionSchedulesPage /></RoleProtectedRoute>} />
+            <Route path="inspections/forms" element={<RoleProtectedRoute><InspectionFormsPage /></RoleProtectedRoute>} />
+            <Route path="issues" element={<RoleProtectedRoute><IssuesPage /></RoleProtectedRoute>} />
+            <Route path="issues/recalls" element={<RoleProtectedRoute><RecallsPage /></RoleProtectedRoute>} />
+            <Route path="reminders/service" element={<RoleProtectedRoute><ServiceRemindersPage /></RoleProtectedRoute>} />
+            <Route path="reminders/vehicle-renewals" element={<RoleProtectedRoute><VehicleRenewalsPage /></RoleProtectedRoute>} />
+            <Route path="reminders/contact-renewals" element={<RoleProtectedRoute><ContactRenewalsPage /></RoleProtectedRoute>} />
             <Route path="work-orders" element={<RoleProtectedRoute><WorkOrders /></RoleProtectedRoute>} />
             <Route path="inventory" element={<RoleProtectedRoute><Inventory /></RoleProtectedRoute>} />
+            <Route path="inventory/bulk" element={<RoleProtectedRoute><InventoryBulkPage /></RoleProtectedRoute>} />
+            <Route path="inventory/purchase-orders" element={<RoleProtectedRoute><PurchaseOrdersPage /></RoleProtectedRoute>} />
             <Route path="workshops" element={<RoleProtectedRoute><Workshops /></RoleProtectedRoute>} />
             <Route path="risk" element={<RoleProtectedRoute><RiskRadar /></RoleProtectedRoute>} />
             <Route path="drivers" element={<RoleProtectedRoute><Drivers /></RoleProtectedRoute>} />
@@ -229,6 +366,21 @@ export function AppRoutes() {
             <Route path="fleet/drivers/:driverId" element={<RoleProtectedRoute><DriverDetails /></RoleProtectedRoute>} />
             <Route path="roads" element={<RoleProtectedRoute><RoadIntelligence /></RoleProtectedRoute>} />
             <Route path="fuel" element={<RoleProtectedRoute><FuelLogs /></RoleProtectedRoute>} />
+            <Route path="fuel/charging" element={<RoleProtectedRoute><ChargingHistoryPage /></RoleProtectedRoute>} />
+            <Route path="documents" element={<RoleProtectedRoute><DocumentsPage /></RoleProtectedRoute>} />
+            <Route path="warranties" element={<RoleProtectedRoute><WarrantiesPage /></RoleProtectedRoute>} />
+            <Route path="custom-records" element={<RoleProtectedRoute><CustomRecordsPage /></RoleProtectedRoute>} />
+            <Route path="integrations" element={<RoleProtectedRoute><IntegrationsPage /></RoleProtectedRoute>} />
+            <Route path="finance" element={<RoleProtectedRoute><FinanceOverviewPage /></RoleProtectedRoute>} />
+            <Route path="finance/vehicles" element={<RoleProtectedRoute><VehicleFinanceListPage /></RoleProtectedRoute>} />
+            <Route path="finance/vehicles/:financeId" element={<RoleProtectedRoute><VehicleFinanceDetailsPage /></RoleProtectedRoute>} />
+            <Route path="finance/emis" element={<RoleProtectedRoute><EmiSchedulePage /></RoleProtectedRoute>} />
+            <Route path="finance/upcoming" element={<RoleProtectedRoute><UpcomingPaymentsPage /></RoleProtectedRoute>} />
+            <Route path="finance/overdue" element={<RoleProtectedRoute><OverduePaymentsPage /></RoleProtectedRoute>} />
+            <Route path="finance/payments" element={<RoleProtectedRoute><PaymentHistoryPage /></RoleProtectedRoute>} />
+            <Route path="finance/banks" element={<RoleProtectedRoute><BanksDirectoryPage /></RoleProtectedRoute>} />
+            <Route path="finance/documents" element={<RoleProtectedRoute><FinanceDocumentsPage /></RoleProtectedRoute>} />
+            <Route path="finance/reports" element={<RoleProtectedRoute><FinanceReportsPage /></RoleProtectedRoute>} />
             <Route path="financials" element={<RoleProtectedRoute><Financials /></RoleProtectedRoute>} />
             <Route path="reports" element={<RoleProtectedRoute><Reports /></RoleProtectedRoute>} />
             <Route path="alerts" element={<RoleProtectedRoute><AlertsPage /></RoleProtectedRoute>} />
@@ -256,22 +408,24 @@ export default function App() {
       <I18nProvider>
         <AuthProvider>
           <FleetProvider>
-            <BrowserRouter>
-              <AppRoutes />
-              <Toaster
-                position="bottom-right"
-                theme="light"
-                toastOptions={{
-                  style: {
-                    background: '#FFFFFF',
-                    border: '1px solid #E5E5E5',
-                    color: '#625346',
-                    borderRadius: '10px',
-                    fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-                  },
-                }}
-              />
-            </BrowserRouter>
+            <FinanceProvider>
+              <BrowserRouter>
+                <AppRoutes />
+                <Toaster
+                  position="bottom-right"
+                  theme="light"
+                  toastOptions={{
+                    style: {
+                      background: '#FFFFFF',
+                      border: '1px solid #E5E5E5',
+                      color: '#625346',
+                      borderRadius: '10px',
+                      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+                    },
+                  }}
+                />
+              </BrowserRouter>
+            </FinanceProvider>
           </FleetProvider>
         </AuthProvider>
       </I18nProvider>

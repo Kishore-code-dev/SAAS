@@ -9,6 +9,7 @@ import {
   Cpu,
   Fuel,
   Globe,
+  Landmark,
   Menu,
   Plus,
   Search,
@@ -18,10 +19,11 @@ import {
   X,
 } from 'lucide-react'
 import { useFleet } from '../../hooks/useFleet'
+import { useOptionalFinance } from '../../hooks/useFinance'
 import { useAuth } from '../../hooks/useAuth'
 import { useTranslation } from '../../i18n/useTranslation'
 import { languageOptions } from '../../i18n/translations'
-import type { ReportingPeriod, RiskCategory } from '../../types/fleet'
+import type { RiskCategory } from '../../types/fleet'
 import { canAccessRoute, canPerformAction } from '../../utils/rbac'
 import { DhiyuLogo } from '../ui/DhiyuLogo'
 
@@ -54,8 +56,6 @@ export default function Header({
   const {
     activeOrganization,
     activeRole,
-    reportingPeriod,
-    setReportingPeriod,
     searchTerm,
     setSearchTerm,
     alerts,
@@ -65,6 +65,9 @@ export default function Header({
   } = useFleet()
 
   const { user, signOut } = useAuth()
+  const financeCtx = useOptionalFinance()
+  const financeAlerts = financeCtx?.alerts ?? []
+  const ackFinanceAlert = financeCtx?.ackFinanceAlert ?? (async () => {})
   const { language, setLanguage } = useTranslation()
   const navigate = useNavigate()
 
@@ -72,6 +75,32 @@ export default function Header({
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   const displayName = user?.fullName ?? user?.username ?? 'Fleet Owner'
+  const unreadFinanceCount = financeAlerts.filter((a) => !a.read).length
+  const totalUnreadCount = unreadAlertCount + unreadFinanceCount
+  const combinedAlerts = [
+    ...financeAlerts.map((fa) => ({
+      id: fa.id,
+      kind: 'finance' as const,
+      severity: fa.severity,
+      timestamp: fa.createdAt,
+      title: fa.title,
+      message: `${fa.message} (${fa.channelSummary})`,
+      actionRoute: fa.actionRoute,
+      read: fa.read,
+      category: 'compliance_expiry' as RiskCategory,
+    })),
+    ...alerts.map((al) => ({
+      id: al.id,
+      kind: 'fleet' as const,
+      severity: al.severity,
+      timestamp: al.timestamp,
+      title: al.title,
+      message: al.message,
+      actionRoute: al.actionRoute,
+      read: al.read,
+      category: al.category,
+    })),
+  ].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
 
   return (
     <>
@@ -93,11 +122,6 @@ export default function Header({
               {activeOrganization.name} ({activeOrganization.code})
             </span>
           </div>
-
-          {/* Cleanly aligned Production badge — NO demo toggle */}
-          <span className="hidden sm:inline-flex items-center justify-center px-3 py-1.5 rounded-[10px] border border-[#789A75] bg-[#EDF4EC] text-[11px] font-bold uppercase tracking-wider text-[#4D6E4A] leading-none whitespace-nowrap shrink-0">
-            Production
-          </span>
         </div>
 
         {/* Controls */}
@@ -112,24 +136,6 @@ export default function Header({
               aria-label="Global fleet search"
               className="w-full bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] pl-9 pr-3 py-1.5 text-xs text-[#625346] placeholder:text-[#958777] outline-none focus:bg-[#FFFFFF] focus:border-[#B8A3D9]"
             />
-          </div>
-
-          {/* Reporting Period Selector */}
-          <div className="hidden lg:flex items-center bg-[#EEE8F7] p-0.5 rounded-[10px] border border-[#DDD3ED]" role="group" aria-label="Reporting period">
-            {(['7d', '30d', '90d'] as ReportingPeriod[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setReportingPeriod(p)}
-                className={`px-2 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors whitespace-nowrap ${
-                  reportingPeriod === p
-                    ? 'bg-[#FFFFFF] text-[#6E5696] shadow-subtle border border-[#B8A3D9]'
-                    : 'text-[#958777] hover:text-[#625346]'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
           </div>
 
           {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
@@ -170,13 +176,13 @@ export default function Header({
               setAlertsDrawerOpen(true)
               setUserMenuOpen(false)
             }}
-            aria-label={`Open Notifications (${unreadAlertCount} unread)`}
+            aria-label={`Open Notifications (${totalUnreadCount} unread)`}
             className="relative p-2 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
             <Bell className="w-4 h-4" />
-            {unreadAlertCount > 0 && (
+            {totalUnreadCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FCECEB] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
-                {unreadAlertCount}
+                {totalUnreadCount}
               </span>
             )}
           </button>
@@ -283,14 +289,17 @@ export default function Header({
                 </div>
                 <div>
                   <h2 className="text-sm font-bold text-[#625346]">Notifications</h2>
-                  <p className="text-[11px] text-[#958777]">{unreadAlertCount} unread operational alerts</p>
+                  <p className="text-[11px] text-[#958777]">{totalUnreadCount} unread fleet &amp; finance alerts</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                {unreadAlertCount > 0 && (
+                {totalUnreadCount > 0 && (
                   <button
                     type="button"
-                    onClick={markAllAlertsRead}
+                    onClick={() => {
+                      markAllAlertsRead()
+                      if (unreadFinanceCount > 0) void ackFinanceAlert('all', 'read_all')
+                    }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-[#6E5696] hover:bg-[#EEE8F7]"
                   >
                     <CheckCheck className="w-3.5 h-3.5" />
@@ -309,12 +318,12 @@ export default function Header({
             </div>
 
             <div className="flex-1 overflow-y-auto scrollbar-custom p-4 space-y-2.5">
-              {alerts.length === 0 ? (
+              {combinedAlerts.length === 0 ? (
                 <div className="py-12 text-center text-xs text-[#958777]">
-                  No operational notifications for this organization.
+                  No operational or finance notifications for this organization.
                 </div>
               ) : (
-                alerts.map((al) => (
+                combinedAlerts.map((al) => (
                   <div
                     key={al.id}
                     className={`rounded-xl border p-3.5 transition-colors ${
@@ -325,7 +334,11 @@ export default function Header({
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-[#FFFFFF] border border-[#E5E5E5] flex items-center justify-center shrink-0 mt-0.5">
-                        <CategoryIcon category={al.category} />
+                        {al.kind === 'finance' ? (
+                          <Landmark className="w-4 h-4 text-[#6E5696]" />
+                        ) : (
+                          <CategoryIcon category={al.category} />
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-2">
@@ -338,7 +351,7 @@ export default function Header({
                                   : 'bg-[#FAFAFA] border-[#E5E5E5] text-[#625346]'
                             }`}
                           >
-                            {al.severity}
+                            {al.kind === 'finance' ? `Finance · ${al.severity}` : al.severity}
                           </span>
                           <span className="text-[10px] text-[#958777] whitespace-nowrap">
                             {new Date(al.timestamp).toLocaleString('en-IN', {
@@ -352,7 +365,11 @@ export default function Header({
                         <button
                           type="button"
                           onClick={() => {
-                            markAlertRead(al.id)
+                            if (al.kind === 'finance') {
+                              void ackFinanceAlert(al.id, 'read')
+                            } else {
+                              markAlertRead(al.id)
+                            }
                             setAlertsDrawerOpen(false)
                             navigate(al.actionRoute)
                           }}
@@ -366,7 +383,13 @@ export default function Header({
                         {!al.read && (
                           <button
                             type="button"
-                            onClick={() => markAlertRead(al.id)}
+                            onClick={() => {
+                              if (al.kind === 'finance') {
+                                void ackFinanceAlert(al.id, 'read')
+                              } else {
+                                markAlertRead(al.id)
+                              }
+                            }}
                             className="mt-2 text-[11px] font-semibold text-[#6E5696] hover:underline"
                           >
                             Mark read

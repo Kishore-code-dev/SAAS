@@ -28,6 +28,8 @@ export default defineConfig([
             'useAuth',
             'validateEmailFormat',
             'useFleet',
+            'useFinance',
+            'useOptionalFinance',
             'useTranslation',
             'formatInr',
             'formatDateTime',
