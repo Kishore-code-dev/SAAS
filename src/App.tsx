@@ -235,6 +235,7 @@ export function AppRoutes() {
             <Route path="admin" element={<RoleProtectedRoute><AdminConsole /></RoleProtectedRoute>} />
             <Route path="subscription" element={<RoleProtectedRoute><Subscription /></RoleProtectedRoute>} />
             <Route path="settings" element={<RoleProtectedRoute><Settings /></RoleProtectedRoute>} />
+            <Route path="settings/:section" element={<RoleProtectedRoute><Settings /></RoleProtectedRoute>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
 

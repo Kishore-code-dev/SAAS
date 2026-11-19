@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
+import SettingsSidebar from './SettingsSidebar'
 import Header from './Header'
 import FleetCopilotDrawer from '../ai/FleetCopilotDrawer'
 import AddVehicleDialog from '../vehicles/AddVehicleDialog'
@@ -12,6 +13,7 @@ export default function Layout() {
   const [addVehicleOpen, setAddVehicleOpen] = useState(false)
   const { environment, activeOrganization, activeRole } = useFleet()
   const { pathname } = useLocation()
+  const inSettings = pathname.startsWith('/dashboard/settings')
 
   useEffect(() => {
     window.scrollTo({ top: 0 })
@@ -19,7 +21,11 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-[#FFFFFF] text-[#625346] flex">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      {inSettings ? (
+        <SettingsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      ) : (
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      )}
       <div className="flex-1 flex flex-col min-w-0 bg-[#FFFFFF]">
         <Header
           onMenuToggle={() => setSidebarOpen((prev) => !prev)}
