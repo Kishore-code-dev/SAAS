@@ -7,6 +7,7 @@ import { classifyTelemetryFreshness } from '../utils/intelligenceEngine'
 import { canPerformAction } from '../utils/rbac'
 import { EmptySectionState, SeverityText } from '../components/ui/EnterprisePrimitives'
 import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
+import PageHeader from '../components/layout/PageHeader'
 
 const PAGE_SIZE = 10
 
@@ -76,20 +77,14 @@ export default function Vehicles() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="dm-page-title">Fleet & Vehicle Digital Twins</h1>
-          <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · {vehicles.length} active, {archivedVehicles.length} archived (Plan limit {activeOrganization.vehicleLimit})
-          </p>
-        </div>
+      <PageHeader title="Fleet & Vehicle Digital Twins" subtitle={<>{activeOrganization.name} · {vehicles.length} active, {archivedVehicles.length} archived (Plan limit {activeOrganization.vehicleLimit})</>}>
         {canAdd && (
           <button type="button" onClick={() => setAddOpen(true)} className="btn-accent">
             <Plus className="w-4 h-4" />
             Register Vehicle
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Filters & Sorting */}
       <div className="enterprise-card p-3.5 flex flex-wrap items-center justify-between gap-3">

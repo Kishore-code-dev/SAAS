@@ -22,6 +22,8 @@ import {
   SeverityText,
 } from '../components/ui/EnterprisePrimitives'
 
+import PageHeader from '../components/layout/PageHeader'
+
 export default function Trips() {
   const {
     activeOrganization,
@@ -186,13 +188,7 @@ export default function Trips() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="dm-page-title">Trip Intelligence</h1>
-          <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · Route trajectories, commercial truck clearance checks, speed profiles, and stop logs
-          </p>
-        </div>
+      <PageHeader title="Trip Intelligence" subtitle={<>{activeOrganization.name} · Route trajectories, commercial truck clearance checks, speed profiles, and stop logs</>}>
         <div className="flex items-center gap-2.5">
           <button type="button" onClick={handleExportCsv} className="btn-secondary text-xs">
             <Download className="w-3.5 h-3.5" />
@@ -217,7 +213,7 @@ export default function Trips() {
             </button>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {/* Filter Bar */}
       <div className="p-1.5 flex items-center gap-1 w-fit bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px]">
