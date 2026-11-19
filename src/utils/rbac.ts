@@ -197,7 +197,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     return role === 'platform_admin' || role === 'org_admin' || role === 'finance'
   }
 
-  if (clean === '/dashboard/settings') {
+  if (clean === '/dashboard/settings' || clean.startsWith('/dashboard/settings/')) {
     return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager'
   }
 

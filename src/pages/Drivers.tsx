@@ -12,6 +12,7 @@ import {
   SeverityText,
 } from '../components/ui/EnterprisePrimitives'
 import type { DriverOperationalStatus, IndianLicenseCategory } from '../types/fleet'
+import PageHeader from '../components/layout/PageHeader'
 
 const INDIAN_DL_OPTIONS: IndianLicenseCategory[] = ['LMV-TR', 'TRANS', 'HGMV', 'HPMV', 'HTV', 'MGV']
 
@@ -151,13 +152,7 @@ export default function Drivers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="dm-page-title">Drivers & Indian Compliance Master</h1>
-          <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · Owner-managed commercial driver records, DL categories, and safety scoring (no driver login)
-          </p>
-        </div>
+      <PageHeader title="Drivers & Indian Compliance Master" subtitle={<>{activeOrganization.name} · Owner-managed commercial driver records, DL categories, and safety scoring (no driver login)</>}>
         {canAddDriver && (
           <button
             type="button"
@@ -171,7 +166,7 @@ export default function Drivers() {
             Add Commercial Driver
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Operational Status Filters */}
       <div className="enterprise-card p-3 flex flex-wrap items-center justify-between gap-3">

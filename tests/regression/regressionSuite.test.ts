@@ -215,7 +215,7 @@ describe('Regression Suite (Owner-Only SaaS & Production Integrity)', () => {
   })
 
   it('REG-010: Settings syncs orgForm on tenant switch and Pure White + Pale Lavender + Cocoa palette stays intact', () => {
-    const settingsCode = readFileSync(resolve(process.cwd(), 'src/pages/Settings.tsx'), 'utf-8')
+    const settingsCode = readFileSync(resolve(process.cwd(), 'src/pages/settings/sections.tsx'), 'utf-8')
     expect(settingsCode).toContain('orgFormDraft.orgId === activeOrganization.id')
     expect(settingsCode).toContain('digilockerEnabled')
 

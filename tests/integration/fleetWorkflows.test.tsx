@@ -7,7 +7,7 @@ import { FleetProvider, useFleet } from '../../src/hooks/useFleet'
 import { I18nProvider } from '../../src/i18n/useTranslation'
 import { AppRoutes } from '../../src/App'
 import FuelLogs from '../../src/pages/FuelLogs'
-import Settings from '../../src/pages/Settings'
+import { KycSection } from '../../src/pages/settings/sections'
 import Vehicles from '../../src/pages/Vehicles'
 import LiveMap from '../../src/pages/LiveMap'
 
@@ -259,7 +259,7 @@ describe('Integration Workflows: Cookie Auth, Owner RBAC, Vehicles, Fuel, Settin
     mockUnauthenticatedFetch()
     render(
       <TestShell>
-        <Settings />
+        <KycSection />
         <FuelLogs />
       </TestShell>,
     )

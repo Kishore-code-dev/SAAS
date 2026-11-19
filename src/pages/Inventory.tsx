@@ -10,6 +10,7 @@ import {
   SeverityText,
 } from '../components/ui/EnterprisePrimitives'
 import type { PartInventoryItem } from '../types/fleet'
+import PageHeader from '../components/layout/PageHeader'
 
 export default function Inventory() {
   const {
@@ -89,13 +90,7 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="dm-page-title">Parts Inventory & Procurement</h1>
-          <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · Warehouse stock levels, Purchase Order receiving, suppliers & stock audit ledger
-          </p>
-        </div>
+      <PageHeader title="Parts Inventory & Procurement" subtitle={<>{activeOrganization.name} · Warehouse stock levels, Purchase Order receiving, suppliers & stock audit ledger</>}>
         {canManageInv && (
           <div className="flex flex-wrap items-center gap-2.5">
             <button type="button" onClick={() => setCreatePoOpen(true)} className="btn-accent text-xs">
@@ -108,7 +103,7 @@ export default function Inventory() {
             </button>
           </div>
         )}
-      </div>
+      </PageHeader>
 
       {/* KPI Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

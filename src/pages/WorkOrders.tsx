@@ -12,6 +12,7 @@ import {
   SeverityText,
 } from '../components/ui/EnterprisePrimitives'
 import type { FiveAreaHealthCategory, WorkOrder, WorkOrderStatus } from '../types/fleet'
+import PageHeader from '../components/layout/PageHeader'
 
 const WO_STATUS_FLOW: WorkOrderStatus[] = [
   'draft',
@@ -113,20 +114,14 @@ export default function WorkOrders() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="dm-page-title">Workshop Work Orders</h1>
-          <p className="text-sm text-[#958777] mt-1">
-            {activeOrganization.name} · Full job lifecycle (`draft → approved → in_progress → completed`) with real-time parts stock deduction
-          </p>
-        </div>
+      <PageHeader title="Workshop Work Orders" subtitle={<>{activeOrganization.name} · Full job lifecycle (`draft → approved → in_progress → completed`) with real-time parts stock deduction</>}>
         {canManage && (
           <button type="button" onClick={() => setCreateModalOpen(true)} className="btn-primary text-xs">
             <Plus className="w-4 h-4" />
             New Work Order
           </button>
         )}
-      </div>
+      </PageHeader>
 
       {/* Filters */}
       <div className="enterprise-card p-3 flex flex-wrap items-center justify-between gap-3">
