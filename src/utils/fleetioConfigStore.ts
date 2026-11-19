@@ -1,87 +1,41 @@
-import type { Organization, PartInventoryItem, Vehicle, WorkOrder } from '../types/fleet'
+import type {
+  ApiKeyEntry,
+  CustomDashboardLayout,
+  CustomRecordEntry,
+  FleetModulesDataset,
+  FleetRecallItem,
+  FleetToolItem,
+  FleetWarrantyItem,
+  FleetioSettingsState,
+  InspectionFormTemplate,
+  InspectionScheduleItem,
+  LookupTagItem,
+  Organization,
+  PartInventoryItem,
+  ServiceProgramItem,
+  ServiceTaskCatalogItem,
+  Vehicle,
+  WebhookEndpoint,
+  WorkOrder,
+  WorkspaceSettings,
+} from '../types/fleet'
 
-export interface FleetToolItem {
-  id: string
-  name: string
-  serialNumber: string
-  category: string
-  assignedTo: string
-  location: string
-  status: 'in_service' | 'checked_out' | 'maintenance' | 'retired'
-  purchaseCostInr: number
-  nextCalibrationDate: string
-}
-
-export interface FleetWarrantyItem {
-  id: string
-  assetName: string
-  registrationNumber: string
-  provider: string
-  coverageType: 'Powertrain' | 'Battery / EV Pack' | 'Chassis & Axle' | 'Tyre Casing' | 'Component'
-  startDate: string
-  expiryDate: string
-  maxOdometerKm: number
-  claimStatus: 'active' | 'expiring_soon' | 'claimed' | 'expired'
-}
-
-export interface CustomRecordEntry {
-  id: string
-  recordType: 'Toll & FASTag Audit' | 'RTO Permit Log' | 'Cold-Chain Temp Audit' | 'Driver Uniform & Kit'
-  vehicleOrDriver: string
-  referenceCode: string
-  recordedDate: string
-  amountInr: number
-  status: 'verified' | 'pending' | 'flagged'
-  notes: string
-}
-
-export interface ApiKeyEntry {
-  id: string
-  label: string
-  prefix: string
-  scope: 'read_only' | 'read_write' | 'telematics_ingest'
-  createdAt: string
-  lastUsedAt: string
-}
-
-export interface WebhookEndpoint {
-  id: string
-  url: string
-  events: string[]
-  active: boolean
-  lastDeliveryStatus: number
-}
-
-export interface LookupTagItem {
-  id: string
-  name: string
-  color?: string
-  description?: string
-  active: boolean
-}
-
-export interface FleetioSettingsState {
-  appearanceTheme: 'fleetio_forest' | 'lavender_enterprise'
-  compactDensity: boolean
-  defaultDistanceUnit: 'km' | 'mi'
-  defaultFuelUnit: 'liters' | 'gallons'
-  currencyCode: 'INR'
-  fiscalYearStart: 'April' | 'January'
-  autoCreateWoFromCriticalIssue: boolean
-  requireInspectionSignature: boolean
-  enforceGeofenceAlerts: boolean
-  faultSeverityThreshold: 'all' | 'high_only' | 'critical_only'
-  serviceReminderLeadDays: number
-  serviceReminderLeadKm: number
-  vehicleStatuses: LookupTagItem[]
-  vehicleTypes: LookupTagItem[]
-  issuePriorities: LookupTagItem[]
-  workOrderStatuses: LookupTagItem[]
-  repairReasonCodes: LookupTagItem[]
-  partLocations: LookupTagItem[]
-  partCategories: LookupTagItem[]
-  fuelTypes: LookupTagItem[]
-  labels: LookupTagItem[]
+export type {
+  ApiKeyEntry,
+  CustomDashboardLayout,
+  CustomRecordEntry,
+  FleetModulesDataset,
+  FleetRecallItem,
+  FleetToolItem,
+  FleetWarrantyItem,
+  FleetioSettingsState,
+  InspectionFormTemplate,
+  InspectionScheduleItem,
+  LookupTagItem,
+  ServiceProgramItem,
+  ServiceTaskCatalogItem,
+  WebhookEndpoint,
+  WorkspaceSettings,
 }
 
 export interface OnboardingChecklistItem {
@@ -93,6 +47,17 @@ export interface OnboardingChecklistItem {
 }
 
 const STORAGE_PREFIX = 'dm.fleetio.v1'
+
+export const DEFAULT_WORKSPACE_SETTINGS: WorkspaceSettings = {
+  aiConfidenceThreshold: 75,
+  telemetryIntervalSec: 15,
+  lowHealthAlertCutoff: 60,
+  speedCeilingKmh: 80,
+  emailDigestEnabled: true,
+  criticalPushEnabled: true,
+  maintenanceReminderDays: 7,
+  digilockerEnabled: false,
+}
 
 export const DEFAULT_FLEETIO_SETTINGS: FleetioSettingsState = {
   appearanceTheme: 'fleetio_forest',
@@ -331,6 +296,132 @@ export function computeOnboardingChecklist(params: {
       completed: hasVisitedReports,
     },
   ]
+}
+
+export function buildDefaultServiceTasks(): ServiceTaskCatalogItem[] {
+  return [
+    { id: 'st-1', code: 'VMRS-013-001', title: 'Front & Rear Brake Pad / Lining Replacement', area: 'Vehicle Health', avgHours: 3.5, estCostInr: 6800, active: true },
+    { id: 'st-2', code: 'VMRS-045-002', title: 'Engine Oil & Dual Filter Preventive Change', area: 'Engine Health', avgHours: 1.5, estCostInr: 4200, active: true },
+    { id: 'st-3', code: 'VMRS-017-004', title: 'Multi-Axle Wheel Alignment & Rotation', area: 'Tyre Health', avgHours: 2.0, estCostInr: 3100, active: true },
+    { id: 'st-4', code: 'VMRS-034-009', title: 'Coolant Flush & Radiator Pressure Test', area: 'Engine Health', avgHours: 2.0, estCostInr: 2900, active: true },
+    { id: 'st-5', code: 'VMRS-032-001', title: 'EV Traction Battery SOH & Thermal Loop Check', area: 'Engine Health', avgHours: 2.5, estCostInr: 3500, active: true },
+  ]
+}
+
+export function buildDefaultServicePrograms(): ServiceProgramItem[] {
+  return [
+    {
+      id: 'sp-ice',
+      name: 'BS-VI Heavy & Medium Diesel Preventive Program',
+      powertrain: 'ICE',
+      cadence: 'Every 10,000 km or 90 days',
+      intervalKm: 10000,
+      intervalDays: 90,
+      active: true,
+    },
+    {
+      id: 'sp-ev',
+      name: 'Electric Cargo Fleet High-Voltage & Thermal Program',
+      powertrain: 'EV',
+      cadence: 'Every 15,000 km or 120 days',
+      intervalKm: 15000,
+      intervalDays: 120,
+      active: true,
+    },
+  ]
+}
+
+export function buildDefaultInspectionForms(): InspectionFormTemplate[] {
+  return [
+    { id: 'if-1', title: 'Commercial DVIR Pre-Trip Standard', itemsCount: 14, lastUpdated: '2026-10-18', active: true },
+    { id: 'if-2', title: 'Multi-Axle Tyre & Brake Safety Audit', itemsCount: 18, lastUpdated: '2026-10-25', active: true },
+    { id: 'if-3', title: 'EV High-Voltage & Charging Safety', itemsCount: 11, lastUpdated: '2026-11-02', active: true },
+  ]
+}
+
+export function buildDefaultInspectionSchedules(vehicleCount: number): InspectionScheduleItem[] {
+  return [
+    { id: 'is-1', name: 'Daily Pre-Trip Roadworthiness Check', frequency: 'Every 24 Hours', scope: `All ${Math.max(1, vehicleCount)} Active Vehicles`, formId: 'if-1', formTitle: 'Commercial DVIR Pre-Trip Standard', active: true },
+    { id: 'is-2', name: 'Weekly Multi-Axle Tyre & Brake Audit', frequency: 'Every 7 Days', scope: 'Medium & Heavy Trucks', formId: 'if-2', formTitle: 'Multi-Axle Tyre & Brake Safety Audit', active: true },
+    { id: 'is-3', name: 'EV Battery Thermal & Port Seal Check', frequency: 'Every 14 Days', scope: 'EV Fleet Assets', formId: 'if-3', formTitle: 'EV High-Voltage & Charging Safety', active: true },
+  ]
+}
+
+export function buildDefaultRecalls(): FleetRecallItem[] {
+  return [
+    {
+      id: 'rec-1',
+      campaign: 'BS-VI EGR Cooler Inspection Campaign 2026-A',
+      oem: 'Tata Motors Commercial',
+      targetMake: 'tata',
+      severity: 'high',
+      status: 'Monitoring',
+      notes: 'Inspect EGR cooler thermal joint and coolant pressure during scheduled PM bay visit.',
+      issuedDate: '2026-09-20',
+    },
+    {
+      id: 'rec-2',
+      campaign: 'ABS Wheel Speed Sensor Harness Clip Update',
+      oem: 'Ashok Leyland',
+      targetMake: 'ashok',
+      severity: 'moderate',
+      status: 'Scheduled',
+      notes: 'Retrofit retaining clip on rear axle ABS sensor lead during brake lining check.',
+      issuedDate: '2026-10-12',
+    },
+  ]
+}
+
+export function buildDefaultApiKeys(orgCode: string): ApiKeyEntry[] {
+  return [
+    {
+      id: `key-${orgCode.toLowerCase()}-1`,
+      label: 'OBD Telematics Ingestion Key',
+      prefix: 'dm_live_89a4••••c1f2',
+      scope: 'telematics_ingest',
+      createdAt: '2026-08-12T10:00:00.000Z',
+      lastUsedAt: '2026-11-18T11:20:00.000Z',
+    },
+  ]
+}
+
+export function buildDefaultWebhooks(orgCode: string): WebhookEndpoint[] {
+  return [
+    {
+      id: `wh-${orgCode.toLowerCase()}-1`,
+      url: `https://erp.${orgCode.toLowerCase().replace(/[^a-z0-9]/g, '')}.in/hooks/drivemitra-wo`,
+      events: ['work_order.completed', 'issue.critical'],
+      active: true,
+      lastDeliveryStatus: 200,
+    },
+  ]
+}
+
+export function buildDefaultCustomDashboards(): CustomDashboardLayout[] {
+  return [
+    { id: 'cd-1', name: 'Executive Fleet Health & TCO', widgets: '5-Area Health, Open WOs, Compliance Expiry, Cost/km', defaultView: true },
+    { id: 'cd-2', name: 'Workshop & Maintenance Queue', widgets: 'Overdue PM, Open Issues, Low Stock Parts', defaultView: false },
+  ]
+}
+
+export function buildDefaultModulesDataset(org: Organization, vehicles: Vehicle[]): FleetModulesDataset {
+  return {
+    tools: buildDefaultTools(org.city),
+    warranties: buildDefaultWarranties(vehicles),
+    customRecords: buildDefaultCustomRecords(vehicles),
+    serviceTasks: buildDefaultServiceTasks(),
+    servicePrograms: buildDefaultServicePrograms(),
+    inspectionForms: buildDefaultInspectionForms(),
+    inspectionSchedules: buildDefaultInspectionSchedules(vehicles.length),
+    recalls: buildDefaultRecalls(),
+    apiKeys: buildDefaultApiKeys(org.code),
+    webhooks: buildDefaultWebhooks(org.code),
+    customDashboards: buildDefaultCustomDashboards(),
+    fleetioSettings: DEFAULT_FLEETIO_SETTINGS,
+    workspaceSettings: DEFAULT_WORKSPACE_SETTINGS,
+    visitedIntegrations: true,
+    visitedReports: false,
+  }
 }
 
 export function loadScopedStorage<T>(orgId: string, key: string, fallback: T): T {

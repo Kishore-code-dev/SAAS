@@ -201,9 +201,6 @@ export default function Landing() {
                     Production Fleet Overview
                   </p>
                 </div>
-                <span className="px-2.5 py-1 rounded-lg bg-[#EDF4EC] border border-[#789A75] text-[11px] font-bold text-[#4D6E4A] uppercase">
-                  Production
-                </span>
               </div>
 
               <div className="grid grid-cols-3 gap-3 my-5">

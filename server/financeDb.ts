@@ -891,10 +891,17 @@ function seedFinanceDataIfEmpty(db: DatabaseSync): void {
 }
 
 function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
-  const existing = db
-    .prepare("SELECT COUNT(*) AS count FROM vehicle_finance_records WHERE id = 'fin-k-6'")
-    .get() as { count: number }
-  if (existing.count > 0) return
+  // Normalize any earlier category/reconciliation literals if already inserted
+  db.prepare("UPDATE finance_documents SET category = 'bank_statements' WHERE category = 'bank_statement'").run()
+  db.prepare("UPDATE finance_documents SET category = 'other_supporting_docs' WHERE category = 'other'").run()
+  db.prepare("UPDATE finance_payments SET reconciliation_status = 'discrepancy' WHERE reconciliation_status = 'disputed'").run()
+  db.prepare("UPDATE finance_emi_instalments SET reconciliation_status = 'discrepancy' WHERE reconciliation_status = 'disputed'").run()
+
+  const hasFinance = (id: string): boolean =>
+    (db.prepare('SELECT COUNT(*) AS count FROM vehicle_finance_records WHERE id = ?').get(id) as { count: number }).count > 0
+  if (hasFinance('fin-k-6') && hasFinance('fin-k-9') && hasFinance('fin-d-2')) {
+    return
+  }
 
   const todayIso = getTodayIsoInTz('Asia/Kolkata')
   const nowIso = new Date().toISOString()
@@ -1296,7 +1303,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
   const instKSundaram = getInst('inst-k-sundaram')
 
   // 6. Kaveri Restructured Loan with Partial/Overdue EMI #4 + Pending Statement Doc (v-k6)
-  if (instKAxis) {
+  if (instKAxis && !hasFinance('fin-k-6')) {
     insertSeedLoan({
       id: 'fin-k-6',
       orgId: 'org-kaveri',
@@ -1322,7 +1329,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
       notes: 'Restructured from 9.6% to 8.75% for Trichy pharma corridor stabilization; EMI #4 balance overdue.',
       docs: [
         { category: 'loan_agreement', title: 'Axis Commercial Hypothecation Agreement', fileName: 'Axis_Loan_TN45CN7710.pdf', verificationStatus: 'verified' },
-        { category: 'bank_statement', title: 'Axis Q1 NACH Ledger Statement', fileName: 'Axis_Q1_Statement_TN45CN7710.pdf', verificationStatus: 'pending_verification', notes: 'Awaiting treasury reconciliation check' },
+        { category: 'bank_statements', title: 'Axis Q1 NACH Ledger Statement', fileName: 'Axis_Q1_Statement_TN45CN7710.pdf', verificationStatus: 'pending_verification', notes: 'Awaiting treasury reconciliation check' },
       ],
     })
     updateVehicleFinanceTerms(db, 'org-kaveri', 'fin-k-6', adminKaveri, {
@@ -1337,7 +1344,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
   }
 
   // 7. Kaveri Foreclosed Loan on v-k7 (TN 33 KL 8890)
-  if (instKSundaram) {
+  if (instKSundaram && !hasFinance('fin-k-7')) {
     insertSeedLoan({
       id: 'fin-k-7',
       orgId: 'org-kaveri',
@@ -1378,7 +1385,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
   }
 
   // 8. Kaveri EV Lease on v-k8 (TN 23 EV 2090) — showcases Waived EMI #1, Payment Correction on EMI #2, Disputed Payment on EMI #3, Pending & Rejected Docs
-  if (instKFed) {
+  if (instKFed && !hasFinance('fin-k-8')) {
     const k8Emis = insertSeedLoan({
       id: 'fin-k-8',
       orgId: 'org-kaveri',
@@ -1404,7 +1411,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
       docs: [
         { category: 'loan_agreement', title: 'Federal EV Operating Lease Contract', fileName: 'Federal_EV_Lease_063.pdf', verificationStatus: 'verified' },
         { category: 'loan_sanction_letter', title: 'Federal EV Lease Sanction Advice', fileName: 'Federal_Sanction_063.pdf', verificationStatus: 'pending_verification', notes: 'Pending finance controller stamp check' },
-        { category: 'bank_statement', title: 'ECS Mandate Scan (Blurry Copy)', fileName: 'Federal_ECS_Mandate_v1.pdf', verificationStatus: 'rejected', notes: 'Re-upload clear signed ECS page' },
+        { category: 'bank_statements', title: 'ECS Mandate Scan (Blurry Copy)', fileName: 'Federal_ECS_Mandate_v1.pdf', verificationStatus: 'rejected', notes: 'Re-upload clear signed ECS page' },
       ],
     })
 
@@ -1448,16 +1455,30 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
       reconcileFinancePayment(
         db,
         'org-kaveri',
-        p3.id,
+        p3.payment.id,
         financeKaveri,
-        'disputed',
+        'discrepancy',
+        'UTR debited twice on ECS batch; dispute ticket FED-9941 raised with branch RM',
+      )
+    }
+  } else if (hasFinance('fin-k-8')) {
+    const pendingDisputePay = db
+      .prepare("SELECT id FROM finance_payments WHERE finance_id = 'fin-k-8' AND bank_transaction_ref = 'UTRFED771998' AND reconciliation_status = 'pending'")
+      .get() as { id: string } | undefined
+    if (pendingDisputePay) {
+      reconcileFinancePayment(
+        db,
+        'org-kaveri',
+        pendingDisputePay.id,
+        financeKaveri,
+        'discrepancy',
         'UTR debited twice on ECS batch; dispute ticket FED-9941 raised with branch RM',
       )
     }
   }
 
   // 9. Kaveri Cancelled Refurbishment Top-Up Facility on v-k2 (showcases cancelled status & custom loan type)
-  if (instKAxis) {
+  if (instKAxis && !hasFinance('fin-k-9')) {
     insertSeedLoan({
       id: 'fin-k-9',
       orgId: 'org-kaveri',
@@ -1482,7 +1503,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
       paidCount: 0,
       notes: 'Draft body-refurbishment facility superseded by consolidated working-capital line.',
       docs: [
-        { category: 'other', title: 'Draft Facility Closure Memo', fileName: 'Axis_Cancelled_Memo_009.pdf', verificationStatus: 'verified' },
+        { category: 'other_supporting_docs', title: 'Draft Facility Closure Memo', fileName: 'Axis_Cancelled_Memo_009.pdf', verificationStatus: 'verified' },
       ],
     })
     updateVehicleFinanceTerms(db, 'org-kaveri', 'fin-k-9', adminKaveri, {
@@ -1496,7 +1517,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
   if (hasDeccanOrg) {
     const instDAxis = getInst('inst-d-axis')
     const instDIcici = getInst('inst-d-icici')
-    if (instDAxis) {
+    if (instDAxis && !hasFinance('fin-d-2')) {
       insertSeedLoan({
         id: 'fin-d-2',
         orgId: 'org-deccan',
@@ -1527,7 +1548,7 @@ function seedAdditionalDummyFinanceIfNeeded(db: DatabaseSync): void {
         ],
       })
     }
-    if (instDIcici) {
+    if (instDIcici && !hasFinance('fin-d-3')) {
       insertSeedLoan({
         id: 'fin-d-3',
         orgId: 'org-deccan',

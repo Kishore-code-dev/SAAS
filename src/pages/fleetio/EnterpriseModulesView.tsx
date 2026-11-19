@@ -5,14 +5,7 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
-import {
-  buildDefaultCustomRecords,
-  buildDefaultWarranties,
-  loadScopedStorage,
-  saveScopedStorage,
-  type CustomRecordEntry,
-  type FleetWarrantyItem,
-} from '../../utils/fleetioConfigStore'
+import type { FleetWarrantyItem, CustomRecordEntry } from '../../types/fleet'
 import { canPerformAction } from '../../utils/rbac'
 
 export function DocumentsView() {
@@ -120,10 +113,7 @@ export function DocumentsView() {
 }
 
 export function WarrantiesView() {
-  const { activeOrganization, activeRole, vehicles } = useFleet()
-  const [warranties, setWarranties] = useState<FleetWarrantyItem[]>(() =>
-    loadScopedStorage(activeOrganization.id, 'warranties', buildDefaultWarranties(vehicles)),
-  )
+  const { activeOrganization, activeRole, vehicles, warranties, addWarranty } = useFleet()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({
     registrationNumber: vehicles[0]?.registrationNumber ?? '',
@@ -134,25 +124,20 @@ export function WarrantiesView() {
   })
   const canEdit = canPerformAction(activeRole, 'edit_vehicle')
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     const matched = vehicles.find((v) => v.registrationNumber === form.registrationNumber)
-    const next: FleetWarrantyItem[] = [
-      {
-        id: `war-${Date.now()}`,
-        assetName: matched ? `${matched.make} ${matched.model}` : 'Commercial Asset',
-        registrationNumber: form.registrationNumber || vehicles[0]?.registrationNumber || 'FLEET-01',
-        provider: form.provider.trim(),
-        coverageType: form.coverageType,
-        startDate: new Date().toISOString().slice(0, 10),
-        expiryDate: form.expiryDate,
-        maxOdometerKm: Number(form.maxOdometerKm) || 300000,
-        claimStatus: 'active',
-      },
-      ...warranties,
-    ]
-    setWarranties(next)
-    saveScopedStorage(activeOrganization.id, 'warranties', next)
+    await addWarranty({
+      vehicleId: matched?.id,
+      assetName: matched ? `${matched.make} ${matched.model}` : 'Commercial Asset',
+      registrationNumber: form.registrationNumber || vehicles[0]?.registrationNumber || 'FLEET-01',
+      provider: form.provider.trim(),
+      coverageType: form.coverageType,
+      startDate: new Date().toISOString().slice(0, 10),
+      expiryDate: form.expiryDate,
+      maxOdometerKm: Number(form.maxOdometerKm) || 300000,
+      claimStatus: 'active',
+    })
     toast.success('Warranty coverage added.')
     setModalOpen(false)
   }
@@ -252,10 +237,7 @@ export function WarrantiesView() {
 }
 
 export function CustomRecordsView() {
-  const { activeOrganization, activeRole, vehicles } = useFleet()
-  const [records, setRecords] = useState<CustomRecordEntry[]>(() =>
-    loadScopedStorage(activeOrganization.id, 'custom_records', buildDefaultCustomRecords(vehicles)),
-  )
+  const { activeOrganization, activeRole, vehicles, customRecords, addCustomRecord } = useFleet()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({
     recordType: 'Toll & FASTag Audit' as CustomRecordEntry['recordType'],
@@ -266,24 +248,18 @@ export function CustomRecordsView() {
   })
   const canEdit = canPerformAction(activeRole, 'edit_vehicle')
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.referenceCode.trim()) return
-    const next: CustomRecordEntry[] = [
-      {
-        id: `cr-${Date.now()}`,
-        recordType: form.recordType,
-        vehicleOrDriver: form.vehicleOrDriver,
-        referenceCode: form.referenceCode.trim().toUpperCase(),
-        recordedDate: new Date().toISOString().slice(0, 10),
-        amountInr: Number(form.amountInr) || 0,
-        status: 'verified',
-        notes: form.notes.trim() || 'Recorded via Custom Records module.',
-      },
-      ...records,
-    ]
-    setRecords(next)
-    saveScopedStorage(activeOrganization.id, 'custom_records', next)
+    await addCustomRecord({
+      recordType: form.recordType,
+      vehicleOrDriver: form.vehicleOrDriver,
+      referenceCode: form.referenceCode.trim().toUpperCase(),
+      recordedDate: new Date().toISOString().slice(0, 10),
+      amountInr: Number(form.amountInr) || 0,
+      status: 'verified',
+      notes: form.notes.trim() || 'Recorded via Custom Records module.',
+    })
     toast.success('Custom fleet record created.')
     setModalOpen(false)
     setForm((f) => ({ ...f, referenceCode: '', notes: '' }))
@@ -317,7 +293,7 @@ export function CustomRecordsView() {
               </tr>
             </thead>
             <tbody>
-              {records.map((r) => (
+              {customRecords.map((r) => (
                 <tr key={r.id}>
                   <td className="font-semibold flex items-center gap-1.5">
                     <FolderKanban className="w-3.5 h-3.5 text-[#1F7A4C]" />
@@ -382,11 +358,11 @@ export function CustomRecordsView() {
 
 export function IntegrationsView() {
   const navigate = useNavigate()
-  const { activeOrganization, settings } = useFleet()
+  const { activeOrganization, settings, markModuleVisited } = useFleet()
 
   React.useEffect(() => {
-    saveScopedStorage(activeOrganization.id, 'visited_integrations', true)
-  }, [activeOrganization.id])
+    markModuleVisited('integrations')
+  }, [markModuleVisited])
 
   const cards = [
     {

@@ -1,8 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AIPrediction,
+  ApiKeyEntry,
   AuditLogEntry,
   ComponentCategory,
+  CustomDashboardLayout,
+  CustomRecordEntry,
   DocumentVaultItem,
   Driver,
   DriverAssignmentHistoryItem,
@@ -10,7 +13,14 @@ import type {
   DriverOperationalStatus,
   FinancialInvoice,
   FiveAreaHealthCategory,
+  FleetModulesDataset,
+  FleetRecallItem,
+  FleetToolItem,
+  FleetWarrantyItem,
+  FleetioSettingsState,
   FuelTransaction,
+  InspectionFormTemplate,
+  InspectionScheduleItem,
   InventoryTransaction,
   MaintenanceRecord,
   OperatingEnvironment,
@@ -26,7 +36,9 @@ import type {
   ReportHistoryItem,
   ReportingPeriod,
   RiskAssessmentItem,
+  ServiceProgramItem,
   ServiceScheduleReminder,
+  ServiceTaskCatalogItem,
   SmallIssueLog,
   SubscriptionPlanId,
   SupplierRecord,
@@ -34,10 +46,16 @@ import type {
   TyrePositionRecord,
   Vehicle,
   VehicleInspection,
+  WebhookEndpoint,
   WorkOrder,
   WorkOrderStatus,
   WorkshopVendor,
+  WorkspaceSettings,
 } from '../types/fleet'
+import {
+  buildDefaultModulesDataset,
+  DEFAULT_WORKSPACE_SETTINGS,
+} from '../utils/fleetioConfigStore'
 import {
   buildSeedDataset,
   EnvironmentDataset,
@@ -63,27 +81,8 @@ import { useAuth } from './useAuth'
 
 const SETTINGS_KEY = 'dm_workspace_settings_v3'
 
-export interface WorkspaceSettings {
-  aiConfidenceThreshold: number
-  telemetryIntervalSec: number
-  lowHealthAlertCutoff: number
-  speedCeilingKmh: number
-  emailDigestEnabled: boolean
-  criticalPushEnabled: boolean
-  maintenanceReminderDays: number
-  digilockerEnabled: boolean
-}
-
-const DEFAULT_SETTINGS: WorkspaceSettings = {
-  aiConfidenceThreshold: 75,
-  telemetryIntervalSec: 15,
-  lowHealthAlertCutoff: 60,
-  speedCeilingKmh: 80,
-  emailDigestEnabled: true,
-  criticalPushEnabled: true,
-  maintenanceReminderDays: 7,
-  digilockerEnabled: false,
-}
+export type { WorkspaceSettings }
+const DEFAULT_SETTINGS: WorkspaceSettings = DEFAULT_WORKSPACE_SETTINGS
 
 export interface AddVehiclePayload {
   registrationNumber: string
@@ -257,6 +256,38 @@ export interface FleetContextValue {
   updateSubscriptionPlan: (planId: SubscriptionPlanId) => void
   updateOrganizationProfile: (patch: Partial<Pick<Organization, 'name' | 'city' | 'state' | 'timezone'>>) => void
   updateSettings: (patch: Partial<WorkspaceSettings>) => void
+  // Normalized Fleetio Extension Modules
+  tools: FleetToolItem[]
+  warranties: FleetWarrantyItem[]
+  customRecords: CustomRecordEntry[]
+  serviceTasks: ServiceTaskCatalogItem[]
+  servicePrograms: ServiceProgramItem[]
+  inspectionForms: InspectionFormTemplate[]
+  inspectionSchedules: InspectionScheduleItem[]
+  recalls: FleetRecallItem[]
+  apiKeys: ApiKeyEntry[]
+  webhooks: WebhookEndpoint[]
+  customDashboards: CustomDashboardLayout[]
+  fleetioSettings: FleetioSettingsState
+  visitedIntegrations: boolean
+  visitedReports: boolean
+  addTool: (item: Omit<FleetToolItem, 'id' | 'organizationId'>) => Promise<FleetToolItem>
+  updateToolStatus: (toolId: string, status: FleetToolItem['status']) => Promise<void>
+  addWarranty: (item: Omit<FleetWarrantyItem, 'id' | 'organizationId'>) => Promise<FleetWarrantyItem>
+  addCustomRecord: (item: Omit<CustomRecordEntry, 'id' | 'organizationId'>) => Promise<CustomRecordEntry>
+  addServiceTask: (item: Omit<ServiceTaskCatalogItem, 'id' | 'organizationId'>) => Promise<ServiceTaskCatalogItem>
+  addServiceProgram: (item: Omit<ServiceProgramItem, 'id' | 'organizationId'>) => Promise<ServiceProgramItem>
+  addInspectionForm: (item: Omit<InspectionFormTemplate, 'id' | 'organizationId'>) => Promise<InspectionFormTemplate>
+  addInspectionSchedule: (item: Omit<InspectionScheduleItem, 'id' | 'organizationId'>) => Promise<InspectionScheduleItem>
+  addRecall: (item: Omit<FleetRecallItem, 'id' | 'organizationId'>) => Promise<FleetRecallItem>
+  updateRecallStatus: (recallId: string, status: FleetRecallItem['status']) => Promise<void>
+  createApiKey: (label: string, scope: ApiKeyEntry['scope']) => Promise<ApiKeyEntry>
+  revokeApiKey: (keyId: string) => Promise<void>
+  addWebhook: (url: string, events?: string[]) => Promise<WebhookEndpoint>
+  toggleWebhook: (webhookId: string, active: boolean) => Promise<void>
+  addCustomDashboard: (name: string, widgets?: string) => Promise<CustomDashboardLayout>
+  updateFleetioSettings: (patch: Partial<FleetioSettingsState>) => void
+  markModuleVisited: (mod: 'integrations' | 'reports') => void
   recordReportGeneration: (entry: Omit<ReportHistoryItem, 'id' | 'organizationId' | 'environment' | 'generatedAt'>) => void
   updateTelemetryState: (vehicleId: string, patch: Partial<Vehicle['telemetry']>) => void
   resetCurrentEnvironment: () => void
@@ -292,6 +323,13 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     }
   })
 
+  const [modulesByOrg, setModulesByOrg] = useState<Record<string, FleetModulesDataset>>(() => {
+    const initialOrg = dataset.organizations[0]
+    if (!initialOrg) return {}
+    const initialVehicles = dataset.vehicles.filter((v) => v.organizationId === initialOrg.id && !v.decommissioned)
+    return { [initialOrg.id]: buildDefaultModulesDataset(initialOrg, initialVehicles) }
+  })
+
   // Hydrate live organization state from authenticated backend
   const hydrateFromServer = useCallback(async () => {
     if (!user || passwordChangeRequired || user.role === 'platform_admin') {
@@ -306,6 +344,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
         role: OrganizationRole
         updatedAt: string
         data: Partial<EnvironmentDataset>
+        modules?: FleetModulesDataset
       }
       if (!payload?.organization || !payload?.data) return
       serverHydratedRef.current = true
@@ -340,6 +379,12 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
         auditLogs: payload.data.auditLogs ?? [],
         reports: payload.data.reports ?? [],
       }))
+      if (payload.modules) {
+        setModulesByOrg((prev) => ({ ...prev, [payload.organization.id]: payload.modules! }))
+        if (payload.modules.workspaceSettings) {
+          setSettings(payload.modules.workspaceSettings)
+        }
+      }
     } catch {
       // Fallback gracefully when running headless unit tests without Express
     }
@@ -2105,9 +2150,356 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       } catch {
         // ignore
       }
+      if (serverHydratedRef.current) {
+        void fetch('/api/fleet/modules/settings', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspaceSettings: next }),
+        }).catch(() => undefined)
+      }
       return next
     })
   }
+
+  const activeModules = useMemo<FleetModulesDataset>(() => {
+    return modulesByOrg[activeOrganization.id] ?? buildDefaultModulesDataset(activeOrganization, vehicles)
+  }, [modulesByOrg, activeOrganization, vehicles])
+
+  const patchOrgModules = useCallback(
+    (updater: (current: FleetModulesDataset) => FleetModulesDataset) => {
+      setModulesByOrg((prev) => {
+        const current = prev[activeOrganization.id] ?? buildDefaultModulesDataset(activeOrganization, vehicles)
+        return { ...prev, [activeOrganization.id]: updater(current) }
+      })
+    },
+    [activeOrganization, vehicles],
+  )
+
+  const addTool = async (item: Omit<FleetToolItem, 'id' | 'organizationId'>): Promise<FleetToolItem> => {
+    const fallbackItem: FleetToolItem = { ...item, id: `tool-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/tools', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { tool: FleetToolItem }
+        patchOrgModules((m) => ({ ...m, tools: [data.tool, ...m.tools] }))
+        return data.tool
+      }
+    }
+    patchOrgModules((m) => ({ ...m, tools: [fallbackItem, ...m.tools] }))
+    return fallbackItem
+  }
+
+  const updateToolStatus = async (toolId: string, status: FleetToolItem['status']): Promise<void> => {
+    patchOrgModules((m) => ({
+      ...m,
+      tools: m.tools.map((t) => (t.id === toolId ? { ...t, status } : t)),
+    }))
+    if (serverHydratedRef.current) {
+      await fetch(`/api/fleet/modules/tools/${encodeURIComponent(toolId)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }).catch(() => undefined)
+    }
+  }
+
+  const addWarranty = async (item: Omit<FleetWarrantyItem, 'id' | 'organizationId'>): Promise<FleetWarrantyItem> => {
+    const fallbackItem: FleetWarrantyItem = { ...item, id: `war-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/warranties', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { warranty: FleetWarrantyItem }
+        patchOrgModules((m) => ({ ...m, warranties: [data.warranty, ...m.warranties] }))
+        return data.warranty
+      }
+    }
+    patchOrgModules((m) => ({ ...m, warranties: [fallbackItem, ...m.warranties] }))
+    return fallbackItem
+  }
+
+  const addCustomRecord = async (item: Omit<CustomRecordEntry, 'id' | 'organizationId'>): Promise<CustomRecordEntry> => {
+    const fallbackItem: CustomRecordEntry = { ...item, id: `cr-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/custom-records', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { customRecord: CustomRecordEntry }
+        patchOrgModules((m) => ({ ...m, customRecords: [data.customRecord, ...m.customRecords] }))
+        return data.customRecord
+      }
+    }
+    patchOrgModules((m) => ({ ...m, customRecords: [fallbackItem, ...m.customRecords] }))
+    return fallbackItem
+  }
+
+  const addServiceTask = async (item: Omit<ServiceTaskCatalogItem, 'id' | 'organizationId'>): Promise<ServiceTaskCatalogItem> => {
+    const fallbackItem: ServiceTaskCatalogItem = { ...item, id: `st-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/service-tasks', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { serviceTask: ServiceTaskCatalogItem }
+        patchOrgModules((m) => ({ ...m, serviceTasks: [data.serviceTask, ...m.serviceTasks] }))
+        return data.serviceTask
+      }
+    }
+    patchOrgModules((m) => ({ ...m, serviceTasks: [fallbackItem, ...m.serviceTasks] }))
+    return fallbackItem
+  }
+
+  const addServiceProgram = async (item: Omit<ServiceProgramItem, 'id' | 'organizationId'>): Promise<ServiceProgramItem> => {
+    const fallbackItem: ServiceProgramItem = { ...item, id: `sp-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/service-programs', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { serviceProgram: ServiceProgramItem }
+        patchOrgModules((m) => ({ ...m, servicePrograms: [data.serviceProgram, ...m.servicePrograms] }))
+        return data.serviceProgram
+      }
+    }
+    patchOrgModules((m) => ({ ...m, servicePrograms: [fallbackItem, ...m.servicePrograms] }))
+    return fallbackItem
+  }
+
+  const addInspectionForm = async (item: Omit<InspectionFormTemplate, 'id' | 'organizationId'>): Promise<InspectionFormTemplate> => {
+    const fallbackItem: InspectionFormTemplate = { ...item, id: `if-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/inspection-forms', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { inspectionForm: InspectionFormTemplate }
+        patchOrgModules((m) => ({ ...m, inspectionForms: [data.inspectionForm, ...m.inspectionForms] }))
+        return data.inspectionForm
+      }
+    }
+    patchOrgModules((m) => ({ ...m, inspectionForms: [fallbackItem, ...m.inspectionForms] }))
+    return fallbackItem
+  }
+
+  const addInspectionSchedule = async (item: Omit<InspectionScheduleItem, 'id' | 'organizationId'>): Promise<InspectionScheduleItem> => {
+    const fallbackItem: InspectionScheduleItem = { ...item, id: `is-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/inspection-schedules', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { inspectionSchedule: InspectionScheduleItem }
+        patchOrgModules((m) => ({ ...m, inspectionSchedules: [data.inspectionSchedule, ...m.inspectionSchedules] }))
+        return data.inspectionSchedule
+      }
+    }
+    patchOrgModules((m) => ({ ...m, inspectionSchedules: [fallbackItem, ...m.inspectionSchedules] }))
+    return fallbackItem
+  }
+
+  const addRecall = async (item: Omit<FleetRecallItem, 'id' | 'organizationId'>): Promise<FleetRecallItem> => {
+    const fallbackItem: FleetRecallItem = { ...item, id: `rec-${Date.now()}`, organizationId: activeOrganization.id }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/recalls', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { recall: FleetRecallItem }
+        patchOrgModules((m) => ({ ...m, recalls: [data.recall, ...m.recalls] }))
+        return data.recall
+      }
+    }
+    patchOrgModules((m) => ({ ...m, recalls: [fallbackItem, ...m.recalls] }))
+    return fallbackItem
+  }
+
+  const updateRecallStatus = async (recallId: string, status: FleetRecallItem['status']): Promise<void> => {
+    patchOrgModules((m) => ({
+      ...m,
+      recalls: m.recalls.map((r) => (r.id === recallId ? { ...r, status } : r)),
+    }))
+    if (serverHydratedRef.current) {
+      await fetch(`/api/fleet/modules/recalls/${encodeURIComponent(recallId)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      }).catch(() => undefined)
+    }
+  }
+
+  const createApiKey = async (label: string, scope: ApiKeyEntry['scope']): Promise<ApiKeyEntry> => {
+    const rand = Math.random().toString(36).slice(2, 6)
+    const fallbackItem: ApiKeyEntry = {
+      id: `key-${Date.now()}`,
+      organizationId: activeOrganization.id,
+      label,
+      prefix: `dm_live_${rand}••••9f2e`,
+      scope,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: 'Never',
+    }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/api-keys', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label, scope }),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { apiKey: ApiKeyEntry }
+        patchOrgModules((m) => ({ ...m, apiKeys: [data.apiKey, ...m.apiKeys] }))
+        return data.apiKey
+      }
+    }
+    patchOrgModules((m) => ({ ...m, apiKeys: [fallbackItem, ...m.apiKeys] }))
+    return fallbackItem
+  }
+
+  const revokeApiKey = async (keyId: string): Promise<void> => {
+    patchOrgModules((m) => ({ ...m, apiKeys: m.apiKeys.filter((k) => k.id !== keyId) }))
+    if (serverHydratedRef.current) {
+      await fetch(`/api/fleet/modules/api-keys/${encodeURIComponent(keyId)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      }).catch(() => undefined)
+    }
+  }
+
+  const addWebhook = async (url: string, events: string[] = ['vehicle.alert', 'work_order.updated']): Promise<WebhookEndpoint> => {
+    const fallbackItem: WebhookEndpoint = {
+      id: `wh-${Date.now()}`,
+      organizationId: activeOrganization.id,
+      url,
+      events,
+      active: true,
+      lastDeliveryStatus: 200,
+    }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/webhooks', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, events }),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { webhook: WebhookEndpoint }
+        patchOrgModules((m) => ({ ...m, webhooks: [data.webhook, ...m.webhooks] }))
+        return data.webhook
+      }
+    }
+    patchOrgModules((m) => ({ ...m, webhooks: [fallbackItem, ...m.webhooks] }))
+    return fallbackItem
+  }
+
+  const toggleWebhook = async (webhookId: string, active: boolean): Promise<void> => {
+    patchOrgModules((m) => ({
+      ...m,
+      webhooks: m.webhooks.map((w) => (w.id === webhookId ? { ...w, active } : w)),
+    }))
+    if (serverHydratedRef.current) {
+      await fetch(`/api/fleet/modules/webhooks/${encodeURIComponent(webhookId)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active }),
+      }).catch(() => undefined)
+    }
+  }
+
+  const addCustomDashboard = async (name: string, widgets = 'Fleet KPI Summary, Alerts Feed'): Promise<CustomDashboardLayout> => {
+    const fallbackItem: CustomDashboardLayout = {
+      id: `cd-${Date.now()}`,
+      organizationId: activeOrganization.id,
+      name,
+      widgets,
+      defaultView: false,
+    }
+    if (serverHydratedRef.current) {
+      const res = await fetch('/api/fleet/modules/custom-dashboards', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, widgets }),
+      })
+      if (res.ok) {
+        const data = (await res.json()) as { customDashboard: CustomDashboardLayout }
+        patchOrgModules((m) => ({ ...m, customDashboards: [...m.customDashboards, data.customDashboard] }))
+        return data.customDashboard
+      }
+    }
+    patchOrgModules((m) => ({ ...m, customDashboards: [...m.customDashboards, fallbackItem] }))
+    return fallbackItem
+  }
+
+  const updateFleetioSettings = useCallback(
+    (patch: Partial<FleetioSettingsState>) => {
+      patchOrgModules((m) => {
+        const next = { ...m.fleetioSettings, ...patch }
+        if (serverHydratedRef.current) {
+          void fetch('/api/fleet/modules/settings', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fleetioSettings: next }),
+          }).catch(() => undefined)
+        }
+        return { ...m, fleetioSettings: next }
+      })
+    },
+    [patchOrgModules],
+  )
+
+  const markModuleVisited = useCallback(
+    (mod: 'integrations' | 'reports') => {
+      patchOrgModules((m) => {
+        if ((mod === 'integrations' && m.visitedIntegrations) || (mod === 'reports' && m.visitedReports)) {
+          return m
+        }
+        const patchBody = mod === 'integrations' ? { visitedIntegrations: true } : { visitedReports: true }
+        if (serverHydratedRef.current) {
+          void fetch('/api/fleet/modules/settings', {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patchBody),
+          }).catch(() => undefined)
+        }
+        return { ...m, ...patchBody }
+      })
+    },
+    [patchOrgModules],
+  )
 
   const recordReportGeneration = (
     entry: Omit<ReportHistoryItem, 'id' | 'organizationId' | 'environment' | 'generatedAt'>,
@@ -2194,6 +2586,37 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     settings,
     updateSettings,
     updateOrganizationProfile,
+    tools: activeModules.tools,
+    warranties: activeModules.warranties,
+    customRecords: activeModules.customRecords,
+    serviceTasks: activeModules.serviceTasks,
+    servicePrograms: activeModules.servicePrograms,
+    inspectionForms: activeModules.inspectionForms,
+    inspectionSchedules: activeModules.inspectionSchedules,
+    recalls: activeModules.recalls,
+    apiKeys: activeModules.apiKeys,
+    webhooks: activeModules.webhooks,
+    customDashboards: activeModules.customDashboards,
+    fleetioSettings: activeModules.fleetioSettings,
+    visitedIntegrations: activeModules.visitedIntegrations,
+    visitedReports: activeModules.visitedReports,
+    addTool,
+    updateToolStatus,
+    addWarranty,
+    addCustomRecord,
+    addServiceTask,
+    addServiceProgram,
+    addInspectionForm,
+    addInspectionSchedule,
+    addRecall,
+    updateRecallStatus,
+    createApiKey,
+    revokeApiKey,
+    addWebhook,
+    toggleWebhook,
+    addCustomDashboard,
+    updateFleetioSettings,
+    markModuleVisited,
     unreadAlertCount,
     nowTick: predictionTick,
     addVehicle,

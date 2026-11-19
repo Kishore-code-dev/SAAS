@@ -18,34 +18,22 @@ import {
 import { toast } from 'sonner'
 import { useAuth } from '../../hooks/useAuth'
 import { useFleet } from '../../hooks/useFleet'
-import {
-  DEFAULT_FLEETIO_SETTINGS,
-  loadScopedStorage,
-  saveScopedStorage,
-  type ApiKeyEntry,
-  type FleetioSettingsState,
-  type LookupTagItem,
-  type WebhookEndpoint,
-} from '../../utils/fleetioConfigStore'
+import type {
+  ApiKeyEntry,
+  FleetioSettingsState,
+  LookupTagItem,
+  OrganizationRole,
+} from '../../types/fleet'
 import { canPerformAction } from '../../utils/rbac'
-import type { OrganizationRole } from '../../types/fleet'
 import { formatDateTime, formatInr, formatShortDate } from '../../components/ui/EnterprisePrimitives'
 
 function useFleetioConfig() {
-  const { activeOrganization } = useFleet()
-  const [config, setConfig] = useState<FleetioSettingsState>(() =>
-    loadScopedStorage(activeOrganization.id, 'fleetio_settings', DEFAULT_FLEETIO_SETTINGS),
-  )
-
-  const updateConfig = (patch: Partial<FleetioSettingsState>) => {
-    setConfig((prev) => {
-      const next = { ...prev, ...patch }
-      saveScopedStorage(activeOrganization.id, 'fleetio_settings', next)
-      return next
-    })
+  const { activeOrganization, fleetioSettings, updateFleetioSettings } = useFleet()
+  return {
+    config: fleetioSettings,
+    updateConfig: updateFleetioSettings,
+    orgId: activeOrganization.id,
   }
-
-  return { config, updateConfig, orgId: activeOrganization.id }
 }
 
 function LookupManagerCard({
@@ -295,21 +283,13 @@ export function ProfileSection() {
 
 export function CustomDashboardsSection() {
   const navigate = useNavigate()
-  const { activeOrganization } = useFleet()
-  const [dashboards, setDashboards] = useState<Array<{ id: string; name: string; widgets: string; defaultView: boolean }>>(() =>
-    loadScopedStorage(activeOrganization.id, 'custom_dashboards', [
-      { id: 'cd-1', name: 'Executive Fleet Health & TCO', widgets: '5-Area Health, Open WOs, Compliance Expiry, Cost/km', defaultView: true },
-      { id: 'cd-2', name: 'Workshop & Maintenance Queue', widgets: 'Overdue PM, Open Issues, Low Stock Parts', defaultView: false },
-    ]),
-  )
+  const { customDashboards, addCustomDashboard } = useFleet()
   const [name, setName] = useState('')
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
-    const next = [...dashboards, { id: `cd-${Date.now()}`, name: name.trim(), widgets: 'Fleet KPI Summary, Alerts Feed', defaultView: false }]
-    setDashboards(next)
-    saveScopedStorage(activeOrganization.id, 'custom_dashboards', next)
+    await addCustomDashboard(name.trim(), 'Fleet KPI Summary, Alerts Feed')
     setName('')
     toast.success('Custom dashboard layout saved.')
   }
@@ -338,7 +318,7 @@ export function CustomDashboardsSection() {
         </button>
       </form>
       <div className="divide-y divide-[#E5E5E5]">
-        {dashboards.map((d) => (
+        {customDashboards.map((d) => (
           <div key={d.id} className="py-3 flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-semibold text-[#625346]">{d.name}</p>
@@ -505,39 +485,14 @@ export function AppearanceSection() {
 }
 
 export function ApiKeysSection() {
-  const { activeOrganization } = useFleet()
-  const [keys, setKeys] = useState<ApiKeyEntry[]>(() =>
-    loadScopedStorage(activeOrganization.id, 'api_keys', [
-      {
-        id: 'key-1',
-        label: 'OBD Telematics Ingestion Key',
-        prefix: 'dm_live_89a4••••c1f2',
-        scope: 'telematics_ingest',
-        createdAt: '2026-08-12T10:00:00.000Z',
-        lastUsedAt: '2026-11-18T11:20:00.000Z',
-      },
-    ]),
-  )
+  const { apiKeys, createApiKey, revokeApiKey } = useFleet()
   const [label, setLabel] = useState('')
   const [scope, setScope] = useState<ApiKeyEntry['scope']>('read_only')
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!label.trim()) return
-    const rand = Math.random().toString(36).slice(2, 6)
-    const next: ApiKeyEntry[] = [
-      {
-        id: `key-${Date.now()}`,
-        label: label.trim(),
-        prefix: `dm_live_${rand}••••9f2e`,
-        scope,
-        createdAt: new Date().toISOString(),
-        lastUsedAt: 'Never',
-      },
-      ...keys,
-    ]
-    setKeys(next)
-    saveScopedStorage(activeOrganization.id, 'api_keys', next)
+    await createApiKey(label.trim(), scope)
     setLabel('')
     toast.success('API key generated.')
   }
@@ -566,7 +521,7 @@ export function ApiKeysSection() {
         </div>
       </form>
       <div className="divide-y divide-[#E5E5E5]">
-        {keys.map((k) => (
+        {apiKeys.map((k) => (
           <div key={k.id} className="py-3 flex items-center justify-between gap-4 text-xs">
             <div>
               <p className="font-semibold text-[#625346] text-sm">{k.label}</p>
@@ -575,9 +530,7 @@ export function ApiKeysSection() {
             <button
               type="button"
               onClick={() => {
-                const next = keys.filter((x) => x.id !== k.id)
-                setKeys(next)
-                saveScopedStorage(activeOrganization.id, 'api_keys', next)
+                void revokeApiKey(k.id)
                 toast.success('API key revoked.')
               }}
               className="btn-secondary text-xs text-[#B84E42]"
@@ -896,32 +849,16 @@ export function AiAdvisorSection() {
 }
 
 export function WebhooksSection() {
-  const { activeOrganization } = useFleet()
-  const [hooks, setHooks] = useState<WebhookEndpoint[]>(() =>
-    loadScopedStorage(activeOrganization.id, 'webhooks', [
-      {
-        id: 'wh-1',
-        url: 'https://erp.kaverilogistics.in/hooks/drivemitra-wo',
-        events: ['work_order.completed', 'issue.critical'],
-        active: true,
-        lastDeliveryStatus: 200,
-      },
-    ]),
-  )
+  const { webhooks, addWebhook, toggleWebhook } = useFleet()
   const [url, setUrl] = useState('')
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!url.trim().startsWith('http')) {
       toast.error('Enter a valid https:// webhook URL.')
       return
     }
-    const next: WebhookEndpoint[] = [
-      { id: `wh-${Date.now()}`, url: url.trim(), events: ['vehicle.alert', 'work_order.updated'], active: true, lastDeliveryStatus: 200 },
-      ...hooks,
-    ]
-    setHooks(next)
-    saveScopedStorage(activeOrganization.id, 'webhooks', next)
+    await addWebhook(url.trim(), ['vehicle.alert', 'work_order.updated'])
     setUrl('')
     toast.success('Webhook endpoint registered.')
   }
@@ -945,7 +882,7 @@ export function WebhooksSection() {
         </button>
       </form>
       <div className="divide-y divide-[#E5E5E5]">
-        {hooks.map((h) => (
+        {webhooks.map((h) => (
           <div key={h.id} className="py-3 flex items-center justify-between gap-4 text-xs">
             <div>
               <p className="font-mono font-semibold text-[#625346]">{h.url}</p>
@@ -954,9 +891,7 @@ export function WebhooksSection() {
             <button
               type="button"
               onClick={() => {
-                const next = hooks.map((x) => (x.id === h.id ? { ...x, active: !x.active } : x))
-                setHooks(next)
-                saveScopedStorage(activeOrganization.id, 'webhooks', next)
+                void toggleWebhook(h.id, !h.active)
               }}
               className={`px-2.5 py-1 rounded-[6px] font-semibold ${
                 h.active ? 'bg-[#E8F5EE] text-[#0D3B26]' : 'bg-[#FAFAFA] text-[#958777]'

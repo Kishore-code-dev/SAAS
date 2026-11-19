@@ -5,6 +5,7 @@ import { buildSeedDataset, type EnvironmentDataset } from '../src/data/seedOrgan
 import type { Organization, OrganizationRole, OrganizationStatus } from '../src/types/fleet.ts'
 import { hashPassword } from './authLogic.ts'
 import { ensureFinanceSchemaAndSeed } from './financeDb.ts'
+import { ensureFleetSchemaAndMigrate } from './fleetDb.ts'
 
 const DATA_DIR = path.resolve(process.cwd(), '.drivemitra-data')
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads')
@@ -139,9 +140,48 @@ export function getDb(): DatabaseSync {
   `)
 
   seedDatabaseIfEmpty(db)
+  backfillDeccanOperationalSeedIfNeeded(db)
+  ensureFleetSchemaAndMigrate(db)
   ensureFinanceSchemaAndSeed(db)
   dbInstance = db
   return db
+}
+
+function backfillDeccanOperationalSeedIfNeeded(db: DatabaseSync): void {
+  const row = db
+    .prepare("SELECT payload_json FROM org_fleet_blobs WHERE organization_id = 'org-deccan'")
+    .get() as { payload_json: string } | undefined
+  if (!row) return
+
+  let parsed: Record<string, unknown[]>
+  try {
+    parsed = JSON.parse(row.payload_json) as Record<string, unknown[]>
+  } catch {
+    return
+  }
+  if (Array.isArray(parsed.workOrders) && parsed.workOrders.length > 0) return
+
+  const seed = buildSeedDataset('production')
+  const deccanVehicleIds = new Set(seed.vehicles.filter((v) => v.organizationId === 'org-deccan').map((v) => v.id))
+  const mergeById = <T extends { id: string }>(existing: unknown, additions: T[]): T[] => {
+    const arr = Array.isArray(existing) ? (existing as T[]) : []
+    const ids = new Set(arr.map((i) => i.id))
+    return [...arr, ...additions.filter((a) => !ids.has(a.id))]
+  }
+
+  parsed.inspections = mergeById(parsed.inspections, seed.inspections.filter((i) => i.organizationId === 'org-deccan'))
+  parsed.smallIssues = mergeById(parsed.smallIssues, seed.smallIssues.filter((i) => i.organizationId === 'org-deccan'))
+  parsed.workOrders = mergeById(parsed.workOrders, seed.workOrders.filter((w) => w.organizationId === 'org-deccan'))
+  parsed.purchaseOrders = mergeById(parsed.purchaseOrders, seed.purchaseOrders.filter((p) => p.organizationId === 'org-deccan'))
+  parsed.inventoryTransactions = mergeById(parsed.inventoryTransactions, seed.inventoryTransactions.filter((t) => t.organizationId === 'org-deccan'))
+  parsed.documentVault = mergeById(parsed.documentVault, seed.documentVault.filter((d) => d.organizationId === 'org-deccan'))
+  parsed.tyrePositions = mergeById(parsed.tyrePositions, seed.tyrePositions.filter((t) => deccanVehicleIds.has(t.vehicleId)))
+
+  db.prepare('UPDATE org_fleet_blobs SET payload_json = ?, updated_at = ? WHERE organization_id = ?').run(
+    JSON.stringify(parsed),
+    new Date().toISOString(),
+    'org-deccan',
+  )
 }
 
 export function createEmptyOrgDataset(org: Organization): Omit<EnvironmentDataset, 'organizations' | 'members'> {

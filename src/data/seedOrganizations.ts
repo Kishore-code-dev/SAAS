@@ -2000,6 +2000,21 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       reportedAt: daysAgo(2),
       linkedWorkOrderId: 'wo-k2',
     },
+    {
+      id: 'iss-d1',
+      organizationId: deccanOrgId,
+      vehicleId: 'v-d2',
+      driverId: 'd-d2',
+      title: 'Thermal loop coolant pressure fluctuation & FL tyre shoulder wear',
+      description: 'Detected during Electronic City pre-shift EV bay check.',
+      healthArea: 'Engine Health',
+      severity: 'high',
+      status: 'converted_to_wo',
+      source: 'inspection_defect',
+      reportedBy: 'Nandini Rao',
+      reportedAt: hoursAgo(9),
+      linkedWorkOrderId: 'wo-d1',
+    },
   ]
 
   const workshops: WorkshopVendor[] = [
@@ -2215,6 +2230,35 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       createdAt: daysAgo(1),
       scheduledFor: daysFromNowDate(2),
     },
+    {
+      id: 'wo-d1',
+      organizationId: deccanOrgId,
+      workOrderNumber: 'WO-DEC-2011',
+      vehicleId: 'v-d2',
+      workshopId: 'ws-d1',
+      workshopName: 'Tata EV Commercial Service Bengaluru',
+      title: 'EV Battery Thermal Loop Flush & Tyre Alignment',
+      description: 'Flush low-conductivity thermal coolant and align front axle on KA 05 EV 3319.',
+      healthArea: 'Engine Health',
+      priority: 'high',
+      status: 'in_progress',
+      linkedIssueIds: ['iss-d1'],
+      tasks: [
+        { id: 'td1', title: 'Pressure-test EV battery chiller lines', completed: true },
+        { id: 'td2', title: 'Refill low-conductivity EV thermal coolant', completed: false },
+        { id: 'td3', title: 'Front-axle alignment & tread depth verification', completed: false },
+      ],
+      parts: [
+        { partId: 'prt-d1', partName: 'Low-Conductivity EV Thermal Coolant (3L)', sku: 'EV-COOL-3L', quantity: 2, unitCostInr: 2200, totalCostInr: 4400, consumedFromStock: true },
+      ],
+      laborCostInr: 1900,
+      partsCostInr: 4400,
+      totalCostInr: 6300,
+      paymentState: 'recorded',
+      createdBy: 'Nandini Rao',
+      createdAt: hoursAgo(8),
+      scheduledFor: daysFromNowDate(1),
+    },
   ]
 
   const purchaseOrders: PurchaseOrder[] = [
@@ -2233,6 +2277,21 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       paymentState: 'verified',
       createdAt: daysAgo(4),
       expectedAt: daysFromNowDate(2),
+    },
+    {
+      id: 'po-d1',
+      organizationId: deccanOrgId,
+      poNumber: 'PO-DEC-2026-04',
+      supplierId: 'sup-d1',
+      supplierName: 'Bengaluru EV Components Guild',
+      status: 'issued',
+      items: [
+        { partId: 'prt-d1', partName: 'Low-Conductivity EV Thermal Coolant (3L)', sku: 'EV-COOL-3L', orderedQty: 6, receivedQty: 0, unitCostInr: 2200 },
+      ],
+      totalAmountInr: 13200,
+      paymentState: 'recorded',
+      createdAt: daysAgo(2),
+      expectedAt: daysFromNowDate(3),
     },
   ]
 
@@ -2262,6 +2321,19 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       referenceId: 'po-k1',
       performedBy: 'Karthikeyan R',
       timestamp: daysAgo(1),
+    },
+    {
+      id: 'invtx-d1',
+      organizationId: deccanOrgId,
+      partId: 'prt-d1',
+      partName: 'Low-Conductivity EV Thermal Coolant (3L)',
+      type: 'wo_consume',
+      quantityDelta: -2,
+      balanceAfter: 5,
+      referenceType: 'work_order',
+      referenceId: 'wo-d1',
+      performedBy: 'Nandini Rao',
+      timestamp: hoursAgo(7),
     },
   ]
 
@@ -2423,6 +2495,27 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       uploadedBy: 'Karthikeyan R',
       uploadedAt: daysAgo(301),
     },
+    {
+      id: 'doc-v-d1-ins',
+      organizationId: deccanOrgId,
+      entityType: 'vehicle',
+      entityId: 'v-d1',
+      category: 'EV Commercial Policy',
+      title: 'Zero-Emission EV Commercial Comprehensive Policy',
+      maskedNumber: 'DIG-****-4410',
+      issuingAuthority: 'Digit Commercial EV',
+      issuedDate: daysAgo(155).slice(0, 10),
+      expiryDate: daysFromNowDate(210),
+      fileName: 'ka01ev7101_insurance.pdf',
+      mimeType: 'application/pdf',
+      fileSizeBytes: 294000,
+      storageKey: 'seed://doc-v-d1-ins',
+      verificationStatus: 'verified',
+      verifiedBy: 'Nandini Rao',
+      verifiedAt: daysAgo(150),
+      uploadedBy: 'Nandini Rao',
+      uploadedAt: daysAgo(152),
+    },
   ]
 
   const tyrePositions: TyrePositionRecord[] = [
@@ -2434,6 +2527,10 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
     { id: 'ty-k3-2', vehicleId: 'v-k3', position: 'FR (Front Right)', brand: 'JK Jetsteel', serialNumber: 'JK-750-1902', treadDepthMm: 3.4, installedAtOdometerKm: 158000, expectedLifeKm: 45000, status: 'replace_soon', lastInspectedAt: daysAgo(2) },
     { id: 'ty-k3-3', vehicleId: 'v-k3', position: 'RL-Outer', brand: 'JK Jetsteel', serialNumber: 'JK-750-1903', treadDepthMm: 5.1, installedAtOdometerKm: 165000, expectedLifeKm: 50000, status: 'healthy', lastInspectedAt: daysAgo(2) },
     { id: 'ty-k3-4', vehicleId: 'v-k3', position: 'RR-Outer', brand: 'JK Jetsteel', serialNumber: 'JK-750-1904', treadDepthMm: 4.9, installedAtOdometerKm: 165000, expectedLifeKm: 50000, status: 'healthy', lastInspectedAt: daysAgo(2) },
+    { id: 'ty-d2-1', vehicleId: 'v-d2', position: 'FL (Front Left)', brand: 'CEAT EV Eco', serialNumber: 'CEV-215-3301', treadDepthMm: 3.3, installedAtOdometerKm: 39000, expectedLifeKm: 45000, status: 'replace_soon', lastInspectedAt: hoursAgo(9) },
+    { id: 'ty-d2-2', vehicleId: 'v-d2', position: 'FR (Front Right)', brand: 'CEAT EV Eco', serialNumber: 'CEV-215-3302', treadDepthMm: 4.5, installedAtOdometerKm: 39000, expectedLifeKm: 45000, status: 'wear_watch', lastInspectedAt: hoursAgo(9) },
+    { id: 'ty-d2-3', vehicleId: 'v-d2', position: 'RL (Rear Left)', brand: 'CEAT EV Eco', serialNumber: 'CEV-215-3303', treadDepthMm: 6.1, installedAtOdometerKm: 46000, expectedLifeKm: 50000, status: 'healthy', lastInspectedAt: hoursAgo(9) },
+    { id: 'ty-d2-4', vehicleId: 'v-d2', position: 'RR (Rear Right)', brand: 'CEAT EV Eco', serialNumber: 'CEV-215-3304', treadDepthMm: 6.0, installedAtOdometerKm: 46000, expectedLifeKm: 50000, status: 'healthy', lastInspectedAt: hoursAgo(9) },
   ]
 
   const inspections: VehicleInspection[] = [
@@ -2486,6 +2583,23 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
       notes: 'Engine check indicator came on after Salem climb; minor oil seepage around sump.',
       passed: false,
       linkedIssueIds: ['iss-k1'],
+    },
+    {
+      id: 'ins-d1',
+      organizationId: deccanOrgId,
+      environment: 'production',
+      vehicleId: 'v-d2',
+      driverId: 'd-d2',
+      inspectorName: 'Nandini Rao',
+      timestamp: hoursAgo(9),
+      tyreCondition: 'worn',
+      brakeFeel: 'normal',
+      fluidLeaksDetected: false,
+      warningLightsOn: true,
+      batteryOrStartingIssue: false,
+      notes: 'EV chiller loop indicator illuminated after shift; front-left shoulder wear noted.',
+      passed: false,
+      linkedIssueIds: ['iss-d1'],
     },
   ]
 

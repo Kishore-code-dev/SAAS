@@ -742,3 +742,186 @@ export interface ReportHistoryItem {
   format: 'CSV' | 'PDF' | 'XLSX'
   rowCount: number
 }
+
+export interface FleetToolItem {
+  id: string
+  organizationId?: string
+  name: string
+  serialNumber: string
+  category: string
+  assignedTo: string
+  location: string
+  status: 'in_service' | 'checked_out' | 'maintenance' | 'retired'
+  purchaseCostInr: number
+  nextCalibrationDate: string
+}
+
+export interface FleetWarrantyItem {
+  id: string
+  organizationId?: string
+  vehicleId?: string
+  assetName: string
+  registrationNumber: string
+  provider: string
+  coverageType: 'Powertrain' | 'Battery / EV Pack' | 'Chassis & Axle' | 'Tyre Casing' | 'Component'
+  startDate: string
+  expiryDate: string
+  maxOdometerKm: number
+  claimStatus: 'active' | 'expiring_soon' | 'claimed' | 'expired'
+}
+
+export interface CustomRecordEntry {
+  id: string
+  organizationId?: string
+  recordType: 'Toll & FASTag Audit' | 'RTO Permit Log' | 'Cold-Chain Temp Audit' | 'Driver Uniform & Kit'
+  vehicleOrDriver: string
+  referenceCode: string
+  recordedDate: string
+  amountInr: number
+  status: 'verified' | 'pending' | 'flagged'
+  notes: string
+}
+
+export interface ApiKeyEntry {
+  id: string
+  organizationId?: string
+  label: string
+  prefix: string
+  scope: 'read_only' | 'read_write' | 'telematics_ingest'
+  createdAt: string
+  lastUsedAt: string
+}
+
+export interface WebhookEndpoint {
+  id: string
+  organizationId?: string
+  url: string
+  events: string[]
+  active: boolean
+  lastDeliveryStatus: number
+}
+
+export interface LookupTagItem {
+  id: string
+  name: string
+  color?: string
+  description?: string
+  active: boolean
+}
+
+export interface CustomDashboardLayout {
+  id: string
+  organizationId?: string
+  name: string
+  widgets: string
+  defaultView: boolean
+}
+
+export interface ServiceTaskCatalogItem {
+  id: string
+  organizationId?: string
+  code: string
+  title: string
+  area: FiveAreaHealthCategory
+  avgHours: number
+  estCostInr: number
+  active: boolean
+}
+
+export interface ServiceProgramItem {
+  id: string
+  organizationId?: string
+  name: string
+  powertrain: 'ICE' | 'EV' | 'All'
+  cadence: string
+  intervalKm: number
+  intervalDays: number
+  active: boolean
+}
+
+export interface InspectionFormTemplate {
+  id: string
+  organizationId?: string
+  title: string
+  itemsCount: number
+  lastUpdated: string
+  active: boolean
+  checklistItems?: string[]
+}
+
+export interface InspectionScheduleItem {
+  id: string
+  organizationId?: string
+  name: string
+  frequency: string
+  scope: string
+  formId?: string
+  formTitle: string
+  active: boolean
+}
+
+export interface FleetRecallItem {
+  id: string
+  organizationId?: string
+  campaign: string
+  oem: string
+  targetMake: string
+  severity: RiskSeverity
+  status: 'Monitoring' | 'Scheduled' | 'In Progress' | 'Completed'
+  notes?: string
+  issuedDate: string
+}
+
+export interface WorkspaceSettings {
+  aiConfidenceThreshold: number
+  telemetryIntervalSec: number
+  lowHealthAlertCutoff: number
+  speedCeilingKmh: number
+  emailDigestEnabled: boolean
+  criticalPushEnabled: boolean
+  maintenanceReminderDays: number
+  digilockerEnabled: boolean
+}
+
+export interface FleetioSettingsState {
+  appearanceTheme: 'fleetio_forest' | 'lavender_enterprise'
+  compactDensity: boolean
+  defaultDistanceUnit: 'km' | 'mi'
+  defaultFuelUnit: 'liters' | 'gallons'
+  currencyCode: 'INR'
+  fiscalYearStart: 'April' | 'January'
+  autoCreateWoFromCriticalIssue: boolean
+  requireInspectionSignature: boolean
+  enforceGeofenceAlerts: boolean
+  faultSeverityThreshold: 'all' | 'high_only' | 'critical_only'
+  serviceReminderLeadDays: number
+  serviceReminderLeadKm: number
+  vehicleStatuses: LookupTagItem[]
+  vehicleTypes: LookupTagItem[]
+  issuePriorities: LookupTagItem[]
+  workOrderStatuses: LookupTagItem[]
+  repairReasonCodes: LookupTagItem[]
+  partLocations: LookupTagItem[]
+  partCategories: LookupTagItem[]
+  fuelTypes: LookupTagItem[]
+  labels: LookupTagItem[]
+}
+
+export interface FleetModulesDataset {
+  tools: FleetToolItem[]
+  warranties: FleetWarrantyItem[]
+  customRecords: CustomRecordEntry[]
+  serviceTasks: ServiceTaskCatalogItem[]
+  servicePrograms: ServiceProgramItem[]
+  inspectionForms: InspectionFormTemplate[]
+  inspectionSchedules: InspectionScheduleItem[]
+  recalls: FleetRecallItem[]
+  apiKeys: ApiKeyEntry[]
+  webhooks: WebhookEndpoint[]
+  customDashboards: CustomDashboardLayout[]
+  fleetioSettings: FleetioSettingsState
+  workspaceSettings: WorkspaceSettings
+  visitedIntegrations: boolean
+  visitedReports: boolean
+}
+

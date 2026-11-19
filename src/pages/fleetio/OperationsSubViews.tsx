@@ -5,21 +5,12 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
-import {
-  buildDefaultTools,
-  loadScopedStorage,
-  saveScopedStorage,
-  type FleetToolItem,
-} from '../../utils/fleetioConfigStore'
 import { classifyComplianceExpiryTier } from '../../utils/intelligenceEngine'
 import { canPerformAction } from '../../utils/rbac'
-import type { FiveAreaHealthCategory } from '../../types/fleet'
+import type { FiveAreaHealthCategory, FleetRecallItem, FleetToolItem, RiskSeverity } from '../../types/fleet'
 
 export function ToolsHubView({ tab }: { tab: 'list' | 'service' | 'reminders' }) {
-  const { activeOrganization, activeRole } = useFleet()
-  const [tools, setTools] = useState<FleetToolItem[]>(() =>
-    loadScopedStorage(activeOrganization.id, 'tools', buildDefaultTools(activeOrganization.city)),
-  )
+  const { activeOrganization, activeRole, tools, addTool, updateToolStatus } = useFleet()
   const [modalOpen, setModalOpen] = useState(false)
   const [form, setForm] = useState({
     name: '',
@@ -33,28 +24,22 @@ export function ToolsHubView({ tab }: { tab: 'list' | 'service' | 'reminders' })
 
   const canManage = canPerformAction(activeRole, 'manage_inventory') || canPerformAction(activeRole, 'schedule_maintenance')
 
-  const handleAddTool = (e: React.FormEvent) => {
+  const handleAddTool = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim() || !form.serialNumber.trim()) {
       toast.error('Tool name and serial number are required.')
       return
     }
-    const next: FleetToolItem[] = [
-      {
-        id: `tool-${Date.now()}`,
-        name: form.name.trim(),
-        serialNumber: form.serialNumber.trim().toUpperCase(),
-        category: form.category,
-        assignedTo: form.assignedTo.trim(),
-        location: form.location.trim(),
-        status: 'in_service',
-        purchaseCostInr: Number(form.purchaseCostInr) || 0,
-        nextCalibrationDate: form.nextCalibrationDate,
-      },
-      ...tools,
-    ]
-    setTools(next)
-    saveScopedStorage(activeOrganization.id, 'tools', next)
+    await addTool({
+      name: form.name.trim(),
+      serialNumber: form.serialNumber.trim().toUpperCase(),
+      category: form.category,
+      assignedTo: form.assignedTo.trim(),
+      location: form.location.trim(),
+      status: 'in_service',
+      purchaseCostInr: Number(form.purchaseCostInr) || 0,
+      nextCalibrationDate: form.nextCalibrationDate,
+    })
     toast.success(`Added tool ${form.name.trim()} to equipment inventory.`)
     setModalOpen(false)
     setForm((f) => ({ ...f, name: '', serialNumber: '' }))
@@ -109,10 +94,26 @@ export function ToolsHubView({ tab }: { tab: 'list' | 'service' | 'reminders' })
                     <span className="text-xs text-[#958777]">{tool.location}</span>
                   </td>
                   <td>
-                    <SeverityText
-                      severity={tool.status === 'maintenance' ? 'high' : 'normal'}
-                      label={tool.status.replace('_', ' ')}
-                    />
+                    {canManage ? (
+                      <select
+                        value={tool.status}
+                        onChange={(e) => {
+                          void updateToolStatus(tool.id, e.target.value as FleetToolItem['status'])
+                          toast.success(`Updated status for ${tool.name}`)
+                        }}
+                        className="dm-input py-1 text-xs w-auto"
+                      >
+                        <option value="in_service">In Service</option>
+                        <option value="checked_out">Checked Out</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="retired">Retired</option>
+                      </select>
+                    ) : (
+                      <SeverityText
+                        severity={tool.status === 'maintenance' ? 'high' : 'normal'}
+                        label={tool.status.replace('_', ' ')}
+                      />
+                    )}
                   </td>
                   <td className="tabular-nums text-xs">{formatShortDate(tool.nextCalibrationDate)}</td>
                 </tr>
@@ -179,14 +180,22 @@ export function ToolsHubView({ tab }: { tab: 'list' | 'service' | 'reminders' })
 
 export function IssuesHubView({ mode }: { mode: 'issues' | 'recalls' }) {
   const navigate = useNavigate()
-  const { activeOrganization, activeRole, vehicles, smallIssues, addSmallIssue, convertIssueToWorkOrder } = useFleet()
+  const { activeOrganization, activeRole, vehicles, smallIssues, recalls, addSmallIssue, convertIssueToWorkOrder, addRecall, updateRecallStatus } = useFleet()
   const [modalOpen, setModalOpen] = useState(false)
+  const [recallModalOpen, setRecallModalOpen] = useState(false)
   const [form, setForm] = useState({
     vehicleId: vehicles[0]?.id ?? '',
     title: '',
     description: '',
     healthArea: 'Vehicle Health' as FiveAreaHealthCategory,
     severity: 'high' as 'low' | 'medium' | 'high' | 'critical',
+  })
+  const [recallForm, setRecallForm] = useState({
+    campaign: '',
+    oem: 'Tata Motors Commercial',
+    targetMake: 'tata',
+    severity: 'high' as RiskSeverity,
+    notes: '',
   })
 
   const canReport = canPerformAction(activeRole, 'report_issue') || canPerformAction(activeRole, 'edit_vehicle')
@@ -208,32 +217,37 @@ export function IssuesHubView({ mode }: { mode: 'issues' | 'recalls' }) {
     setForm((f) => ({ ...f, title: '', description: '' }))
   }
 
-  if (mode === 'recalls') {
-    const oemAdvisories = [
-      {
-        id: 'rec-1',
-        campaign: 'BS-VI EGR Cooler Inspection Campaign 2026-A',
-        oem: 'Tata Motors Commercial',
-        affectedCount: vehicles.filter((v) => v.make.toLowerCase().includes('tata')).length,
-        severity: 'high' as const,
-        status: 'Monitoring',
-      },
-      {
-        id: 'rec-2',
-        campaign: 'ABS Wheel Speed Sensor Harness Clip Update',
-        oem: 'Ashok Leyland',
-        affectedCount: vehicles.filter((v) => v.make.toLowerCase().includes('ashok')).length,
-        severity: 'moderate' as const,
-        status: 'Scheduled',
-      },
-    ]
+  const handleCreateRecall = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!recallForm.campaign.trim() || !recallForm.oem.trim()) return
+    await addRecall({
+      campaign: recallForm.campaign.trim(),
+      oem: recallForm.oem.trim(),
+      targetMake: recallForm.targetMake.trim().toLowerCase() || recallForm.oem.trim().toLowerCase(),
+      severity: recallForm.severity,
+      status: 'Monitoring',
+      notes: recallForm.notes.trim() || undefined,
+      issuedDate: new Date().toISOString().slice(0, 10),
+    })
+    toast.success('Safety recall campaign added.')
+    setRecallModalOpen(false)
+    setRecallForm((f) => ({ ...f, campaign: '', notes: '' }))
+  }
 
+  if (mode === 'recalls') {
     return (
       <div className="space-y-6">
         <PageHeader
           title="Manufacturer Safety Recalls"
           subtitle={`${activeOrganization.name} · OEM recall campaigns mapped to your active commercial chassis inventory`}
-        />
+        >
+          {canReport && (
+            <button type="button" onClick={() => setRecallModalOpen(true)} className="btn-primary text-xs">
+              <Plus className="w-4 h-4" />
+              Log OEM Recall
+            </button>
+          )}
+        </PageHeader>
         <div className="enterprise-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="dm-table">
@@ -247,22 +261,84 @@ export function IssuesHubView({ mode }: { mode: 'issues' | 'recalls' }) {
                 </tr>
               </thead>
               <tbody>
-                {oemAdvisories.map((r) => (
-                  <tr key={r.id}>
-                    <td className="font-semibold flex items-center gap-2">
-                      <ShieldAlert className="w-4 h-4 text-[#A87F14]" />
-                      {r.campaign}
-                    </td>
-                    <td>{r.oem}</td>
-                    <td className="tabular-nums font-bold">{r.affectedCount} vehicle(s)</td>
-                    <td><SeverityText severity={r.severity} label={r.severity} /></td>
-                    <td className="text-xs font-semibold text-[#1F7A4C]">{r.status}</td>
-                  </tr>
-                ))}
+                {recalls.map((r) => {
+                  const affectedCount = vehicles.filter((v) =>
+                    v.make.toLowerCase().includes(r.targetMake.toLowerCase()),
+                  ).length
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        <span className="font-semibold flex items-center gap-2">
+                          <ShieldAlert className="w-4 h-4 text-[#A87F14]" />
+                          {r.campaign}
+                        </span>
+                        {r.notes && <span className="text-xs text-[#958777] block">{r.notes}</span>}
+                      </td>
+                      <td>{r.oem}</td>
+                      <td className="tabular-nums font-bold">{affectedCount} vehicle(s)</td>
+                      <td><SeverityText severity={r.severity} label={r.severity} /></td>
+                      <td>
+                        {canReport ? (
+                          <select
+                            value={r.status}
+                            onChange={(e) => {
+                              void updateRecallStatus(r.id, e.target.value as FleetRecallItem['status'])
+                              toast.success('Recall campaign status updated.')
+                            }}
+                            className="dm-input py-1 text-xs w-auto"
+                          >
+                            <option value="Monitoring">Monitoring</option>
+                            <option value="Scheduled">Scheduled</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                          </select>
+                        ) : (
+                          <span className="text-xs font-semibold text-[#1F7A4C]">{r.status}</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
+
+        <EnterpriseModal open={recallModalOpen} onClose={() => setRecallModalOpen(false)} title="Log Manufacturer Recall Campaign">
+          <form onSubmit={handleCreateRecall} className="space-y-4">
+            <div>
+              <label htmlFor="rec-campaign" className="dm-label">Recall Campaign</label>
+              <input id="rec-campaign" value={recallForm.campaign} onChange={(e) => setRecallForm({ ...recallForm, campaign: e.target.value })} placeholder="Steering Column Bolt Torque Inspection" className="dm-input" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="rec-oem" className="dm-label">OEM Manufacturer</label>
+                <input id="rec-oem" value={recallForm.oem} onChange={(e) => setRecallForm({ ...recallForm, oem: e.target.value })} className="dm-input" required />
+              </div>
+              <div>
+                <label htmlFor="rec-make" className="dm-label">Vehicle Make Match</label>
+                <input id="rec-make" value={recallForm.targetMake} onChange={(e) => setRecallForm({ ...recallForm, targetMake: e.target.value })} placeholder="tata" className="dm-input" required />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="rec-sev" className="dm-label">Priority</label>
+              <select id="rec-sev" value={recallForm.severity} onChange={(e) => setRecallForm({ ...recallForm, severity: e.target.value as RiskSeverity })} className="dm-input">
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="moderate">Moderate</option>
+                <option value="normal">Normal</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="rec-notes" className="dm-label">Inspection Remedy Notes</label>
+              <textarea id="rec-notes" rows={2} value={recallForm.notes} onChange={(e) => setRecallForm({ ...recallForm, notes: e.target.value })} className="dm-input" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setRecallModalOpen(false)} className="btn-secondary text-xs">Cancel</button>
+              <button type="submit" className="btn-primary text-xs">Save Recall</button>
+            </div>
+          </form>
+        </EnterpriseModal>
       </div>
     )
   }

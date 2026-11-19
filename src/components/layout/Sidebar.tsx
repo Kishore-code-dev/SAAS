@@ -15,7 +15,7 @@ import { useOptionalFinance } from '../../hooks/useFinance'
 import { useAuth } from '../../hooks/useAuth'
 import { canAccessRoute } from '../../utils/rbac'
 import { FOOTER_NAV, MAIN_NAV, type BadgeKey, type NavEntry, type NavLeaf } from '../../config/nav.config'
-import { computeOnboardingChecklist, loadScopedStorage } from '../../utils/fleetioConfigStore'
+import { computeOnboardingChecklist } from '../../utils/fleetioConfigStore'
 import GetStartedModal from './GetStartedModal'
 import HelpSupportModal from './HelpSupportModal'
 
@@ -70,6 +70,8 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     riskAssessments,
     smallIssues,
     activeRole,
+    visitedIntegrations,
+    visitedReports,
   } = useFleet()
   const { user, signOut } = useAuth()
   const financeCtx = useOptionalFinance()
@@ -129,10 +131,10 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
         vehicles,
         workOrders,
         partsInventory,
-        hasExploredIntegrations: loadScopedStorage(activeOrganization.id, 'visited_integrations', true),
-        hasVisitedReports: loadScopedStorage(activeOrganization.id, 'visited_reports', false),
+        hasExploredIntegrations: visitedIntegrations,
+        hasVisitedReports: visitedReports,
       }),
-    [activeOrganization, partsInventory, vehicles, workOrders],
+    [activeOrganization, partsInventory, vehicles, visitedIntegrations, visitedReports, workOrders],
   )
   const completedOnboarding = onboardingItems.filter((i) => i.completed).length
 

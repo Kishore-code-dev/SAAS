@@ -5,6 +5,8 @@ import express, { type Response, type Router } from 'express'
 import { REGIONAL_CORRIDORS, SUBSCRIPTION_PLANS } from '../src/data/seedOrganizations.ts'
 import type {
   DocumentVaultItem,
+  FleetRecallItem,
+  FleetToolItem,
   Organization,
   OrganizationRole,
   OrganizationStatus,
@@ -37,6 +39,7 @@ import {
   type AuthenticatedRequest,
 } from './authMiddleware.ts'
 import { createEmptyOrgDataset, getDb, getUploadsDir, mapOrgRow, mapUserRow } from './db.ts'
+import { scheduleDbsSync } from './dbsSync.ts'
 import {
   ackFinanceAlert,
   correctFinancePayment,
@@ -53,6 +56,29 @@ import {
   verifyFinanceDocument,
   type FinanceActor,
 } from './financeDb.ts'
+import {
+  deleteApiKey,
+  getOrgFleetDataset,
+  getOrgFleetModules,
+  getOrgOperationalCounts,
+  insertApiKey,
+  insertCustomDashboard,
+  insertCustomRecord,
+  insertFleetRecall,
+  insertFleetTool,
+  insertFleetWarranty,
+  insertInspectionForm,
+  insertInspectionSchedule,
+  insertServiceProgram,
+  insertServiceTask,
+  insertWebhook,
+  saveOrgFleetDataset,
+  seedOrgFleetModules,
+  toggleWebhookActive,
+  updateFleetRecallStatus,
+  updateFleetToolStatus,
+  updateFleetWorkspaceSettings,
+} from './fleetDb.ts'
 
 const loginLimiter = new LoginRateLimiter(6, 5 * 60 * 1000)
 
@@ -113,6 +139,18 @@ function sendSafeUser(user: ReturnType<typeof mapUserRow>, org: Organization | n
 export function buildApiRouter(): Router {
   const router = express.Router()
   router.use(attachSession)
+
+  // Keep DBS/ reference snapshot synced automatically after any mutating DB API request
+  router.use((req, res, next) => {
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH' || req.method === 'DELETE') {
+      res.on('finish', () => {
+        if (res.statusCode < 400) {
+          scheduleDbsSync(getDb())
+        }
+      })
+    }
+    next()
+  })
 
   // ===================== AUTHENTICATION =====================
   router.post('/auth/login', (req: AuthenticatedRequest, res: Response) => {
@@ -373,43 +411,17 @@ export function buildApiRouter(): Router {
       const enriched = rows
         .map((row) => {
           const org = mapOrgRow(row)
-          const blobRow = db
-            .prepare('SELECT payload_json FROM org_fleet_blobs WHERE organization_id = ?')
-            .get(org.id) as { payload_json?: string } | undefined
           const userCountRow = db
             .prepare('SELECT COUNT(*) AS count FROM users WHERE organization_id = ?')
             .get(org.id) as { count: number }
-
-          let totalVehicles = 0
-          let totalDrivers = 0
-          let openWorkOrders = 0
-          let monthlyRevenueInr = 0
-
-          if (blobRow?.payload_json) {
-            try {
-              const parsed = JSON.parse(blobRow.payload_json) as {
-                vehicles?: Array<{ decommissioned?: boolean; monthlyRevenueInr?: number }>
-                drivers?: unknown[]
-                workOrders?: Array<{ status?: string }>
-              }
-              const activeVehs = (parsed.vehicles ?? []).filter((v) => !v.decommissioned)
-              totalVehicles = activeVehs.length
-              totalDrivers = (parsed.drivers ?? []).length
-              openWorkOrders = (parsed.workOrders ?? []).filter(
-                (w) => w.status !== 'completed' && w.status !== 'closed',
-              ).length
-              monthlyRevenueInr = activeVehs.reduce((s, v) => s + (v.monthlyRevenueInr ?? 0), 0)
-            } catch {
-              // ignore corrupt counts
-            }
-          }
+          const counts = getOrgOperationalCounts(db, org.id)
 
           return {
             ...org,
-            totalVehicles,
-            totalDrivers,
-            openWorkOrders,
-            monthlyRevenueInr,
+            totalVehicles: counts.totalVehicles,
+            totalDrivers: counts.totalDrivers,
+            openWorkOrders: counts.openWorkOrders,
+            monthlyRevenueInr: counts.monthlyRevenueInr,
             activeUsersCount: userCountRow.count,
           }
         })
@@ -557,11 +569,8 @@ export function buildApiRouter(): Router {
           },
         ],
       }
-      db.prepare('INSERT INTO org_fleet_blobs (organization_id, payload_json, updated_at) VALUES (?, ?, ?)').run(
-        org.id,
-        JSON.stringify(emptyBlob),
-        nowIso,
-      )
+      saveOrgFleetDataset(db, org.id, emptyBlob, true)
+      seedOrgFleetModules(db, org, [])
 
       db.prepare(`
         INSERT INTO users (
@@ -755,16 +764,18 @@ export function buildApiRouter(): Router {
     (req: AuthenticatedRequest, res: Response) => {
       const db = getDb()
       const org = req.activeOrg!
+      const data = getOrgFleetDataset(db, org.id)
+      const modules = getOrgFleetModules(db, org.id)
       const blobRow = db
-        .prepare('SELECT payload_json, updated_at FROM org_fleet_blobs WHERE organization_id = ?')
-        .get(org.id) as { payload_json: string; updated_at: string } | undefined
+        .prepare('SELECT updated_at FROM org_fleet_blobs WHERE organization_id = ?')
+        .get(org.id) as { updated_at: string } | undefined
 
-      const payload = blobRow ? JSON.parse(blobRow.payload_json) : createEmptyOrgDataset(org)
       res.json({
         organization: org,
         role: req.authUser!.role,
         updatedAt: blobRow?.updated_at ?? new Date().toISOString(),
-        data: payload,
+        data,
+        modules,
       })
     },
   )
@@ -782,14 +793,8 @@ export function buildApiRouter(): Router {
         res.status(400).json({ error: 'Invalid fleet state payload.' })
         return
       }
-      const nowIso = new Date().toISOString()
-      db.prepare(`
-        INSERT INTO org_fleet_blobs (organization_id, payload_json, updated_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(organization_id) DO UPDATE SET payload_json = excluded.payload_json, updated_at = excluded.updated_at
-      `).run(org.id, JSON.stringify(body.data), nowIso)
-
-      res.json({ ok: true, updatedAt: nowIso })
+      const updatedAt = saveOrgFleetDataset(db, org.id, body.data, true)
+      res.json({ ok: true, updatedAt })
     },
   )
 
@@ -815,6 +820,7 @@ export function buildApiRouter(): Router {
       const username = existing ? `${baseUsername}.${Math.floor(10 + Math.random() * 89)}` : baseUsername
       const tempPassword = generateTemporaryPassword()
       const userId = `u-${crypto.randomUUID().slice(0, 8)}`
+      const memberId = `mem-${crypto.randomUUID().slice(0, 8)}`
       const nowIso = new Date().toISOString()
 
       db.prepare(`
@@ -824,9 +830,14 @@ export function buildApiRouter(): Router {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 'active', ?)
       `).run(userId, username, body.email.trim().toLowerCase(), body.fullName.trim(), hashPassword(tempPassword), role, org.id, nowIso)
 
+      db.prepare(`
+        INSERT INTO org_members (id, organization_id, user_id, username, full_name, email, role, status, last_active_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
+      `).run(memberId, org.id, userId, username, body.fullName.trim(), body.email.trim().toLowerCase(), role, nowIso)
+
       res.status(201).json({
         member: {
-          id: `mem-${crypto.randomUUID().slice(0, 8)}`,
+          id: memberId,
           organizationId: org.id,
           userId,
           username,
@@ -842,6 +853,396 @@ export function buildApiRouter(): Router {
           passwordChangeRequired: true,
         },
       })
+    },
+  )
+
+  // ===================== FLEETIO EXTENSION MODULES =====================
+  router.get(
+    '/fleet/modules',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      const modules = getOrgFleetModules(getDb(), req.activeOrg!.id)
+      res.json(modules)
+    },
+  )
+
+  router.post(
+    '/fleet/modules/tools',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('manage_inventory'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as Partial<FleetToolItem>
+      if (!body.name?.trim() || !body.serialNumber?.trim()) {
+        res.status(400).json({ error: 'Tool name and serial number are required.' })
+        return
+      }
+      const created = insertFleetTool(getDb(), req.activeOrg!.id, {
+        name: body.name.trim(),
+        serialNumber: body.serialNumber.trim().toUpperCase(),
+        category: body.category?.trim() || 'Workshop Diagnostics',
+        assignedTo: body.assignedTo?.trim() || 'Workshop Bay 1',
+        location: body.location?.trim() || `${req.activeOrg!.city} Main Depot`,
+        status: body.status ?? 'in_service',
+        purchaseCostInr: Number(body.purchaseCostInr) || 0,
+        nextCalibrationDate: body.nextCalibrationDate || '2027-06-30',
+      })
+      res.status(201).json({ tool: created })
+    },
+  )
+
+  router.patch(
+    '/fleet/modules/tools/:toolId',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('manage_inventory'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { status?: FleetToolItem['status'] }
+      if (!body.status) {
+        res.status(400).json({ error: 'Tool status is required.' })
+        return
+      }
+      const ok = updateFleetToolStatus(getDb(), req.activeOrg!.id, String(req.params.toolId), body.status)
+      if (!ok) {
+        res.status(404).json({ error: 'Tool not found.' })
+        return
+      }
+      res.json({ ok: true })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/warranties',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('edit_vehicle'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as {
+        vehicleId?: string
+        assetName?: string
+        registrationNumber?: string
+        provider?: string
+        coverageType?: 'Powertrain' | 'Battery / EV Pack' | 'Chassis & Axle' | 'Tyre Casing' | 'Component'
+        startDate?: string
+        expiryDate?: string
+        maxOdometerKm?: number
+      }
+      if (!body.registrationNumber?.trim() || !body.provider?.trim()) {
+        res.status(400).json({ error: 'Registration number and warranty provider are required.' })
+        return
+      }
+      const created = insertFleetWarranty(getDb(), req.activeOrg!.id, {
+        vehicleId: body.vehicleId,
+        assetName: body.assetName?.trim() || 'Commercial Asset',
+        registrationNumber: body.registrationNumber.trim(),
+        provider: body.provider.trim(),
+        coverageType: body.coverageType ?? 'Powertrain',
+        startDate: body.startDate || new Date().toISOString().slice(0, 10),
+        expiryDate: body.expiryDate || '2029-03-31',
+        maxOdometerKm: Number(body.maxOdometerKm) || 300000,
+        claimStatus: 'active',
+      })
+      res.status(201).json({ warranty: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/custom-records',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('edit_vehicle'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as {
+        recordType?: 'Toll & FASTag Audit' | 'RTO Permit Log' | 'Cold-Chain Temp Audit' | 'Driver Uniform & Kit'
+        vehicleOrDriver?: string
+        referenceCode?: string
+        recordedDate?: string
+        amountInr?: number
+        notes?: string
+      }
+      if (!body.referenceCode?.trim()) {
+        res.status(400).json({ error: 'Reference code is required.' })
+        return
+      }
+      const created = insertCustomRecord(getDb(), req.activeOrg!.id, {
+        recordType: body.recordType ?? 'Toll & FASTag Audit',
+        vehicleOrDriver: body.vehicleOrDriver?.trim() || 'Fleet Asset',
+        referenceCode: body.referenceCode.trim().toUpperCase(),
+        recordedDate: body.recordedDate || new Date().toISOString().slice(0, 10),
+        amountInr: Number(body.amountInr) || 0,
+        status: 'verified',
+        notes: body.notes?.trim() || 'Recorded via Custom Records module.',
+      })
+      res.status(201).json({ customRecord: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/service-tasks',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('schedule_maintenance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { code?: string; title?: string; area?: string; avgHours?: number; estCostInr?: number }
+      if (!body.code?.trim() || !body.title?.trim()) {
+        res.status(400).json({ error: 'Task code and title are required.' })
+        return
+      }
+      const created = insertServiceTask(getDb(), req.activeOrg!.id, {
+        code: body.code.trim().toUpperCase(),
+        title: body.title.trim(),
+        area: (body.area as 'Vehicle Health') || 'Vehicle Health',
+        avgHours: Number(body.avgHours) || 1.5,
+        estCostInr: Number(body.estCostInr) || 2500,
+        active: true,
+      })
+      res.status(201).json({ serviceTask: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/service-programs',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('schedule_maintenance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { name?: string; powertrain?: 'ICE' | 'EV' | 'All'; cadence?: string; intervalKm?: number; intervalDays?: number }
+      if (!body.name?.trim()) {
+        res.status(400).json({ error: 'Program name is required.' })
+        return
+      }
+      const intervalKm = Number(body.intervalKm) || 10000
+      const intervalDays = Number(body.intervalDays) || 90
+      const created = insertServiceProgram(getDb(), req.activeOrg!.id, {
+        name: body.name.trim(),
+        powertrain: body.powertrain ?? 'All',
+        cadence: body.cadence?.trim() || `Every ${intervalKm.toLocaleString('en-IN')} km or ${intervalDays} days`,
+        intervalKm,
+        intervalDays,
+        active: true,
+      })
+      res.status(201).json({ serviceProgram: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/inspection-forms',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('schedule_maintenance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { title?: string; itemsCount?: number; checklistItems?: string[] }
+      if (!body.title?.trim()) {
+        res.status(400).json({ error: 'Inspection form title is required.' })
+        return
+      }
+      const created = insertInspectionForm(getDb(), req.activeOrg!.id, {
+        title: body.title.trim(),
+        itemsCount: Number(body.itemsCount) || body.checklistItems?.length || 12,
+        lastUpdated: new Date().toISOString().slice(0, 10),
+        active: true,
+        checklistItems: body.checklistItems,
+      })
+      res.status(201).json({ inspectionForm: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/inspection-schedules',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('schedule_maintenance'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { name?: string; frequency?: string; scope?: string; formId?: string; formTitle?: string }
+      if (!body.name?.trim() || !body.frequency?.trim()) {
+        res.status(400).json({ error: 'Schedule name and frequency are required.' })
+        return
+      }
+      const created = insertInspectionSchedule(getDb(), req.activeOrg!.id, {
+        name: body.name.trim(),
+        frequency: body.frequency.trim(),
+        scope: body.scope?.trim() || 'All Active Vehicles',
+        formId: body.formId,
+        formTitle: body.formTitle?.trim() || 'Commercial DVIR Pre-Trip Standard',
+        active: true,
+      })
+      res.status(201).json({ inspectionSchedule: created })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/recalls',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('report_issue'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as Partial<FleetRecallItem>
+      if (!body.campaign?.trim() || !body.oem?.trim()) {
+        res.status(400).json({ error: 'Recall campaign and OEM are required.' })
+        return
+      }
+      const created = insertFleetRecall(getDb(), req.activeOrg!.id, {
+        campaign: body.campaign.trim(),
+        oem: body.oem.trim(),
+        targetMake: (body.targetMake || body.oem).trim().toLowerCase(),
+        severity: body.severity ?? 'high',
+        status: body.status ?? 'Monitoring',
+        notes: body.notes?.trim(),
+        issuedDate: body.issuedDate || new Date().toISOString().slice(0, 10),
+      })
+      res.status(201).json({ recall: created })
+    },
+  )
+
+  router.patch(
+    '/fleet/modules/recalls/:recallId',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('report_issue'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { status?: FleetRecallItem['status'] }
+      if (!body.status) {
+        res.status(400).json({ error: 'Recall status is required.' })
+        return
+      }
+      const ok = updateFleetRecallStatus(getDb(), req.activeOrg!.id, String(req.params.recallId), body.status)
+      if (!ok) {
+        res.status(404).json({ error: 'Recall notice not found.' })
+        return
+      }
+      res.json({ ok: true })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/api-keys',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('update_org_settings'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { label?: string; scope?: 'read_only' | 'read_write' | 'telematics_ingest' }
+      if (!body.label?.trim()) {
+        res.status(400).json({ error: 'API key label is required.' })
+        return
+      }
+      const rand = crypto.randomBytes(2).toString('hex')
+      const created = insertApiKey(getDb(), req.activeOrg!.id, {
+        label: body.label.trim(),
+        prefix: `dm_live_${rand}••••9f2e`,
+        scope: body.scope ?? 'read_only',
+        createdAt: new Date().toISOString(),
+        lastUsedAt: 'Never',
+      })
+      res.status(201).json({ apiKey: created })
+    },
+  )
+
+  router.delete(
+    '/fleet/modules/api-keys/:keyId',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('update_org_settings'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const ok = deleteApiKey(getDb(), req.activeOrg!.id, String(req.params.keyId))
+      if (!ok) {
+        res.status(404).json({ error: 'API key not found.' })
+        return
+      }
+      res.json({ ok: true })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/webhooks',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('update_org_settings'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { url?: string; events?: string[] }
+      if (!body.url?.trim().startsWith('http')) {
+        res.status(400).json({ error: 'A valid http/https webhook URL is required.' })
+        return
+      }
+      const created = insertWebhook(getDb(), req.activeOrg!.id, {
+        url: body.url.trim(),
+        events: Array.isArray(body.events) && body.events.length > 0 ? body.events : ['vehicle.alert', 'work_order.updated'],
+        active: true,
+        lastDeliveryStatus: 200,
+      })
+      res.status(201).json({ webhook: created })
+    },
+  )
+
+  router.patch(
+    '/fleet/modules/webhooks/:webhookId',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    requireFleetAction('update_org_settings'),
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { active?: boolean }
+      if (typeof body.active !== 'boolean') {
+        res.status(400).json({ error: 'Boolean active state is required.' })
+        return
+      }
+      const ok = toggleWebhookActive(getDb(), req.activeOrg!.id, String(req.params.webhookId), body.active)
+      if (!ok) {
+        res.status(404).json({ error: 'Webhook endpoint not found.' })
+        return
+      }
+      res.json({ ok: true })
+    },
+  )
+
+  router.post(
+    '/fleet/modules/custom-dashboards',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as { name?: string; widgets?: string }
+      if (!body.name?.trim()) {
+        res.status(400).json({ error: 'Dashboard layout name is required.' })
+        return
+      }
+      const created = insertCustomDashboard(getDb(), req.activeOrg!.id, {
+        name: body.name.trim(),
+        widgets: body.widgets?.trim() || 'Fleet KPI Summary, Alerts Feed',
+        defaultView: false,
+      })
+      res.status(201).json({ customDashboard: created })
+    },
+  )
+
+  router.put(
+    '/fleet/modules/settings',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as {
+        workspaceSettings?: Record<string, unknown>
+        fleetioSettings?: Record<string, unknown>
+        visitedIntegrations?: boolean
+        visitedReports?: boolean
+      }
+      const updated = updateFleetWorkspaceSettings(getDb(), req.activeOrg!.id, body)
+      res.json(updated)
     },
   )
 

@@ -6,11 +6,29 @@ import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatDateTime, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
 import { canPerformAction } from '../../utils/rbac'
+import type { FiveAreaHealthCategory, ServiceProgramItem } from '../../types/fleet'
 
 export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'forms' }) {
   const navigate = useNavigate()
-  const { activeOrganization, activeRole, vehicles, drivers, inspections, addSmallIssue, convertIssueToWorkOrder } = useFleet()
+  const {
+    activeOrganization,
+    activeRole,
+    vehicles,
+    drivers,
+    inspections,
+    inspectionSchedules,
+    inspectionForms,
+    addInspectionSchedule,
+    addInspectionForm,
+    addSmallIssue,
+    convertIssueToWorkOrder,
+  } = useFleet()
   const canWo = canPerformAction(activeRole, 'manage_work_orders')
+  const canSchedule = canPerformAction(activeRole, 'schedule_maintenance')
+  const [schedModalOpen, setSchedModalOpen] = useState(false)
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [schedForm, setSchedForm] = useState({ name: '', frequency: 'Every 7 Days', scope: 'All Active Vehicles', formTitle: inspectionForms[0]?.title ?? 'Commercial DVIR Pre-Trip Standard' })
+  const [templateForm, setTemplateForm] = useState({ title: '', itemsCount: 12 })
 
   if (tab === 'failures') {
     const failed = inspections.filter((i) => !i.passed)
@@ -92,20 +110,40 @@ export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'f
   }
 
   if (tab === 'schedules') {
-    const schedules = [
-      { id: 'is-1', name: 'Daily Pre-Trip Roadworthiness Check', frequency: 'Every 24 Hours', scope: `All ${vehicles.length} Active Vehicles`, form: 'Commercial DVIR Standard' },
-      { id: 'is-2', name: 'Weekly Multi-Axle Tyre & Brake Audit', frequency: 'Every 7 Days', scope: 'Medium & Heavy Trucks', form: 'Axle & Tread Audit v2' },
-      { id: 'is-3', name: 'EV Battery Thermal & Port Seal Check', frequency: 'Every 14 Days', scope: 'EV Fleet Assets', form: 'EV High-Voltage Safety' },
-    ]
+    const handleAddSchedule = async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!schedForm.name.trim()) return
+      const matched = inspectionForms.find((f) => f.title === schedForm.formTitle)
+      await addInspectionSchedule({
+        name: schedForm.name.trim(),
+        frequency: schedForm.frequency.trim(),
+        scope: schedForm.scope.trim(),
+        formId: matched?.id,
+        formTitle: schedForm.formTitle,
+        active: true,
+      })
+      toast.success('Inspection schedule saved.')
+      setSchedModalOpen(false)
+      setSchedForm((f) => ({ ...f, name: '' }))
+    }
+
     return (
       <div className="space-y-6">
         <PageHeader
           title="Inspection Schedules"
           subtitle={`${activeOrganization.name} · Recurring safety and roadworthiness inspection cadences`}
         >
-          <button type="button" onClick={() => navigate('/dashboard/inspections')} className="btn-primary text-xs">
-            Open Inspection Queue
-          </button>
+          <div className="flex items-center gap-2">
+            {canSchedule && (
+              <button type="button" onClick={() => setSchedModalOpen(true)} className="btn-primary text-xs">
+                <Plus className="w-4 h-4" />
+                Add Schedule
+              </button>
+            )}
+            <button type="button" onClick={() => navigate('/dashboard/inspections')} className="btn-secondary text-xs">
+              Open Inspection Queue
+            </button>
+          </div>
         </PageHeader>
         <div className="enterprise-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -119,74 +157,181 @@ export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'f
                 </tr>
               </thead>
               <tbody>
-                {schedules.map((s) => (
+                {inspectionSchedules.map((s) => (
                   <tr key={s.id}>
                     <td className="font-semibold">{s.name}</td>
                     <td>{s.frequency}</td>
                     <td>{s.scope}</td>
-                    <td className="text-xs font-medium text-[#1F7A4C]">{s.form}</td>
+                    <td className="text-xs font-medium text-[#1F7A4C]">{s.formTitle}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+
+        <EnterpriseModal open={schedModalOpen} onClose={() => setSchedModalOpen(false)} title="Create Inspection Schedule">
+          <form onSubmit={handleAddSchedule} className="space-y-4">
+            <div>
+              <label htmlFor="is-name" className="dm-label">Schedule Name</label>
+              <input id="is-name" value={schedForm.name} onChange={(e) => setSchedForm({ ...schedForm, name: e.target.value })} placeholder="Weekly Cold-Chain Reefer Check" className="dm-input" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="is-freq" className="dm-label">Frequency</label>
+                <input id="is-freq" value={schedForm.frequency} onChange={(e) => setSchedForm({ ...schedForm, frequency: e.target.value })} className="dm-input" required />
+              </div>
+              <div>
+                <label htmlFor="is-scope" className="dm-label">Assigned Scope</label>
+                <input id="is-scope" value={schedForm.scope} onChange={(e) => setSchedForm({ ...schedForm, scope: e.target.value })} className="dm-input" required />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="is-form" className="dm-label">Checklist Template</label>
+              <select id="is-form" value={schedForm.formTitle} onChange={(e) => setSchedForm({ ...schedForm, formTitle: e.target.value })} className="dm-input">
+                {inspectionForms.map((f) => (
+                  <option key={f.id} value={f.title}>{f.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setSchedModalOpen(false)} className="btn-secondary text-xs">Cancel</button>
+              <button type="submit" className="btn-primary text-xs">Save Schedule</button>
+            </div>
+          </form>
+        </EnterpriseModal>
       </div>
     )
   }
 
-  const forms = [
-    { id: 'if-1', title: 'Commercial DVIR Pre-Trip Standard', items: 14, lastUpdated: '2026-10-18', active: true },
-    { id: 'if-2', title: 'Multi-Axle Tyre & Brake Safety Audit', items: 18, lastUpdated: '2026-10-25', active: true },
-    { id: 'if-3', title: 'EV High-Voltage & Charging Safety', items: 11, lastUpdated: '2026-11-02', active: true },
-  ]
+  const handleAddForm = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!templateForm.title.trim()) return
+    await addInspectionForm({
+      title: templateForm.title.trim(),
+      itemsCount: Number(templateForm.itemsCount) || 12,
+      lastUpdated: new Date().toISOString().slice(0, 10),
+      active: true,
+    })
+    toast.success('Inspection form template created.')
+    setFormModalOpen(false)
+    setTemplateForm({ title: '', itemsCount: 12 })
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Inspection Forms"
         subtitle={`${activeOrganization.name} · Standardized inspection checklists for ICE and EV commercial vehicles`}
       >
-        <button type="button" onClick={() => navigate('/dashboard/inspections')} className="btn-primary text-xs">
-          Log Inspection Now
-        </button>
+        <div className="flex items-center gap-2">
+          {canSchedule && (
+            <button type="button" onClick={() => setFormModalOpen(true)} className="btn-primary text-xs">
+              <Plus className="w-4 h-4" />
+              New Form
+            </button>
+          )}
+          <button type="button" onClick={() => navigate('/dashboard/inspections')} className="btn-secondary text-xs">
+            Log Inspection Now
+          </button>
+        </div>
       </PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {forms.map((f) => (
+        {inspectionForms.map((f) => (
           <div key={f.id} className="enterprise-card p-5 space-y-2">
             <div className="flex items-center justify-between">
               <ClipboardList className="w-5 h-5 text-[#1F7A4C]" />
               <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[#EAF7EF] text-[#156C3F]">Active</span>
             </div>
             <h3 className="text-sm font-bold text-[#625346]">{f.title}</h3>
-            <p className="text-xs text-[#958777]">{f.items} checklist items · Updated {formatShortDate(f.lastUpdated)}</p>
+            <p className="text-xs text-[#958777]">{f.itemsCount} checklist items · Updated {formatShortDate(f.lastUpdated)}</p>
           </div>
         ))}
       </div>
+
+      <EnterpriseModal open={formModalOpen} onClose={() => setFormModalOpen(false)} title="Create Inspection Form Template">
+        <form onSubmit={handleAddForm} className="space-y-4">
+          <div>
+            <label htmlFor="if-title" className="dm-label">Form Title</label>
+            <input id="if-title" value={templateForm.title} onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })} placeholder="Hazmat Tanker Pre-Dispatch Audit" className="dm-input" required />
+          </div>
+          <div>
+            <label htmlFor="if-count" className="dm-label">Checklist Items Count</label>
+            <input id="if-count" type="number" min={1} max={100} value={templateForm.itemsCount} onChange={(e) => setTemplateForm({ ...templateForm, itemsCount: Number(e.target.value) })} className="dm-input tabular-nums" required />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setFormModalOpen(false)} className="btn-secondary text-xs">Cancel</button>
+            <button type="submit" className="btn-primary text-xs">Save Form</button>
+          </div>
+        </form>
+      </EnterpriseModal>
     </div>
   )
 }
 
 export function ServiceSubView({ tab }: { tab: 'tasks' | 'programs' }) {
   const navigate = useNavigate()
-  const { activeOrganization, vehicles, serviceSchedules } = useFleet()
+  const {
+    activeOrganization,
+    activeRole,
+    vehicles,
+    serviceSchedules,
+    serviceTasks,
+    servicePrograms,
+    addServiceTask,
+    addServiceProgram,
+  } = useFleet()
+  const canSchedule = canPerformAction(activeRole, 'schedule_maintenance')
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [progModalOpen, setProgModalOpen] = useState(false)
+  const [taskForm, setTaskForm] = useState({
+    code: '',
+    title: '',
+    area: 'Vehicle Health' as FiveAreaHealthCategory,
+    avgHours: 2.0,
+    estCostInr: 4500,
+  })
+  const [progForm, setProgForm] = useState({
+    name: '',
+    powertrain: 'All' as ServiceProgramItem['powertrain'],
+    intervalKm: 10000,
+    intervalDays: 90,
+  })
 
   if (tab === 'tasks') {
-    const tasks = [
-      { code: 'VMRS-013-001', title: 'Front & Rear Brake Pad / Lining Replacement', area: 'Vehicle Health', avgHours: 3.5, estCostInr: 6800 },
-      { code: 'VMRS-045-002', title: 'Engine Oil & Dual Filter Preventive Change', area: 'Engine Health', avgHours: 1.5, estCostInr: 4200 },
-      { code: 'VMRS-017-004', title: 'Multi-Axle Wheel Alignment & Rotation', area: 'Tyre Health', avgHours: 2.0, estCostInr: 3100 },
-      { code: 'VMRS-034-009', title: 'Coolant Flush & Radiator Pressure Test', area: 'Engine Health', avgHours: 2.0, estCostInr: 2900 },
-      { code: 'VMRS-032-001', title: 'EV Traction Battery SOH & Thermal Loop Check', area: 'Engine Health', avgHours: 2.5, estCostInr: 3500 },
-    ]
+    const handleAddTask = async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!taskForm.code.trim() || !taskForm.title.trim()) return
+      await addServiceTask({
+        code: taskForm.code.trim().toUpperCase(),
+        title: taskForm.title.trim(),
+        area: taskForm.area,
+        avgHours: Number(taskForm.avgHours) || 1.5,
+        estCostInr: Number(taskForm.estCostInr) || 2500,
+        active: true,
+      })
+      toast.success('Service task added to VMRS catalog.')
+      setTaskModalOpen(false)
+      setTaskForm((f) => ({ ...f, code: '', title: '' }))
+    }
+
     return (
       <div className="space-y-6">
         <PageHeader
           title="Service Tasks"
           subtitle={`${activeOrganization.name} · Standardized VMRS service task catalog used in Work Orders and schedules`}
         >
-          <button type="button" onClick={() => navigate('/dashboard/work-orders')} className="btn-primary text-xs">
-            Create Work Order
-          </button>
+          <div className="flex items-center gap-2">
+            {canSchedule && (
+              <button type="button" onClick={() => setTaskModalOpen(true)} className="btn-primary text-xs">
+                <Plus className="w-4 h-4" />
+                Add Task
+              </button>
+            )}
+            <button type="button" onClick={() => navigate('/dashboard/work-orders')} className="btn-secondary text-xs">
+              Create Work Order
+            </button>
+          </div>
         </PageHeader>
         <div className="enterprise-card overflow-hidden">
           <div className="overflow-x-auto">
@@ -201,8 +346,8 @@ export function ServiceSubView({ tab }: { tab: 'tasks' | 'programs' }) {
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((t) => (
-                  <tr key={t.code}>
+                {serviceTasks.map((t) => (
+                  <tr key={t.id}>
                     <td className="font-mono text-xs font-semibold">{t.code}</td>
                     <td className="font-semibold">{t.title}</td>
                     <td>{t.area}</td>
@@ -214,26 +359,63 @@ export function ServiceSubView({ tab }: { tab: 'tasks' | 'programs' }) {
             </table>
           </div>
         </div>
+
+        <EnterpriseModal open={taskModalOpen} onClose={() => setTaskModalOpen(false)} title="Add VMRS Service Task">
+          <form onSubmit={handleAddTask} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="st-code" className="dm-label">VMRS Code</label>
+                <input id="st-code" value={taskForm.code} onChange={(e) => setTaskForm({ ...taskForm, code: e.target.value })} placeholder="VMRS-024-003" className="dm-input" required />
+              </div>
+              <div>
+                <label htmlFor="st-area" className="dm-label">Health Area</label>
+                <select id="st-area" value={taskForm.area} onChange={(e) => setTaskForm({ ...taskForm, area: e.target.value as FiveAreaHealthCategory })} className="dm-input">
+                  <option value="Vehicle Health">Vehicle Health</option>
+                  <option value="Engine Health">Engine Health</option>
+                  <option value="Tyre Health">Tyre Health</option>
+                  <option value="Fuel Health">Fuel Health</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="st-title" className="dm-label">Task Name</label>
+              <input id="st-title" value={taskForm.title} onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} placeholder="Clutch Release Bearing & Cylinder Kit" className="dm-input" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="st-hrs" className="dm-label">Estimated Labor (hrs)</label>
+                <input id="st-hrs" type="number" step="0.5" min={0.5} value={taskForm.avgHours} onChange={(e) => setTaskForm({ ...taskForm, avgHours: Number(e.target.value) })} className="dm-input tabular-nums" />
+              </div>
+              <div>
+                <label htmlFor="st-cost" className="dm-label">Standard Cost (₹)</label>
+                <input id="st-cost" type="number" min={100} value={taskForm.estCostInr} onChange={(e) => setTaskForm({ ...taskForm, estCostInr: Number(e.target.value) })} className="dm-input tabular-nums" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setTaskModalOpen(false)} className="btn-secondary text-xs">Cancel</button>
+              <button type="submit" className="btn-primary text-xs">Save Task</button>
+            </div>
+          </form>
+        </EnterpriseModal>
       </div>
     )
   }
 
-  const programs = [
-    {
-      id: 'sp-ice',
-      name: 'BS-VI Heavy & Medium Diesel Preventive Program',
-      cadence: 'Every 10,000 km or 90 days',
-      enrolledVehicles: vehicles.filter((v) => v.powertrain === 'ICE').length,
-      upcomingSchedules: serviceSchedules.length,
-    },
-    {
-      id: 'sp-ev',
-      name: 'Electric Cargo Fleet High-Voltage & Thermal Program',
-      cadence: 'Every 15,000 km or 120 days',
-      enrolledVehicles: vehicles.filter((v) => v.powertrain === 'EV').length,
-      upcomingSchedules: 1,
-    },
-  ]
+  const handleAddProgram = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!progForm.name.trim()) return
+    await addServiceProgram({
+      name: progForm.name.trim(),
+      powertrain: progForm.powertrain,
+      cadence: `Every ${Number(progForm.intervalKm).toLocaleString('en-IN')} km or ${progForm.intervalDays} days`,
+      intervalKm: Number(progForm.intervalKm) || 10000,
+      intervalDays: Number(progForm.intervalDays) || 90,
+      active: true,
+    })
+    toast.success('Preventive service program created.')
+    setProgModalOpen(false)
+    setProgForm((f) => ({ ...f, name: '' }))
+  }
 
   return (
     <div className="space-y-6">
@@ -241,26 +423,71 @@ export function ServiceSubView({ tab }: { tab: 'tasks' | 'programs' }) {
         title="Service Programs"
         subtitle={`${activeOrganization.name} · Fleet-wide preventive maintenance programs grouped by powertrain`}
       >
-        <button type="button" onClick={() => navigate('/dashboard/maintenance')} className="btn-primary text-xs">
-          Open Service History
-        </button>
+        <div className="flex items-center gap-2">
+          {canSchedule && (
+            <button type="button" onClick={() => setProgModalOpen(true)} className="btn-primary text-xs">
+              <Plus className="w-4 h-4" />
+              New Program
+            </button>
+          )}
+          <button type="button" onClick={() => navigate('/dashboard/maintenance')} className="btn-secondary text-xs">
+            Open Service History
+          </button>
+        </div>
       </PageHeader>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {programs.map((p) => (
-          <div key={p.id} className="enterprise-card p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#1F7A4C]">Active Program</span>
-              <CheckCircle2 className="w-4 h-4 text-[#1F7A4C]" />
+        {servicePrograms.map((p) => {
+          const enrolledVehicles =
+            p.powertrain === 'All'
+              ? vehicles.length
+              : vehicles.filter((v) => v.powertrain === p.powertrain).length
+          return (
+            <div key={p.id} className="enterprise-card p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#1F7A4C]">Active Program · {p.powertrain}</span>
+                <CheckCircle2 className="w-4 h-4 text-[#1F7A4C]" />
+              </div>
+              <h3 className="text-base font-bold text-[#625346]">{p.name}</h3>
+              <p className="text-xs text-[#958777]">Cadence: {p.cadence}</p>
+              <div className="pt-2 border-t border-[#E5E5E5] flex items-center justify-between text-xs font-semibold">
+                <span>{enrolledVehicles} enrolled vehicles</span>
+                <span>{serviceSchedules.length} active reminders</span>
+              </div>
             </div>
-            <h3 className="text-base font-bold text-[#625346]">{p.name}</h3>
-            <p className="text-xs text-[#958777]">Cadence: {p.cadence}</p>
-            <div className="pt-2 border-t border-[#E5E5E5] flex items-center justify-between text-xs font-semibold">
-              <span>{p.enrolledVehicles} enrolled vehicles</span>
-              <span>{p.upcomingSchedules} active reminders</span>
+          )
+        })}
+      </div>
+
+      <EnterpriseModal open={progModalOpen} onClose={() => setProgModalOpen(false)} title="Create Service Program">
+        <form onSubmit={handleAddProgram} className="space-y-4">
+          <div>
+            <label htmlFor="sp-name" className="dm-label">Program Name</label>
+            <input id="sp-name" value={progForm.name} onChange={(e) => setProgForm({ ...progForm, name: e.target.value })} placeholder="CNG City Van 7,500 km Preventive Track" className="dm-input" required />
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label htmlFor="sp-pt" className="dm-label">Powertrain</label>
+              <select id="sp-pt" value={progForm.powertrain} onChange={(e) => setProgForm({ ...progForm, powertrain: e.target.value as ServiceProgramItem['powertrain'] })} className="dm-input">
+                <option value="All">All</option>
+                <option value="ICE">ICE</option>
+                <option value="EV">EV</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="sp-km" className="dm-label">Interval (km)</label>
+              <input id="sp-km" type="number" min={1000} value={progForm.intervalKm} onChange={(e) => setProgForm({ ...progForm, intervalKm: Number(e.target.value) })} className="dm-input tabular-nums" />
+            </div>
+            <div>
+              <label htmlFor="sp-days" className="dm-label">Interval (days)</label>
+              <input id="sp-days" type="number" min={15} value={progForm.intervalDays} onChange={(e) => setProgForm({ ...progForm, intervalDays: Number(e.target.value) })} className="dm-input tabular-nums" />
             </div>
           </div>
-        ))}
-      </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => setProgModalOpen(false)} className="btn-secondary text-xs">Cancel</button>
+            <button type="submit" className="btn-primary text-xs">Save Program</button>
+          </div>
+        </form>
+      </EnterpriseModal>
     </div>
   )
 }

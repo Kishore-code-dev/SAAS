@@ -9,6 +9,7 @@ import {
 import { attachSession, requireActiveOrganization, requireAuth, requirePasswordChanged, type AuthenticatedRequest } from './server/authMiddleware.ts'
 import { sanitizeCopilotPayloadForLlm } from './server/authLogic.ts'
 import { getDb } from './server/db.ts'
+import { syncDbsReferenceFolder } from './server/dbsSync.ts'
 import { buildApiRouter } from './server/routes.ts'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -100,7 +101,10 @@ async function queryOpenCodeFree(
 
 async function startServer() {
   // Initialize SQLite database & pre-seed production tenants and Level-2 admin
-  getDb()
+  const liveDb = getDb()
+  void syncDbsReferenceFolder(liveDb).catch((err) => {
+    console.warn('[DBS-Sync] Initial startup sync failed:', err instanceof Error ? err.message : String(err))
+  })
 
   const app = express()
   app.use(express.json({ limit: '8mb' }))
