@@ -198,7 +198,7 @@ export default function Landing() {
                 <div>
                   <p className="text-xs font-semibold text-[#958777]">Owner Command Centre</p>
                   <p className="font-bold text-base text-[#625346] mt-0.5">
-                    Production Fleet Overview
+                    Fleet Command Overview
                   </p>
                 </div>
               </div>

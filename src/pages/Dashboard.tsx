@@ -47,7 +47,7 @@ import {
   SeverityText,
 } from '../components/ui/EnterprisePrimitives'
 import { computeFleetBounds, summarizeFleetTrackingStatuses } from '../utils/fleetTracking'
-import type { ReportingPeriod, Vehicle } from '../types/fleet'
+import type { Vehicle } from '../types/fleet'
 import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 
 function createDashboardPinIcon(
@@ -127,7 +127,6 @@ export default function Dashboard() {
     workOrders,
     financialSummary,
     reportingPeriod,
-    setReportingPeriod,
     searchTerm,
     refreshStatus,
     lastRefreshedAt,
@@ -834,24 +833,8 @@ export default function Dashboard() {
               Fleet Performance
             </h2>
             <p className="text-xs text-[#958777]">
-              Utilization split and operating spend trajectory for the active reporting window
+              Utilization split and operating spend trajectory
             </p>
-          </div>
-          <div className="inline-flex items-center gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]" role="group" aria-label="Reporting Window">
-            {(['7d', '30d', '90d'] as ReportingPeriod[]).map((period) => (
-              <button
-                key={period}
-                type="button"
-                onClick={() => setReportingPeriod(period)}
-                className={`px-3 py-1 rounded-[8px] text-xs font-semibold uppercase transition-colors ${
-                  reportingPeriod === period
-                    ? 'bg-[#FFFFFF] text-[#625346] shadow-subtle'
-                    : 'text-[#958777] hover:text-[#625346]'
-                }`}
-              >
-                {period}
-              </button>
-            ))}
           </div>
         </div>
 
