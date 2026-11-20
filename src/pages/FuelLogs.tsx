@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react'
 import { CheckCircle2, Flag, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useVehicleOwnership } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import { canPerformAction } from '../utils/rbac'
 import {
   EmptySectionState,
@@ -22,6 +24,7 @@ export default function FuelLogs() {
     addFuelTransaction,
     verifyFuelTransaction,
   } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const [filterStatus, setFilterStatus] = useState<'all' | 'verified' | 'pending' | 'needs_review'>('all')
   const [logModalOpen, setLogModalOpen] = useState(false)
@@ -210,6 +213,11 @@ export default function FuelLogs() {
                           {vehicle?.registrationNumber ?? tx.vehicleId}
                         </span>
                         <span className="text-xs text-[#958777]">{driver?.name ?? 'Driver'}</span>
+                        {ownershipByVehicle.get(tx.vehicleId) && (
+                          <span className="mt-1 inline-block">
+                            <OwnershipBadge type={ownershipByVehicle.get(tx.vehicleId)?.ownershipType} />
+                          </span>
+                        )}
                       </td>
                       <td>
                         <span className="font-medium text-[#625346] block">{tx.station}</span>

@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { buildSeedDataset, type EnvironmentDataset } from '../src/data/seedOrganizations.ts'
 import type { Organization, OrganizationRole, OrganizationStatus } from '../src/types/fleet.ts'
 import { hashPassword } from './authLogic.ts'
+import { ensureContractsSchemaAndSeed } from './contractsDb.ts'
 import { ensureFinanceSchemaAndSeed } from './financeDb.ts'
 import { ensureFleetSchemaAndMigrate } from './fleetDb.ts'
 
@@ -143,6 +144,7 @@ export function getDb(): DatabaseSync {
   backfillDeccanOperationalSeedIfNeeded(db)
   ensureFleetSchemaAndMigrate(db)
   ensureFinanceSchemaAndSeed(db)
+  ensureContractsSchemaAndSeed(db)
   dbInstance = db
   return db
 }

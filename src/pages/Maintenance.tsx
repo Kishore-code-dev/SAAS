@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useVehicleOwnership } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import {
   computeVehicleFiveAreaHealth,
   INTELLIGENCE_MODEL_VERSION,
@@ -63,6 +65,7 @@ export default function Maintenance() {
     convertIssueToWorkOrder,
     nowTick,
   } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const [selectedArea, setSelectedArea] = useState<'all' | FiveAreaHealthCategory>('all')
   const [sectionTab, setSectionTab] = useState<'intelligence' | 'schedules' | 'issues' | 'ledger'>('intelligence')
@@ -685,7 +688,14 @@ export default function Maintenance() {
                   const vehicle = vehicles.find((v) => v.id === rec.vehicleId)
                   return (
                     <tr key={rec.id}>
-                      <td className="font-semibold tabular-nums">{vehicle?.registrationNumber ?? rec.vehicleId}</td>
+                      <td>
+                        <span className="font-semibold tabular-nums block">{vehicle?.registrationNumber ?? rec.vehicleId}</span>
+                        {ownershipByVehicle.get(rec.vehicleId) && (
+                          <span className="mt-1 inline-block">
+                            <OwnershipBadge type={ownershipByVehicle.get(rec.vehicleId)?.ownershipType} />
+                          </span>
+                        )}
+                      </td>
                       <td className="font-medium">{rec.serviceType}</td>
                       <td>{rec.componentName}</td>
                       <td className="text-[#958777]">{rec.serviceCenter}</td>

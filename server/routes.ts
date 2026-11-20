@@ -79,6 +79,7 @@ import {
   updateFleetToolStatus,
   updateFleetWorkspaceSettings,
 } from './fleetDb.ts'
+import { buildContractRouter } from './contractRoutes.ts'
 
 const loginLimiter = new LoginRateLimiter(6, 5 * 60 * 1000)
 
@@ -139,6 +140,9 @@ function sendSafeUser(user: ReturnType<typeof mapUserRow>, org: Organization | n
 export function buildApiRouter(): Router {
   const router = express.Router()
   router.use(attachSession)
+
+  // Vehicle ownership & contract management module
+  router.use('/contracts', buildContractRouter())
 
   // Keep DBS/ reference snapshot synced automatically after any mutating DB API request
   router.use((req, res, next) => {
@@ -391,6 +395,211 @@ export function buildApiRouter(): Router {
 
     res.json({ ok: true, message: 'Password updated successfully. You may now log in with your new password.' })
   })
+
+  router.post(
+    '/fleet/self-register',
+    (req: AuthenticatedRequest, res: Response) => {
+      const body = req.body as {
+        fleetName?: string
+        businessName?: string
+        businessEmail?: string
+        businessMobile?: string
+        city?: string
+        state?: string
+        pinCode?: string
+        businessType?: string
+        servicesProvided?: string[]
+        plannedStaff?: {
+          fullName?: string
+          mobile?: string
+          email?: string
+          designation?: string
+        }
+        selectedPlan?: SubscriptionPlanId
+      }
+
+      // Validate required fields
+      if (!body.fleetName?.trim() || !body.businessName?.trim() || !body.businessEmail?.trim() ||
+          !body.city?.trim() || !body.state?.trim()) {
+        res.status(400).json({ 
+          error: 'Fleet name, business name, email, city, and state are required.' 
+        })
+        return
+      }
+
+      // Validate email format
+      if (!body.businessEmail.includes('@')) {
+        res.status(400).json({ error: 'Please enter a valid email address.' })
+        return
+      }
+
+      const plan = SUBSCRIPTION_PLANS.find((p) => p.id === (body.selectedPlan ?? 'monthly_basic')) ?? SUBSCRIPTION_PLANS[0]
+      const nowIso = new Date().toISOString()
+      const orgId = `org-${crypto.randomUUID().slice(0, 8)}`
+      const prefix = body.fleetName.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'FLEET'
+      const code = `${prefix}-${Math.floor(100 + Math.random() * 899)}`
+
+      const db = getDb()
+      
+      // Check for existing user with this email
+      const existingUserByEmail = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(body.businessEmail.toLowerCase().trim())
+      const baseUsername = `${body.fleetName.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10)}.owner`
+      const existingUserByUsername = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(baseUsername)
+      
+      const finalUsername = existingUserByUsername
+        ? `${baseUsername}.${Math.floor(10 + Math.random() * 89)}`
+        : baseUsername
+
+      const temporaryPassword = generateTemporaryPassword()
+      const ownerUserId = `u-${crypto.randomUUID().slice(0, 8)}`
+
+      const org: Organization = {
+        id: orgId,
+        name: body.fleetName.trim(),
+        code,
+        city: body.city.trim(),
+        state: body.state.trim(),
+        timezone: 'Asia/Kolkata',
+        currency: 'INR',
+        planId: plan.id,
+        vehicleLimit: plan.vehicleLimit,
+        driverLimit: plan.driverLimit,
+        status: 'active',
+        paymentStatus: 'pending', // Set to pending so owner can complete payment
+        subscriptionStartDate: nowIso.slice(0, 10),
+        subscriptionExpiryDate: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10),
+        ownerName: body.businessName.trim(),
+        ownerEmail: body.businessEmail.trim().toLowerCase(),
+        ownerPhone: body.businessMobile?.trim(),
+        gstin: undefined,
+        createdAt: nowIso,
+        environment: 'production',
+      }
+
+      // Create organization
+      db.prepare(`
+        INSERT INTO organizations (
+          id, name, code, city, state, timezone, plan_id, vehicle_limit, driver_limit,
+          status, payment_status, subscription_start_date, subscription_expiry_date,
+          grace_period_until, suspension_reason, owner_name, owner_email, owner_phone, gstin, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
+      `).run(
+        org.id, org.name, org.code, org.city, org.state, org.timezone, org.planId,
+        org.vehicleLimit, org.driverLimit, org.status, org.paymentStatus,
+        org.subscriptionStartDate, org.subscriptionExpiryDate,
+        org.ownerName, org.ownerEmail, org.ownerPhone, null, org.createdAt,
+      )
+
+      // Create empty organization dataset
+      const emptyBlob = {
+        ...createEmptyOrgDataset(org),
+        members: [
+          {
+            id: `mem-${crypto.randomUUID().slice(0, 8)}`,
+            organizationId: org.id,
+            userId: ownerUserId,
+            username: finalUsername,
+            fullName: org.ownerName!,
+            email: org.ownerEmail!,
+            role: 'org_admin',
+            status: 'active',
+            lastActiveAt: nowIso,
+          },
+        ],
+      }
+      saveOrgFleetDataset(db, org.id, emptyBlob, true)
+      seedOrgFleetModules(db, org, [])
+
+      // Create owner user
+      db.prepare(`
+        INSERT INTO users (
+          id, username, email, full_name, password_hash, role, organization_id,
+          password_change_required, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, 'org_admin', ?, 1, 'active', ?)
+      `).run(
+        ownerUserId, finalUsername, org.ownerEmail!, org.ownerName!,
+        hashPassword(temporaryPassword), org.id, nowIso,
+      )
+
+      // Create first staff member if provided
+      if (body.plannedStaff?.fullName?.trim() && body.plannedStaff?.email?.trim()) {
+        const staffUserId = `u-${crypto.randomUUID().slice(0, 8)}`
+        const staffUsername = body.plannedStaff.email.split('@')[0].toLowerCase().replace(/[^a-z0-9.]/g, '')
+        const existingStaffUser = db.prepare('SELECT id FROM users WHERE LOWER(username) = ?').get(staffUsername)
+        const finalStaffUsername = existingStaffUser
+          ? `${staffUsername}.${Math.floor(10 + Math.random() * 89)}`
+          : staffUsername
+        
+        const staffTempPassword = generateTemporaryPassword()
+        const staffMemberId = `mem-${crypto.randomUUID().slice(0, 8)}`
+
+        db.prepare(`
+          INSERT INTO users (
+            id, username, email, full_name, password_hash, role, organization_id,
+            password_change_required, status, created_at
+          ) VALUES (?, ?, ?, ?, ?, 'fleet_staff', ?, 1, 'active', ?)
+        `).run(
+          staffUserId, finalStaffUsername, body.plannedStaff.email.trim().toLowerCase(),
+          body.plannedStaff.fullName.trim(), hashPassword(staffTempPassword), org.id, nowIso,
+        )
+
+        db.prepare(`
+          INSERT INTO org_members (id, organization_id, user_id, username, full_name, email, role, status, last_active_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
+        `).run(
+          staffMemberId, org.id, staffUserId, finalStaffUsername,
+          body.plannedStaff.fullName.trim(), body.plannedStaff.email.trim().toLowerCase(),
+          'fleet_staff', nowIso,
+        )
+
+        // Add staff temp credentials to response
+        const responseWithStaff = {
+          organization: org,
+          ownerCredentials: {
+            username: finalUsername,
+            temporaryPassword,
+            passwordChangeRequired: true,
+          },
+          staffCredentials: {
+            username: finalStaffUsername,
+            temporaryPassword: staffTempPassword,
+            passwordChangeRequired: true,
+          },
+          paymentRequired: true,
+          message: 'Account created successfully. Please complete your subscription payment.',
+        }
+        res.status(201).json(responseWithStaff)
+        return
+      }
+
+      // Log the registration
+      db.prepare(`
+        INSERT INTO platform_admin_audit_logs (
+          id, actor_user_id, actor_username, action, target_org_id, target_org_name, reason, metadata_json, created_at
+        ) VALUES (?, ?, ?, 'SELF_REGISTRATION', ?, ?, ?, ?, ?)
+      `).run(
+        `paud-${crypto.randomUUID().slice(0, 8)}`,
+        ownerUserId,
+        finalUsername,
+        org.id,
+        org.name,
+        `New tenant self-registration for ${org.code}. Awaiting payment confirmation.`,
+        JSON.stringify({ planId: org.planId, ownerUsername: finalUsername, selectedPlan: body.selectedPlan }),
+        nowIso,
+      )
+
+      res.status(201).json({
+        organization: org,
+        ownerCredentials: {
+          username: finalUsername,
+          temporaryPassword,
+          passwordChangeRequired: true,
+        },
+        paymentRequired: true,
+        message: 'Account created successfully. Please complete your subscription payment.',
+      })
+    },
+  )
 
   // ===================== LEVEL-2 SUPER ADMIN PANEL =====================
   router.get(

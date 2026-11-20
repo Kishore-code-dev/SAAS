@@ -5,11 +5,14 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatDateTime, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
+import { useVehicleOwnership } from '../../hooks/useContracts'
+import { OwnershipBadge } from '../contracts/ContractUi'
 import { canPerformAction } from '../../utils/rbac'
 
 export function VehicleAssignmentsView() {
   const navigate = useNavigate()
   const { activeOrganization, activeRole, vehicles, drivers, driverAssignments, assignDriverToVehicle } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id ?? '')
   const [selectedDriverId, setSelectedDriverId] = useState('')
@@ -97,6 +100,11 @@ export function VehicleAssignmentsView() {
                         <ArrowRight className="w-3 h-3" />
                       </button>
                       <span className="text-xs text-[#958777]">{v.make} {v.model}</span>
+                      {ownershipByVehicle.get(v.id) && (
+                        <span className="mt-1 block">
+                          <OwnershipBadge type={ownershipByVehicle.get(v.id)?.ownershipType} />
+                        </span>
+                      )}
                     </td>
                     <td>{v.powertrain}</td>
                     <td>
@@ -526,6 +534,7 @@ export function TireReadingsView() {
 
 export function ExpenseHistoryView() {
   const { activeOrganization, vehicles, fuelTransactions, maintenanceRecords, workOrders } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const rows = useMemo(() => {
     const items: Array<{
@@ -622,7 +631,18 @@ export function ExpenseHistoryView() {
               {rows.map((r) => (
                 <tr key={r.id}>
                   <td className="text-xs text-[#958777]">{formatShortDate(r.date)}</td>
-                  <td className="font-semibold">{r.vehicle}</td>
+                  <td>
+                    <span className="font-semibold block">{r.vehicle}</span>
+                    {(() => {
+                      const owned = vehicles.find((v) => v.registrationNumber === r.vehicle)
+                      const record = owned ? ownershipByVehicle.get(owned.id) : undefined
+                      return record ? (
+                        <span className="mt-1 inline-block">
+                          <OwnershipBadge type={record.ownershipType} />
+                        </span>
+                      ) : null
+                    })()}
+                  </td>
                   <td>{r.category}</td>
                   <td>{r.vendor}</td>
                   <td className="font-bold tabular-nums">{formatInr(r.amountInr)}</td>

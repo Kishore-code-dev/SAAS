@@ -42,6 +42,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useVehicleOwnership } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import {
   classifyTelemetryFreshness,
   isValidCoordinate,
@@ -320,6 +322,7 @@ export default function LiveMap() {
     setSearchTerm,
     nowTick,
   } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const initialFilter = (searchParams.get('filter') as FilterOption) || 'all'
   const initialVehicleParam = searchParams.get('vehicle')
@@ -1397,6 +1400,9 @@ export default function LiveMap() {
                           <span className="text-[11px] text-[#958777] whitespace-nowrap">
                             · {v.powertrain}
                           </span>
+                          {ownershipByVehicle.get(v.id) && (
+                            <OwnershipBadge type={ownershipByVehicle.get(v.id)?.ownershipType} />
+                          )}
                         </div>
                         <span className="text-xs font-bold text-[#625346] tabular-nums whitespace-nowrap">
                           {v.telemetry.speedKmh} km/h

@@ -3,10 +3,12 @@ export type OperatingEnvironment = 'production'
 export type OrganizationRole =
   | 'platform_admin'
   | 'org_admin'
+  | 'fleet_staff'
   | 'fleet_manager'
   | 'maintenance'
   | 'finance'
   | 'viewer'
+  | 'driver'
 
 export type OrganizationStatus =
   | 'active'
@@ -16,7 +18,7 @@ export type OrganizationStatus =
   | 'terminated'
   | 'archived'
 
-export type SubscriptionPlanId = 'starter' | 'growth' | 'enterprise'
+export type SubscriptionPlanId = 'monthly_basic' | 'annual_basic' | 'starter' | 'growth' | 'enterprise'
 
 export type ReportingPeriod = '7d' | '30d' | '90d'
 

@@ -7,14 +7,23 @@ import { FleetProvider, useFleet } from './hooks/useFleet'
 import { FinanceProvider } from './hooks/useFinance'
 import { I18nProvider } from './i18n/useTranslation'
 import Layout from './components/layout/Layout'
+import DriverLayout from './components/layout/DriverLayout'
 import { AccessDeniedState } from './components/ui/EnterprisePrimitives'
 import { BrandLogo } from './components/ui/BrandLogo'
 import { canAccessRoute, getDefaultHomeForRole } from './utils/rbac'
 import Landing from './pages/Landing'
+import Onboarding from './pages/Onboarding'
 import Auth from './pages/Auth'
 import ForcePasswordChange from './pages/ForcePasswordChange'
 import Dashboard from './pages/Dashboard'
 import NotFound from './pages/NotFound'
+import DriverHome from './pages/driver/DriverHome'
+import DriverTrips from './pages/driver/DriverTrips'
+import DriverTripDetail from './pages/driver/DriverTripDetail'
+import DriverFuel from './pages/driver/DriverFuel'
+import DriverExpenses from './pages/driver/DriverExpenses'
+import DriverMaintenance from './pages/driver/DriverMaintenance'
+import DriverProfile from './pages/driver/DriverProfile'
 
 function lazyWithRetry(
   importer: () => Promise<{ default: ComponentType<Record<string, never>> }>,
@@ -44,6 +53,7 @@ const PlatformAdmin = lazyWithRetry(() => import('./pages/PlatformAdmin'))
 const LiveMap = lazyWithRetry(() => import('./pages/LiveMap'))
 const Trips = lazyWithRetry(() => import('./pages/Trips'))
 const Vehicles = lazyWithRetry(() => import('./pages/Vehicles'))
+const VehicleForm = lazyWithRetry(() => import('./pages/VehicleForm'))
 const VehicleDetails = lazyWithRetry(() => import('./pages/VehicleDetails'))
 const Drivers = lazyWithRetry(() => import('./pages/Drivers'))
 const DriverDetails = lazyWithRetry(() => import('./pages/DriverDetails'))
@@ -167,6 +177,18 @@ const CustomRecordsPage = lazyWithRetry(() =>
 const IntegrationsPage = lazyWithRetry(() =>
   import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.IntegrationsView })),
 )
+const ContractOverviewPage = lazyWithRetry(() => import('./pages/contracts/ContractOverviewPage'))
+const ContractRegisterPage = lazyWithRetry(() => import('./pages/contracts/ContractRegisterPage'))
+const ContractedVehiclesPage = lazyWithRetry(() => import('./pages/contracts/ContractedVehiclesPage'))
+const FleetPartnersPage = lazyWithRetry(() => import('./pages/contracts/FleetPartnersPage'))
+const IndividualOwnersPage = lazyWithRetry(() => import('./pages/contracts/IndividualOwnersPage'))
+const ContractPaymentsPage = lazyWithRetry(() => import('./pages/contracts/ContractPaymentsPage'))
+const ContractMaintenancePage = lazyWithRetry(() => import('./pages/contracts/ContractMaintenancePage'))
+const BondDepositsPage = lazyWithRetry(() => import('./pages/contracts/BondDepositsPage'))
+const ContractRenewalsPage = lazyWithRetry(() => import('./pages/contracts/ContractRenewalsPage'))
+const ContractDocumentsPage = lazyWithRetry(() => import('./pages/contracts/ContractDocumentsPage'))
+const ContractHistoryPage = lazyWithRetry(() => import('./pages/contracts/ContractHistoryPage'))
+const ContractDetailPage = lazyWithRetry(() => import('./pages/contracts/ContractDetailPage'))
 const FinanceOverviewPage = lazyWithRetry(() => import('./pages/finance/FinanceOverviewPage'))
 const VehicleFinanceListPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceListPage'))
 const VehicleFinanceDetailsPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceDetailsPage'))
@@ -298,6 +320,7 @@ export function AppRoutes() {
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/auth" element={<Auth />} />
           <Route
             path="/change-password"
@@ -318,6 +341,26 @@ export function AppRoutes() {
             }
           />
 
+          {/* Driver Mobile Routes */}
+          <Route
+            path="/driver"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute>
+                  <DriverLayout />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<DriverHome />} />
+            <Route path="trips" element={<DriverTrips />} />
+            <Route path="trips/:tripId" element={<DriverTripDetail />} />
+            <Route path="fuel" element={<DriverFuel />} />
+            <Route path="expenses" element={<DriverExpenses />} />
+            <Route path="maintenance" element={<DriverMaintenance />} />
+            <Route path="profile" element={<DriverProfile />} />
+          </Route>
+
           {/* Owner & Operations Enterprise Dashboard Workspace */}
           <Route
             path="/dashboard"
@@ -333,6 +376,7 @@ export function AppRoutes() {
             <Route path="map" element={<RoleProtectedRoute><LiveMap /></RoleProtectedRoute>} />
             <Route path="trips" element={<RoleProtectedRoute><Trips /></RoleProtectedRoute>} />
             <Route path="fleet" element={<RoleProtectedRoute><Vehicles /></RoleProtectedRoute>} />
+            <Route path="fleet/new" element={<RoleProtectedRoute><VehicleForm /></RoleProtectedRoute>} />
             <Route path="fleet/assignments" element={<RoleProtectedRoute><VehicleAssignmentsPage /></RoleProtectedRoute>} />
             <Route path="fleet/meter-history" element={<RoleProtectedRoute><MeterHistoryPage /></RoleProtectedRoute>} />
             <Route path="fleet/tire-readings" element={<RoleProtectedRoute><TireReadingsPage /></RoleProtectedRoute>} />
@@ -371,6 +415,18 @@ export function AppRoutes() {
             <Route path="warranties" element={<RoleProtectedRoute><WarrantiesPage /></RoleProtectedRoute>} />
             <Route path="custom-records" element={<RoleProtectedRoute><CustomRecordsPage /></RoleProtectedRoute>} />
             <Route path="integrations" element={<RoleProtectedRoute><IntegrationsPage /></RoleProtectedRoute>} />
+            <Route path="contracts" element={<RoleProtectedRoute><ContractOverviewPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register" element={<RoleProtectedRoute><ContractRegisterPage /></RoleProtectedRoute>} />
+            <Route path="contracts/vehicles" element={<RoleProtectedRoute><ContractedVehiclesPage /></RoleProtectedRoute>} />
+            <Route path="contracts/partners" element={<RoleProtectedRoute><FleetPartnersPage /></RoleProtectedRoute>} />
+            <Route path="contracts/owners" element={<RoleProtectedRoute><IndividualOwnersPage /></RoleProtectedRoute>} />
+            <Route path="contracts/payments" element={<RoleProtectedRoute><ContractPaymentsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/maintenance" element={<RoleProtectedRoute><ContractMaintenancePage /></RoleProtectedRoute>} />
+            <Route path="contracts/deposits" element={<RoleProtectedRoute><BondDepositsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/renewals" element={<RoleProtectedRoute><ContractRenewalsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/documents" element={<RoleProtectedRoute><ContractDocumentsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/history" element={<RoleProtectedRoute><ContractHistoryPage /></RoleProtectedRoute>} />
+            <Route path="contracts/:contractId" element={<RoleProtectedRoute><ContractDetailPage /></RoleProtectedRoute>} />
             <Route path="finance" element={<RoleProtectedRoute><FinanceOverviewPage /></RoleProtectedRoute>} />
             <Route path="finance/vehicles" element={<RoleProtectedRoute><VehicleFinanceListPage /></RoleProtectedRoute>} />
             <Route path="finance/vehicles/:financeId" element={<RoleProtectedRoute><VehicleFinanceDetailsPage /></RoleProtectedRoute>} />

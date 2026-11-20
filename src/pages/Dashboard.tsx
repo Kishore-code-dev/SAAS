@@ -48,7 +48,6 @@ import {
 } from '../components/ui/EnterprisePrimitives'
 import { computeFleetBounds, summarizeFleetTrackingStatuses } from '../utils/fleetTracking'
 import type { Vehicle } from '../types/fleet'
-import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 
 function createDashboardPinIcon(
   variant: 'lavender' | 'yellow',
@@ -134,7 +133,6 @@ export default function Dashboard() {
     nowTick,
   } = useFleet()
 
-  const [addModalOpen, setAddModalOpen] = useState(false)
   const [focusedMapVehicleId, setFocusedMapVehicleId] = useState<string | null>(null)
   const [mapFitNonce, setMapFitNonce] = useState(0)
   const [mapFocusNonce, setMapFocusNonce] = useState(0)

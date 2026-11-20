@@ -42,6 +42,42 @@ export interface SubscriptionPlanSpec {
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlanSpec[] = [
   {
+    id: 'monthly_basic',
+    name: 'Monthly Basic',
+    tagline: '₹3,500 per month – Full fleet management for small operations.',
+    monthlyInr: 3500,
+    vehicleLimit: 15,
+    driverLimit: 25,
+    features: [
+      'Full Fleet Owner access',
+      'Fleet management dashboard',
+      'Live fleet monitoring',
+      'Vehicle management',
+      'Driver management',
+      'Staff management',
+      'Trip planning',
+      'Maintenance management',
+      'Finance management',
+      'Reports & operational records',
+      'All available DriveMitra owner modules',
+    ],
+  },
+  {
+    id: 'annual_basic',
+    name: 'Annual Basic',
+    tagline: '₹36,000 per year (₹3,000/mo equiv.) – Save ₹6,000 vs 12 monthly payments',
+    monthlyInr: 3500,
+    vehicleLimit: 15,
+    driverLimit: 25,
+    features: [
+      'Full Fleet Owner access',
+      'All Monthly Basic features',
+      'One-year subscription validity',
+      'Lower effective monthly cost',
+      'Annual savings of ~14.3%',
+    ],
+  },
+  {
     id: 'starter',
     name: 'Starter',
     tagline: 'For growing regional fleets transitioning away from manual spreadsheets.',

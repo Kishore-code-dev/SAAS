@@ -3,6 +3,8 @@ import { Download, FileSpreadsheet, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { REPORT_CATEGORIES } from '../data/seedOrganizations'
 import { useFleet } from '../hooks/useFleet'
+import { useContractWorkspace } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import { generateCsvContent } from '../utils/intelligenceEngine'
 import { canPerformAction } from '../utils/rbac'
 import { formatDateTime, formatInr } from '../components/ui/EnterprisePrimitives'
@@ -63,6 +65,11 @@ export default function Reports() {
     recordReportGeneration,
     markModuleVisited,
   } = useFleet()
+  const { data: contractData, overview: contractOverview } = useContractWorkspace()
+  const ownershipByVehicle = React.useMemo(
+    () => new Map((contractData?.ownership ?? []).map((record) => [record.vehicleId, record])),
+    [contractData],
+  )
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(REPORT_CATEGORIES[0].id)
   const [vehicleFilterId, setVehicleFilterId] = useState<string>('all')
@@ -174,7 +181,7 @@ export default function Reports() {
       case 'fleet_utilization':
       default:
         return {
-          headers: ['Registration', 'Make & Model', 'Powertrain', 'Operation Status', 'Odometer (km)', 'Health Score %', 'City'],
+          headers: ['Registration', 'Make & Model', 'Powertrain', 'Operation Status', 'Odometer (km)', 'Health Score %', 'City', 'Ownership'],
           rows: filterVeh(vehicles, 'id').map((v) => [
             v.registrationNumber,
             `${v.make} ${v.model}`,
@@ -183,6 +190,7 @@ export default function Reports() {
             v.odometerKm,
             v.healthScore,
             v.cityName,
+            (ownershipByVehicle.get(v.id)?.ownershipType ?? 'company_owned').replace(/_/g, ' '),
           ]),
         }
     }
@@ -323,6 +331,45 @@ export default function Reports() {
           </button>
         ))}
       </div>
+
+      {contractOverview && (
+        <div className="enterprise-card p-5 no-print">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="dm-card-title text-sm">Ownership & Contract Exposure</h2>
+              <p className="text-xs text-[#958777] mt-0.5">
+                {contractOverview.kpis.activeContracts} active contracts · {contractOverview.kpis.contractedVehicles} contracted vehicles · {contractOverview.kpis.individualOwnerVehicles} individual-owner vehicles
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {contractOverview.ownershipDistribution.map((row) => (
+                <span key={row.ownershipType} className="inline-flex items-center gap-1.5 text-xs text-[#958777]">
+                  <OwnershipBadge type={row.ownershipType} />
+                  <span className="tabular-nums font-semibold text-[#625346]">{row.count}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 pt-4 border-t border-[#E5E5E5]">
+            <div>
+              <span className="text-[11px] font-semibold text-[#958777]">Outstanding Contract Payments</span>
+              <p className="font-bold tabular-nums text-[#625346] mt-0.5">{formatInr(contractOverview.kpis.outstandingPaymentsInr)}</p>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-[#958777]">Security Deposits Held</span>
+              <p className="font-bold tabular-nums text-[#625346] mt-0.5">{formatInr(contractOverview.kpis.totalSecurityDepositsInr)}</p>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-[#958777]">Outstanding Deposits</span>
+              <p className="font-bold tabular-nums text-[#625346] mt-0.5">{formatInr(contractOverview.kpis.outstandingDepositsInr)}</p>
+            </div>
+            <div>
+              <span className="text-[11px] font-semibold text-[#958777]">Expiring in 30 Days</span>
+              <p className="font-bold tabular-nums text-[#625346] mt-0.5">{contractOverview.kpis.expiringWithin30Days}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live Printable Preview Table */}
       <div className="enterprise-card overflow-hidden">

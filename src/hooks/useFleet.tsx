@@ -395,9 +395,8 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       wasAuthenticatedRef.current = true
       queueMicrotask(() => {
         setActiveRoleState(user.role)
-        if (organization) {
-          setActiveOrgState(organization.id)
-        }
+        // Don't set organization here - hydrateFromServer will set it from the server
+        // This prevents double-setter calls and potential remount issues
         void hydrateFromServer()
       })
     } else if (wasAuthenticatedRef.current) {
@@ -410,7 +409,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
         setActiveOrgState(seed.organizations[0]?.id ?? 'org-kaveri')
       })
     }
-  }, [user, organization, hydrateFromServer])
+  }, [user, hydrateFromServer])
 
   const persistOrgBlobToServer = useCallback(
     (nextDataset: EnvironmentDataset, orgId: string) => {

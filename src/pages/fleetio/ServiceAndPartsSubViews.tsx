@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatDateTime, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
+import { useVehicleOwnership } from '../../hooks/useContracts'
+import { OwnershipBadge } from '../contracts/ContractUi'
 import { canPerformAction } from '../../utils/rbac'
 import type { FiveAreaHealthCategory, ServiceProgramItem } from '../../types/fleet'
 
@@ -23,6 +25,7 @@ export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'f
     addSmallIssue,
     convertIssueToWorkOrder,
   } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const canWo = canPerformAction(activeRole, 'manage_work_orders')
   const canSchedule = canPerformAction(activeRole, 'schedule_maintenance')
   const [schedModalOpen, setSchedModalOpen] = useState(false)
@@ -44,6 +47,7 @@ export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'f
               <thead>
                 <tr>
                   <th>Vehicle</th>
+                  <th>Ownership</th>
                   <th>Inspector / Driver</th>
                   <th>Failed Findings</th>
                   <th>Timestamp</th>
@@ -64,8 +68,12 @@ export function InspectionsSubView({ tab }: { tab: 'failures' | 'schedules' | 'f
                   return (
                     <tr key={ins.id}>
                       <td className="font-semibold">{v?.registrationNumber ?? ins.vehicleId}</td>
+                      <td>
+                        {ownershipByVehicle.get(ins.vehicleId) && (
+                          <OwnershipBadge type={ownershipByVehicle.get(ins.vehicleId)?.ownershipType} />
+                        )}
+                      </td>
                       <td>{ins.inspectorName ?? d?.name ?? 'Inspector'}</td>
-                      <td className="text-xs font-medium text-[#B84E42]">{findings.join(' · ') || ins.notes}</td>
                       <td className="text-xs text-[#958777]">{formatDateTime(ins.timestamp)}</td>
                       <td className="text-right">
                         {canWo && (
@@ -281,6 +289,7 @@ export function ServiceSubView({ tab }: { tab: 'tasks' | 'programs' }) {
     addServiceTask,
     addServiceProgram,
   } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const canSchedule = canPerformAction(activeRole, 'schedule_maintenance')
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [progModalOpen, setProgModalOpen] = useState(false)
@@ -642,6 +651,7 @@ export function InventorySubView({ tab }: { tab: 'bulk' | 'po' }) {
 
 export function ChargingHistoryView() {
   const { activeOrganization, activeRole, vehicles, drivers, fuelTransactions, addFuelTransaction } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const [modalOpen, setModalOpen] = useState(false)
   const evVehicles = vehicles.filter((v) => v.powertrain === 'EV')
   const [form, setForm] = useState({
@@ -722,6 +732,7 @@ export function ChargingHistoryView() {
             <thead>
               <tr>
                 <th>Vehicle</th>
+                <th>Ownership</th>
                 <th>Charging Station</th>
                 <th>Energy (kWh)</th>
                 <th>Cost</th>
@@ -735,6 +746,11 @@ export function ChargingHistoryView() {
                 return (
                   <tr key={c.id}>
                     <td className="font-semibold">{v?.registrationNumber ?? c.vehicleId}</td>
+                    <td>
+                      {ownershipByVehicle.get(c.vehicleId) && (
+                        <OwnershipBadge type={ownershipByVehicle.get(c.vehicleId)?.ownershipType} />
+                      )}
+                    </td>
                     <td>{c.station}</td>
                     <td className="tabular-nums font-bold">{c.litersOrKwh} kWh</td>
                     <td className="tabular-nums">{formatInr(c.amountInr)}</td>

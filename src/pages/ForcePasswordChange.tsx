@@ -1,9 +1,23 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Circle, Eye, EyeOff, Lock, LogOut } from 'lucide-react'
+import { CheckCircle2, Circle, Eye, EyeOff, Key, Lock, LogOut, Package, User, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../hooks/useAuth'
 import { BrandLogo } from '../components/ui/BrandLogo'
+
+interface OnboardingCredentials {
+  username: string
+  tempPassword: string
+  organization: {
+    id: string
+    name: string
+    code: string
+  }
+  staffCredentials?: {
+    username: string
+    temporaryPassword: string
+  }
+}
 
 export default function ForcePasswordChange() {
   const { user, changePassword, signOut } = useAuth()
@@ -16,6 +30,8 @@ export default function ForcePasswordChange() {
   const [showNew, setShowNew] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [showCredentials, setShowCredentials] = useState(false)
+  const [onboardingCreds, setOnboardingCreds] = useState<OnboardingCredentials | null>(null)
 
   const checks = [
     { label: 'At least 8 characters', ok: newPassword.length >= 8 },
@@ -28,6 +44,21 @@ export default function ForcePasswordChange() {
   ]
 
   const allValid = checks.every((c) => c.ok)
+
+  // Check for onboarding credentials on mount
+  useEffect(() => {
+    const creds = localStorage.getItem('dm_onboarding_creds')
+    if (creds) {
+      try {
+        const parsed = JSON.parse(creds) as OnboardingCredentials
+        setOnboardingCreds(parsed)
+        setShowCredentials(true)
+        localStorage.removeItem('dm_onboarding_creds')
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,10 +79,144 @@ export default function ForcePasswordChange() {
         return
       }
       toast.success('Password updated! Opening your DriveMitra workspace.')
+      // changePassword already sets user, organization, and dispatches dm-auth-session event.
+      // The useFleet hook will auto-hydrate via its useEffect when user state changes.
+      // Navigate to dashboard - the ProtectedRoute and FleetProvider will handle hydrating the workspace.
       navigate(res.redirectTo ?? '/dashboard', { replace: true })
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleSignOut = async () => {
+    await signOut()
+    navigate('/auth', { replace: true })
+  }
+
+  // Show credentials display if we have onboarding credentials
+  if (showCredentials && onboardingCreds) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-2xl enterprise-card p-6 sm:p-8 space-y-6">
+          <div className="flex items-center justify-between gap-3 border-b border-[#E5E5E5] pb-4">
+            <BrandLogo size="md" />
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-xs font-semibold text-[#B84E42] hover:underline inline-flex items-center gap-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Sign Out
+            </button>
+          </div>
+
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#E8C65A] border border-[#D8B442] text-xs font-semibold text-[#625346]">
+              <Key className="w-3.5 h-3.5" />
+              Account Created Successfully
+            </div>
+            <h1 className="text-2xl font-bold text-[#625346]">Your FleetMitra Account Credentials</h1>
+            <p className="text-xs text-[#958777] leading-relaxed max-w-lg mx-auto">
+              Save these credentials securely. You'll use them to log in and set your permanent password.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Owner Credentials Card */}
+            <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-2xl p-5 space-y-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-10 h-10 bg-[#6E5696] rounded-full flex items-center justify-center">
+                  <Users className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-[#625346]">Fleet Owner</h3>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Fleet Name</label>
+                  <div className="mt-1 text-sm font-bold text-[#625346]">{onboardingCreds.organization.name}</div>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Organization Code</label>
+                  <div className="mt-1 text-sm font-bold text-[#625346] bg-[#EEE8F7] px-2.5 py-1 rounded border border-[#B8A3D9]">
+                    {onboardingCreds.organization.code}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Username</label>
+                  <div className="mt-1 text-sm text-[#625346] font-mono bg-[#F7F0D9] px-2.5 py-1 rounded border">
+                    {onboardingCreds.username}
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Temporary Password</label>
+                  <div className="mt-1 text-sm text-[#625346] font-mono bg-[#F7F0D9] px-2.5 py-1 rounded border break-all">
+                    {onboardingCreds.tempPassword}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff Credentials Card */}
+            {onboardingCreds.staffCredentials && (
+              <div className="bg-[#FFFFFF] border border-[#E5E5E5] rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-10 h-10 bg-[#4D6E4A] rounded-full flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="font-bold text-[#625346]">Staff Member</h3>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Username</label>
+                    <div className="mt-1 text-sm text-[#625346] font-mono bg-[#F7F0D9] px-2.5 py-1 rounded border">
+                      {onboardingCreds.staffCredentials.username}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-semibold text-[#958777] uppercase tracking-wide">Temporary Password</label>
+                    <div className="mt-1 text-sm text-[#625346] font-mono bg-[#F7F0D9] px-2.5 py-1 rounded border break-all">
+                      {onboardingCreds.staffCredentials.temporaryPassword}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-[#EDF4EC] border border-[#789A75] rounded-lg p-4 text-xs text-[#4D6E4A]">
+            <strong className="block mb-2">Next Steps:</strong>
+            <ul className="space-y-1.5 text-sm leading-relaxed">
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5" />
+                Use your <strong>username</strong> and <strong>temporary password</strong> to log in
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5" />
+                Set a permanent password (meets security requirements below)
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 mt-0.5" />
+                Complete your subscription payment via DriveMitra support
+              </li>
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowCredentials(false)}
+            className="btn-primary w-full py-3 text-sm font-semibold"
+          >
+            Continue to Set Password
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -61,10 +226,7 @@ export default function ForcePasswordChange() {
           <BrandLogo size="md" />
           <button
             type="button"
-            onClick={async () => {
-              await signOut()
-              navigate('/auth', { replace: true })
-            }}
+            onClick={handleSignOut}
             className="text-xs font-semibold text-[#B84E42] hover:underline inline-flex items-center gap-1"
           >
             <LogOut className="w-3.5 h-3.5" />

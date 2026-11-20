@@ -1,0 +1,320 @@
+import React, { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import { useFleet } from '../../hooks/useFleet'
+import { Plus, Wrench, Clock, ChevronRight, Loader2, CheckCircle2, AlertTriangle, AlertCircle, Truck, Settings, HardHat, Zap, Battery, Droplet, Gauge, MoreHorizontal, X } from 'lucide-react'
+import { formatShortDate, formatDateTime } from '../../components/ui/EnterprisePrimitives'
+import { toast } from 'sonner'
+import type { FiveAreaHealthCategory } from '../../types/fleet'
+
+const CATEGORIES: { value: FiveAreaHealthCategory; label: string; icon: React.ElementType }[] = [
+  { value: 'Vehicle Health', label: 'Vehicle Health', icon: Settings },
+  { value: 'Engine Health', label: 'Engine', icon: Settings },
+  { value: 'Tyre Health', label: 'Tyres', icon: Gauge },
+  { value: 'Fuel Health', label: 'Fuel System', icon: Droplet },
+]
+
+type Severity = 'low' | 'medium' | 'high' | 'critical'
+
+const SEVERITIES: { value: Severity; label: string; color: string; bg: string }[] = [
+  { value: 'low', label: 'Low', color: 'text-[#1F7A4C]', bg: 'bg-[#ECFDF5]' },
+  { value: 'medium', label: 'Medium', color: 'text-[#8F6510]', bg: 'bg-[#FEF3C7]' },
+  { value: 'high', label: 'High', color: 'text-[#B84E42]', bg: 'bg-[#FEF2F2]' },
+  { value: 'critical', label: 'Critical', color: 'text-[#991B1B]', bg: 'bg-[#FEF2F2]' },
+]
+
+type IssueForm = {
+  vehicleId: string
+  category: FiveAreaHealthCategory
+  severity: Severity
+  title: string
+  description: string
+}
+
+export default function DriverMaintenance() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { vehicles, smallIssues, addSmallIssue } = useFleet()
+  const [filter, setFilter] = useState<'all' | 'open' | 'triaged' | 'converted_to_wo' | 'resolved'>('all')
+  const [showForm, setShowForm] = useState(false)
+  const [formLoading, setFormLoading] = useState(false)
+  const [form, setForm] = useState<IssueForm>({
+    vehicleId: '',
+    category: 'Vehicle Health',
+    severity: 'medium',
+    title: '',
+    description: '',
+  })
+
+  const myVehicle = vehicles.find((v) => v.assignedDriverId === user?.id)
+  const myIssues = smallIssues
+    .filter((i) => i.driverId === user?.id)
+    .sort((a, b) => new Date(b.reportedAt).getTime() - new Date(a.reportedAt).getTime())
+  const filteredIssues = filter === 'all' ? myIssues : myIssues.filter((i) => i.status === filter)
+
+  useEffect(() => {
+    if (myVehicle && !form.vehicleId) {
+      setForm((f) => ({ ...f, vehicleId: myVehicle.id }))
+    }
+  }, [myVehicle])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.vehicleId || !form.title || !form.description) {
+      toast.error('Please fill all required fields')
+      return
+    }
+
+    setFormLoading(true)
+    try {
+      await addSmallIssue({
+        vehicleId: form.vehicleId,
+        driverId: user?.id || '',
+        title: form.title.trim(),
+        description: form.description.trim(),
+        healthArea: form.category,
+        severity: form.severity,
+        source: 'owner_manual',
+      })
+
+      toast.success('Issue reported successfully')
+      setShowForm(false)
+      setForm({
+        vehicleId: form.vehicleId,
+        category: 'Vehicle Health',
+        severity: 'medium',
+        title: '',
+        description: '',
+      })
+    } catch (err) {
+      toast.error('Failed to report issue')
+    } finally {
+      setFormLoading(false)
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#625346]">Vehicle Issues</h1>
+          <p className="text-sm text-[#958777]">Report and track maintenance issues</p>
+        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="btn-primary flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Report Issue
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#E5E5E5] p-2">
+        <div className="flex flex-wrap gap-1">
+          {(['all', 'open', 'triaged', 'converted_to_wo', 'resolved'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                filter === status
+                  ? 'bg-[#6E5696] text-white shadow-sm'
+                  : 'text-[#958777] hover:bg-[#F7F5F2] hover:text-[#625346]'
+              }`}
+            >
+              {status === 'all' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#E5E5E5] overflow-hidden">
+        {filteredIssues.length === 0 ? (
+          <div className="py-12 text-center">
+            <Wrench className="w-12 h-12 text-[#D1D5DB] mx-auto mb-3" />
+            <h3 className="font-semibold text-[#625346]">
+              {filter === 'all' ? 'No issues reported' : `No ${filter} issues`}
+            </h3>
+            <p className="text-sm text-[#958777] mt-1">Tap "Report Issue" to log a vehicle problem</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-[#E5E5E5]">
+            {filteredIssues.map((issue) => {
+              const vehicle = vehicles.find((v) => v.id === issue.vehicleId)
+              const categoryConfig = CATEGORIES.find((c) => c.value === issue.healthArea) || CATEGORIES[0]
+              const CategoryIcon = categoryConfig.icon
+              const severityConfig = SEVERITIES.find((s) => s.value === issue.severity) || SEVERITIES[1]
+              const statusConfig = {
+                open: { label: 'Open', color: 'text-[#8F6510]', bg: 'bg-[#FEF3C7]', icon: AlertTriangle },
+                triaged: { label: 'Triaged', color: 'text-[#0369A1]', bg: 'bg-[#E0F2FE]', icon: Settings },
+                converted_to_wo: { label: 'Work Order', color: 'text-[#6E5696]', bg: 'bg-[#EEE8F7]', icon: HardHat },
+                resolved: { label: 'Resolved', color: 'text-[#1F7A4C]', bg: 'bg-[#ECFDF5]', icon: CheckCircle2 },
+              }[issue.status] || { label: 'Unknown', color: 'text-[#958777]', bg: 'bg-[#F3F4F6]', icon: Clock }
+              const StatusIcon = statusConfig.icon
+
+              return (
+                <div key={issue.id} className="p-4 hover:bg-[#FAFAFA] transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${statusConfig.bg} ${statusConfig.color}`}>
+                        <StatusIcon className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-bold text-[#625346] truncate">{issue.title}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${statusConfig.bg} ${statusConfig.color}`}>
+                            {statusConfig.label}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${severityConfig.bg} ${severityConfig.color}`}>
+                            {severityConfig.label}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-[#958777]">
+                          <span className="flex items-center gap-1">
+                            <CategoryIcon className="w-3.5 h-3.5" />
+                            {categoryConfig.label}
+                          </span>
+                          {vehicle && (
+                            <span className="flex items-center gap-1">
+                              <Truck className="w-3.5 h-3.5" />
+                              {vehicle.registrationNumber}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            {formatDateTime(issue.reportedAt)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#958777] mt-1 line-clamp-2">{issue.description}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigate(`/driver/maintenance/${issue.id}`)}
+                      className="btn-secondary text-sm px-4 py-2 flex items-center gap-2 shrink-0"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                      <span className="hidden sm:inline">Details</span>
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-auto">
+            <div className="p-5 border-b border-[#E5E5E5] flex items-center justify-between">
+              <h2 className="font-bold text-[#625346] text-lg">Report Vehicle Issue</h2>
+              <button onClick={() => setShowForm(false)} className="p-2 rounded-lg hover:bg-[#F0EEE9] text-[#958777]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <div>
+                <label className="dm-label">Vehicle *</label>
+                <select
+                  value={form.vehicleId}
+                  onChange={(e) => setForm((f) => ({ ...f, vehicleId: e.target.value }))}
+                  className="dm-input"
+                  required
+                >
+                  {vehicles.filter((v) => v.assignedDriverId === user?.id).map((v) => (
+                    <option key={v.id} value={v.id}>{v.registrationNumber} {v.make} {v.model}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="dm-label">Category *</label>
+                <select
+                  value={form.category}
+                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as FiveAreaHealthCategory }))}
+                  className="dm-input"
+                  required
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="dm-label">Severity *</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {SEVERITIES.map((s) => (
+                    <button
+                      key={s.value}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, severity: s.value }))}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${
+                        form.severity === s.value
+                          ? `border-${s.color.replace('text-', '')} ${s.bg}`
+                          : 'border-[#E5E5E5] hover:border-[#D1D5DB]'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="dm-label">Title *</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  className="dm-input"
+                  placeholder="Brief issue title"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="dm-label">Description *</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  className="dm-input"
+                  rows={3}
+                  placeholder="Describe the issue in detail"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="dm-label">Notes</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  className="dm-input"
+                  rows={2}
+                  placeholder="Any additional notes"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  className="flex-1 btn-primary"
+                >
+                  {formLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Submit Issue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

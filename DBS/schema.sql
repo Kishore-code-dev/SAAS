@@ -1,5 +1,5 @@
 -- DriveMitra Full SQLite Database Schema Reference
--- Snapshot created: 2026-11-19T10:08:31.977Z
+-- Snapshot created: 2026-11-20T11:06:30.607Z
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE auth_sessions (
@@ -10,6 +10,104 @@ CREATE TABLE auth_sessions (
       revoked INTEGER NOT NULL DEFAULT 0,
       expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL
+    );
+
+CREATE TABLE contract_activity_logs (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      actor TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE contract_amendments (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      amendment_number TEXT NOT NULL,
+      title TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      previous_values_json TEXT NOT NULL,
+      revised_values_json TEXT NOT NULL,
+      effective_date TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_by TEXT NOT NULL,
+      approved_by TEXT,
+      created_at TEXT NOT NULL,
+      approved_at TEXT
+    );
+
+CREATE TABLE contract_deposits (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      deposit_type TEXT NOT NULL,
+      vehicle_ids_json TEXT NOT NULL,
+      required_paise INTEGER NOT NULL DEFAULT 0,
+      paid_paise INTEGER NOT NULL DEFAULT 0,
+      deductions_paise INTEGER NOT NULL DEFAULT 0,
+      refundable INTEGER NOT NULL DEFAULT 1,
+      payment_date TEXT,
+      payment_reference TEXT NOT NULL DEFAULT '',
+      payment_method TEXT NOT NULL DEFAULT '',
+      receiving_party TEXT NOT NULL DEFAULT '',
+      refund_conditions TEXT NOT NULL DEFAULT '',
+      expiry_date TEXT,
+      document_reference TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'defined',
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE contract_documents (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      reference TEXT NOT NULL DEFAULT '',
+      uploaded_by TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE contract_maintenance_allocations (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      vehicle_registration TEXT NOT NULL,
+      work_order_id TEXT,
+      category TEXT NOT NULL,
+      description TEXT NOT NULL,
+      total_paise INTEGER NOT NULL DEFAULT 0,
+      operating_org_paise INTEGER NOT NULL DEFAULT 0,
+      supplier_paise INTEGER NOT NULL DEFAULT 0,
+      responsibility TEXT NOT NULL DEFAULT 'unspecified',
+      approval_status TEXT NOT NULL DEFAULT 'pending',
+      approved_by TEXT,
+      settlement_status TEXT NOT NULL DEFAULT 'unsettled',
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE contract_payments (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      supplier_name TEXT NOT NULL,
+      vehicle_id TEXT,
+      billing_period TEXT NOT NULL,
+      due_date TEXT NOT NULL,
+      amount_paise INTEGER NOT NULL DEFAULT 0,
+      paid_paise INTEGER NOT NULL DEFAULT 0,
+      payment_method TEXT NOT NULL DEFAULT '',
+      payment_reference TEXT NOT NULL DEFAULT '',
+      receipt_reference TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      recorded_by TEXT NOT NULL,
+      approved_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
 
 CREATE TABLE document_files (
@@ -439,6 +537,24 @@ CREATE TABLE fleet_maintenance_records (
       linked_work_order_id TEXT
     );
 
+CREATE TABLE fleet_partners (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      registration_number TEXT NOT NULL DEFAULT '',
+      gstin TEXT NOT NULL DEFAULT '',
+      contact_person TEXT NOT NULL DEFAULT '',
+      mobile TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      registered_address TEXT NOT NULL DEFAULT '',
+      operating_location TEXT NOT NULL DEFAULT '',
+      bank_account_masked TEXT NOT NULL DEFAULT '',
+      bank_ifsc TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
 CREATE TABLE fleet_parts_inventory (
       id TEXT PRIMARY KEY,
       organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -745,6 +861,24 @@ CREATE TABLE fleet_workspace_settings (
       updated_at TEXT NOT NULL
     );
 
+CREATE TABLE individual_vehicle_owners (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      mobile TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      identity_verification_status TEXT NOT NULL DEFAULT 'pending',
+      identity_document_type TEXT NOT NULL DEFAULT '',
+      identity_document_masked TEXT NOT NULL DEFAULT '',
+      bank_account_masked TEXT NOT NULL DEFAULT '',
+      bank_ifsc TEXT NOT NULL DEFAULT '',
+      payment_preference TEXT NOT NULL DEFAULT 'bank_transfer',
+      status TEXT NOT NULL DEFAULT 'active',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
 CREATE TABLE org_fleet_blobs (
       organization_id TEXT PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
       payload_json TEXT NOT NULL,
@@ -821,6 +955,49 @@ CREATE TABLE users (
       last_login_at TEXT
     );
 
+CREATE TABLE vehicle_contract_vehicles (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      vehicle_registration TEXT NOT NULL,
+      ownership_type TEXT NOT NULL,
+      vehicle_category TEXT NOT NULL DEFAULT '',
+      condition TEXT NOT NULL DEFAULT '',
+      initial_odometer_km INTEGER NOT NULL DEFAULT 0,
+      handover_date TEXT NOT NULL,
+      agreed_rental_paise INTEGER NOT NULL DEFAULT 0,
+      maintenance_responsibility TEXT NOT NULL DEFAULT 'unspecified',
+      returned_at TEXT,
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE vehicle_contracts (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_number TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      supplier_type TEXT NOT NULL,
+      fleet_partner_id TEXT,
+      individual_owner_id TEXT,
+      supplier_name TEXT NOT NULL,
+      agreement_reference TEXT NOT NULL DEFAULT '',
+      agreement_date TEXT NOT NULL,
+      start_date TEXT NOT NULL,
+      expiry_date TEXT NOT NULL,
+      duration_months INTEGER NOT NULL DEFAULT 12,
+      currency TEXT NOT NULL DEFAULT 'INR',
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      current_version INTEGER NOT NULL DEFAULT 1,
+      financial_terms_json TEXT NOT NULL,
+      conditions_json TEXT NOT NULL,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
 CREATE TABLE vehicle_finance_records (
       id TEXT PRIMARY KEY,
       organization_id TEXT NOT NULL,
@@ -863,6 +1040,63 @@ CREATE TABLE vehicle_finance_records (
       created_by TEXT NOT NULL
     );
 
+CREATE TABLE vehicle_handovers (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      contract_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      vehicle_registration TEXT NOT NULL,
+      handover_type TEXT NOT NULL,
+      handover_at TEXT NOT NULL,
+      odometer_km INTEGER NOT NULL DEFAULT 0,
+      fuel_level_pct INTEGER NOT NULL DEFAULT 0,
+      exterior_condition TEXT NOT NULL DEFAULT '',
+      interior_condition TEXT NOT NULL DEFAULT '',
+      tyre_condition TEXT NOT NULL DEFAULT '',
+      existing_damages TEXT NOT NULL DEFAULT '',
+      accessories TEXT NOT NULL DEFAULT '',
+      photo_references_json TEXT NOT NULL,
+      document_checklist_json TEXT NOT NULL,
+      supplier_representative TEXT NOT NULL DEFAULT '',
+      receiving_representative TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+CREATE TABLE vehicle_ownership (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      vehicle_registration TEXT NOT NULL,
+      ownership_type TEXT NOT NULL DEFAULT 'company_owned',
+      legal_owner_name TEXT NOT NULL DEFAULT '',
+      fleet_partner_id TEXT,
+      individual_owner_id TEXT,
+      contract_id TEXT,
+      effective_from TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+CREATE INDEX idx_contract_activity_contract
+      ON contract_activity_logs(contract_id, created_at);
+
+CREATE INDEX idx_contract_amendments_contract
+      ON contract_amendments(contract_id, status);
+
+CREATE INDEX idx_contract_deposits_contract ON contract_deposits(contract_id);
+
+CREATE INDEX idx_contract_maintenance_contract
+      ON contract_maintenance_allocations(contract_id, settlement_status);
+
+CREATE INDEX idx_contract_payments_contract ON contract_payments(contract_id, status);
+
+CREATE INDEX idx_contract_vehicles_contract
+      ON vehicle_contract_vehicles(contract_id);
+
+CREATE UNIQUE INDEX idx_contract_vehicles_org_vehicle
+      ON vehicle_contract_vehicles(organization_id, vehicle_id, contract_id);
+
 CREATE INDEX idx_fleet_alerts_org ON fleet_alerts(organization_id);
 
 CREATE INDEX idx_fleet_api_keys_org ON fleet_api_keys(organization_id);
@@ -894,6 +1128,9 @@ CREATE INDEX idx_fleet_inventory_tx_org ON fleet_inventory_transactions(organiza
 CREATE INDEX idx_fleet_invoices_org ON fleet_invoices(organization_id);
 
 CREATE INDEX idx_fleet_maintenance_org ON fleet_maintenance_records(organization_id);
+
+CREATE UNIQUE INDEX idx_fleet_partners_org_gstin
+      ON fleet_partners(organization_id, gstin) WHERE gstin <> '';
 
 CREATE INDEX idx_fleet_parts_org ON fleet_parts_inventory(organization_id);
 
@@ -937,4 +1174,18 @@ CREATE INDEX idx_fleet_work_orders_org ON fleet_work_orders(organization_id);
 
 CREATE INDEX idx_fleet_workshops_org ON fleet_workshops(organization_id);
 
+CREATE UNIQUE INDEX idx_individual_owners_org_mobile
+      ON individual_vehicle_owners(organization_id, mobile) WHERE mobile <> '';
+
 CREATE INDEX idx_org_members_org ON org_members(organization_id);
+
+CREATE UNIQUE INDEX idx_vehicle_contracts_org_number
+      ON vehicle_contracts(organization_id, contract_number);
+
+CREATE INDEX idx_vehicle_contracts_org_status
+      ON vehicle_contracts(organization_id, status, expiry_date);
+
+CREATE INDEX idx_vehicle_handovers_contract ON vehicle_handovers(contract_id, vehicle_id);
+
+CREATE UNIQUE INDEX idx_vehicle_ownership_org_vehicle
+      ON vehicle_ownership(organization_id, vehicle_id);

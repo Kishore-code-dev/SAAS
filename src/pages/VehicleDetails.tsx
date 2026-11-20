@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useVehicleOwnership } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import { useOptionalFinance } from '../hooks/useFinance'
 import { FinanceStatusBadge } from '../components/finance/FinancePrimitives'
 import { loanTypeLabel } from '../utils/financeHelpers'
@@ -124,6 +126,7 @@ export default function VehicleDetails() {
   const [editOpen, setEditOpen] = useState(false)
   const financeCtx = useOptionalFinance()
   const financeRecords = financeCtx?.records ?? []
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const vehicle = vehicles.find((v) => v.id === resolvedId) ?? archivedVehicles.find((v) => v.id === resolvedId)
 
@@ -394,6 +397,7 @@ export default function VehicleDetails() {
               </span>
             )}
             {vehicle.decommissioned && <SeverityText severity="moderate" label="Archived" />}
+            <OwnershipBadge type={ownershipByVehicle.get(vehicle.id)?.ownershipType} />
           </div>
           <p className="text-sm text-[#958777] mt-1">
             {vehicle.make} {vehicle.model} ({vehicle.year}) · {vehicle.category} · {vehicle.powertrain} ({vehicle.fuelType}) · {vehicle.cityName}
@@ -517,6 +521,38 @@ export default function VehicleDetails() {
                 <div className="flex justify-between"><dt className="text-[#958777]">Composite Health</dt><dd className="tabular-nums font-bold">{vehicle.healthScore}%</dd></div>
                 <div className="flex justify-between"><dt className="text-[#958777]">Telemetry GPS</dt><dd className="tabular-nums">±{vehicle.telemetry.gpsAccuracyMeters}m · {vehicle.telemetry.signalQualityPct}% sig</dd></div>
               </dl>
+            </div>
+          </div>
+
+          <div className="enterprise-card p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-[10px] bg-[#FCF5DE] border border-[#EBD9A2] flex items-center justify-center text-[#8E6F19] shrink-0">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="dm-card-title text-sm">Ownership & Contract</h2>
+                    <OwnershipBadge type={ownershipByVehicle.get(vehicle.id)?.ownershipType} />
+                  </div>
+                  <p className="text-xs text-[#958777] mt-1">
+                    Legal owner: <strong className="text-[#625346]">{ownershipByVehicle.get(vehicle.id)?.legalOwnerName || activeOrganization.name}</strong>
+                    {ownershipByVehicle.get(vehicle.id)?.effectiveFrom ? ` · effective ${formatShortDate(ownershipByVehicle.get(vehicle.id)!.effectiveFrom)}` : ''}
+                  </p>
+                  <p className="text-[11px] text-[#958777] mt-0.5">
+                    {ownershipByVehicle.get(vehicle.id)?.notes || 'Ownership classification is recorded separately from operational control.'}
+                  </p>
+                </div>
+              </div>
+              {ownershipByVehicle.get(vehicle.id)?.contractId && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/dashboard/contracts/${ownershipByVehicle.get(vehicle.id)!.contractId}`)}
+                  className="btn-secondary text-xs"
+                >
+                  View Contract
+                </button>
+              )}
             </div>
           </div>
 

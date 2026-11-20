@@ -5,11 +5,14 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
+import { useVehicleOwnership } from '../../hooks/useContracts'
+import { OwnershipBadge } from '../contracts/ContractUi'
 import type { FleetWarrantyItem, CustomRecordEntry } from '../../types/fleet'
 import { canPerformAction } from '../../utils/rbac'
 
 export function DocumentsView() {
   const { activeOrganization, activeRole, vehicles, drivers, documentVault, verifyVaultDocument } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const [filter, setFilter] = useState<'all' | 'vehicle' | 'driver'>('all')
   const canVerify = canPerformAction(activeRole, 'verify_documents')
 
@@ -44,6 +47,7 @@ export function DocumentsView() {
               <tr>
                 <th>Document</th>
                 <th>Entity</th>
+                <th>Ownership</th>
                 <th>Category</th>
                 <th>Expiry Date</th>
                 <th>Verification</th>
@@ -56,6 +60,9 @@ export function DocumentsView() {
                   doc.entityType === 'vehicle'
                     ? vehicles.find((v) => v.id === doc.entityId)?.registrationNumber ?? doc.entityId
                     : drivers.find((d) => d.id === doc.entityId)?.name ?? doc.entityId
+                const vehicle = doc.entityType === 'vehicle'
+                  ? vehicles.find((v) => v.id === doc.entityId)
+                  : null
                 return (
                   <tr key={doc.id}>
                     <td>
@@ -66,6 +73,11 @@ export function DocumentsView() {
                       <span className="text-xs text-[#958777]">{doc.fileName}</span>
                     </td>
                     <td className="font-semibold">{entityName}</td>
+                    <td>
+                      {vehicle && ownershipByVehicle.get(vehicle.id) && (
+                        <OwnershipBadge type={ownershipByVehicle.get(vehicle.id)?.ownershipType} />
+                      )}
+                    </td>
                     <td>{doc.category}</td>
                     <td className="tabular-nums">{doc.expiryDate ? formatShortDate(doc.expiryDate) : '—'}</td>
                     <td>

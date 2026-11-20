@@ -130,6 +130,27 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'manage_finance_settings',
     'view_finance_reports',
   ]),
+  fleet_staff: new Set<FleetAction>([
+    'add_vehicle',
+    'edit_vehicle',
+    'assign_driver',
+    'add_driver',
+    'manage_driver_status',
+    'verify_documents',
+    'schedule_trip',
+    'log_fuel',
+    'verify_fuel',
+    'schedule_maintenance',
+    'complete_maintenance',
+    'manage_work_orders',
+    'manage_inventory',
+    'report_issue',
+    'acknowledge_alert',
+    'update_telemetry',
+    'view_finance',
+    'add_finance_records',
+    'record_finance_payments',
+  ]),
   fleet_manager: new Set<FleetAction>([
     'add_vehicle',
     'edit_vehicle',
@@ -200,6 +221,74 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'view_finance',
     'view_finance_reports',
   ]),
+  driver: new Set<FleetAction>([
+    'end_trip',
+    'log_fuel',
+    'report_issue',
+    'acknowledge_alert',
+  ]),
+}
+
+export type ContractAction =
+  | 'view_contracts'
+  | 'create_contracts'
+  | 'edit_contracts'
+  | 'submit_contracts'
+  | 'approve_contracts'
+  | 'terminate_contracts'
+  | 'renew_contracts'
+  | 'create_amendments'
+  | 'approve_amendments'
+  | 'manage_suppliers'
+  | 'manage_individual_owners'
+  | 'manage_contract_vehicles'
+  | 'manage_contract_payments'
+  | 'approve_contract_payments'
+  | 'manage_security_deposits'
+  | 'approve_deposit_refunds'
+  | 'manage_contract_maintenance'
+  | 'approve_contract_maintenance'
+  | 'manage_contract_documents'
+  | 'view_contract_financial_reports'
+  | 'record_handovers'
+
+const ALL_CONTRACT_ACTIONS: ContractAction[] = [
+  'view_contracts', 'create_contracts', 'edit_contracts', 'submit_contracts', 'approve_contracts',
+  'terminate_contracts', 'renew_contracts', 'create_amendments', 'approve_amendments',
+  'manage_suppliers', 'manage_individual_owners', 'manage_contract_vehicles',
+  'manage_contract_payments', 'approve_contract_payments', 'manage_security_deposits',
+  'approve_deposit_refunds', 'manage_contract_maintenance', 'approve_contract_maintenance',
+  'manage_contract_documents', 'view_contract_financial_reports', 'record_handovers',
+]
+
+const CONTRACT_ROLE_ACTIONS: Record<OrganizationRole, Set<ContractAction>> = {
+  platform_admin: new Set<ContractAction>(['view_contracts', 'view_contract_financial_reports']),
+  org_admin: new Set<ContractAction>(ALL_CONTRACT_ACTIONS),
+  fleet_staff: new Set<ContractAction>([
+    'view_contracts', 'create_contracts', 'edit_contracts', 'submit_contracts', 'renew_contracts',
+    'create_amendments', 'manage_suppliers', 'manage_individual_owners', 'manage_contract_vehicles',
+    'manage_contract_payments', 'manage_contract_documents', 'manage_contract_maintenance',
+    'view_contract_financial_reports', 'record_handovers',
+  ]),
+  fleet_manager: new Set<ContractAction>([
+    'view_contracts', 'create_contracts', 'edit_contracts', 'submit_contracts', 'renew_contracts',
+    'create_amendments', 'manage_suppliers', 'manage_individual_owners', 'manage_contract_vehicles',
+    'manage_contract_payments', 'manage_contract_documents', 'manage_contract_maintenance',
+    'view_contract_financial_reports', 'record_handovers',
+  ]),
+  maintenance: new Set<ContractAction>([
+    'view_contracts', 'manage_contract_maintenance', 'manage_contract_documents', 'record_handovers',
+  ]),
+  finance: new Set<ContractAction>([
+    'view_contracts', 'manage_contract_payments', 'approve_contract_payments',
+    'manage_security_deposits', 'approve_deposit_refunds', 'view_contract_financial_reports',
+  ]),
+  viewer: new Set<ContractAction>(['view_contracts', 'view_contract_financial_reports']),
+  driver: new Set<ContractAction>(['view_contracts']),
+}
+
+export function canPerformContractAction(role: OrganizationRole, action: ContractAction): boolean {
+  return CONTRACT_ROLE_ACTIONS[role]?.has(action) ?? false
 }
 
 export function canPerformAction(role: OrganizationRole, action: FleetAction): boolean {
@@ -216,6 +305,7 @@ export function getDefaultHomeForRole(role: OrganizationRole): string {
   if (role === 'platform_admin') return '/platform-admin'
   if (role === 'maintenance') return '/dashboard/maintenance'
   if (role === 'finance') return '/dashboard/financials'
+  if (role === 'driver') return '/driver'
   return '/dashboard'
 }
 
@@ -226,9 +316,9 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     return role === 'platform_admin'
   }
 
-  // Driver mobile companion app is permanently removed from the owner-only platform
+  // Driver mobile routes
   if (clean.startsWith('/driver')) {
-    return false
+    return role === 'driver'
   }
 
   if (!clean.startsWith('/dashboard')) {
@@ -267,6 +357,17 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     )
   }
 
+  if (clean === '/dashboard/contracts' || clean.startsWith('/dashboard/contracts/')) {
+    return (
+      role === 'platform_admin' ||
+      role === 'org_admin' ||
+      role === 'fleet_manager' ||
+      role === 'maintenance' ||
+      role === 'finance' ||
+      role === 'viewer'
+    )
+  }
+
   if (
     clean === '/dashboard/maintenance' ||
     clean === '/dashboard/work-orders' ||
@@ -282,6 +383,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
       role === 'platform_admin' ||
       role === 'org_admin' ||
       role === 'fleet_manager' ||
+      role === 'fleet_staff' ||
       role === 'maintenance' ||
       role === 'viewer'
     )
@@ -292,6 +394,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
       role === 'platform_admin' ||
       role === 'org_admin' ||
       role === 'fleet_manager' ||
+      role === 'fleet_staff' ||
       role === 'finance' ||
       role === 'viewer'
     )
@@ -311,7 +414,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
   }
 
   if (clean === '/dashboard/integrations') {
-    return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager' || role === 'viewer'
+    return role === 'platform_admin'
   }
 
   if (
@@ -327,6 +430,7 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
       role === 'platform_admin' ||
       role === 'org_admin' ||
       role === 'fleet_manager' ||
+      role === 'fleet_staff' ||
       role === 'maintenance' ||
       role === 'viewer'
     )

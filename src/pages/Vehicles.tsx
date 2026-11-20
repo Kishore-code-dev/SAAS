@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { ArchiveRestore, ArrowRight, Layers, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
+import { useVehicleOwnership } from '../hooks/useContracts'
+import { OwnershipBadge } from './contracts/ContractUi'
 import { classifyTelemetryFreshness } from '../utils/intelligenceEngine'
 import { canPerformAction } from '../utils/rbac'
 import { EmptySectionState, SeverityText } from '../components/ui/EnterprisePrimitives'
-import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 import PageHeader from '../components/layout/PageHeader'
+import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 
 const PAGE_SIZE = 10
 
@@ -30,8 +32,10 @@ export default function Vehicles() {
   const [powertrainFilter, setPowertrainFilter] = useState<'all' | 'ICE' | 'EV'>('all')
   const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'at-risk' | 'critical'>('all')
   const [sortBy, setSortBy] = useState<'health_asc' | 'odometer_desc' | 'reg_asc'>('health_asc')
+  const [ownershipFilter, setOwnershipFilter] = useState<'all' | 'company_owned' | 'contracted_fleet' | 'individual_owner'>('all')
   const [page, setPage] = useState(1)
-  const [addOpen, setAddOpen] = useState(false)
+  const [showAddVehicle, setShowAddVehicle] = useState(false)
+  const { ownershipByVehicle } = useVehicleOwnership()
 
   const canAdd = canPerformAction(activeRole, 'add_vehicle')
   const canRestore = canPerformAction(activeRole, 'restore_vehicle')
@@ -44,6 +48,8 @@ export default function Vehicles() {
       const hState = v.healthScore <= 49 ? 'critical' : v.healthScore <= 74 ? 'at-risk' : 'healthy'
       const matchesHealth = healthFilter === 'all' || hState === healthFilter
       const matchesPowertrain = powertrainFilter === 'all' || v.powertrain === powertrainFilter
+      const ownershipType = ownershipByVehicle.get(v.id)?.ownershipType ?? 'company_owned'
+      const matchesOwnership = ownershipFilter === 'all' || ownershipType === ownershipFilter
       const driver = drivers.find((d) => d.id === v.assignedDriverId)
       const matchesQ =
         !q ||
@@ -52,7 +58,7 @@ export default function Vehicles() {
         v.model.toLowerCase().includes(q) ||
         v.cityName.toLowerCase().includes(q) ||
         (driver?.name.toLowerCase().includes(q) ?? false)
-      return matchesHealth && matchesPowertrain && matchesQ
+      return matchesHealth && matchesPowertrain && matchesOwnership && matchesQ
     })
 
     return matched.sort((a, b) => {
@@ -60,7 +66,7 @@ export default function Vehicles() {
       if (sortBy === 'reg_asc') return a.registrationNumber.localeCompare(b.registrationNumber)
       return a.healthScore - b.healthScore
     })
-  }, [baseList, drivers, healthFilter, powertrainFilter, searchTerm, sortBy])
+  }, [baseList, drivers, healthFilter, powertrainFilter, ownershipFilter, ownershipByVehicle, searchTerm, sortBy])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -79,7 +85,7 @@ export default function Vehicles() {
     <div className="space-y-6">
       <PageHeader title="Fleet & Vehicle Digital Twins" subtitle={<>{activeOrganization.name} · {vehicles.length} active, {archivedVehicles.length} archived (Plan limit {activeOrganization.vehicleLimit})</>}>
         {canAdd && (
-          <button type="button" onClick={() => setAddOpen(true)} className="btn-accent">
+          <button type="button" onClick={() => setShowAddVehicle(true)} className="btn-accent">
             <Plus className="w-4 h-4" />
             Register Vehicle
           </button>
@@ -145,6 +151,21 @@ export default function Vehicles() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <label htmlFor="fleet-ownership" className="sr-only">Filter by ownership</label>
+          <select
+            id="fleet-ownership"
+            value={ownershipFilter}
+            onChange={(e) => {
+              setOwnershipFilter(e.target.value as typeof ownershipFilter)
+              setPage(1)
+            }}
+            className="dm-input py-1.5 text-xs w-40"
+          >
+            <option value="all">All Ownership</option>
+            <option value="company_owned">Company Owned</option>
+            <option value="contracted_fleet">Contracted Fleet</option>
+            <option value="individual_owner">Individual Owner</option>
+          </select>
           <label htmlFor="fleet-sort" className="sr-only">Sort fleet</label>
           <select
             id="fleet-sort"
@@ -183,7 +204,7 @@ export default function Vehicles() {
               : 'Adjust your filters or register a new commercial vehicle in this organization.'
           }
           actionLabel={lifecycleTab === 'active' && canAdd ? 'Register Vehicle' : undefined}
-          onAction={lifecycleTab === 'active' && canAdd ? () => setAddOpen(true) : undefined}
+          onAction={lifecycleTab === 'active' && canAdd ? () => setShowAddVehicle(true) : undefined}
         />
       ) : (
         <div className="enterprise-card overflow-hidden">
@@ -225,6 +246,7 @@ export default function Vehicles() {
                             <span className="text-xs text-[#958777]">
                               {v.make} {v.model} ({v.year}) · {v.cityName}
                             </span>
+                            <span className="block mt-1"><OwnershipBadge type={ownershipByVehicle.get(v.id)?.ownershipType} /></span>
                           </div>
                         </div>
                       </td>
@@ -306,8 +328,7 @@ export default function Vehicles() {
           )}
         </div>
       )}
-
-      <AddVehicleDialog open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddVehicleDialog open={showAddVehicle} onClose={() => setShowAddVehicle(false)} />
     </div>
   )
 }

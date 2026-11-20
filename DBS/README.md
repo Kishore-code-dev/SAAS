@@ -1,65 +1,81 @@
 # DriveMitra Database Reference Copy (`DBS/`)
 
-- **Snapshot Timestamp**: 2026-11-19T10:08:31.997Z
+- **Snapshot Timestamp**: 2026-11-20T11:06:30.607Z
 - **Integrity Check**: ok
-- **Total Tables**: 52
+- **Total Tables**: 64
+- **Total Rows**: 3539
+
+## Auto-Sync Behavior
+This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` on server startup/migrations and after mutating API operations.
 
 ## Contents
 - `drivemitra.db` — Self-contained SQLite binary database copy (created via `VACUUM INTO`).
-- `schema.sql` — Complete `CREATE TABLE` and `CREATE INDEX` DDL statements for all 52 tables.
+- `schema.sql` — Complete `CREATE TABLE` and `CREATE INDEX` DDL statements for all tables.
 - `full_data_export.json` — Full JSON export of every table and live row.
-- `DriveMitra_Full_Database_Architecture.pdf` — 33-page formatted schema, ER hierarchy, TypeScript interfaces, and API reference.
+- `DriveMitra_Full_Database_Architecture.pdf` — Multi-page formatted schema, ER hierarchy, TypeScript interfaces, and API reference.
 
 ## Table Row Counts
-- `auth_sessions`: 28 rows
+- `auth_sessions`: 22 rows
+- `contract_activity_logs`: 22 rows
+- `contract_amendments`: 1 rows
+- `contract_deposits`: 2 rows
+- `contract_documents`: 2 rows
+- `contract_maintenance_allocations`: 1 rows
+- `contract_payments`: 4 rows
 - `document_files`: 0 rows
 - `finance_alerts`: 19 rows
 - `finance_documents`: 31 rows
 - `finance_emi_instalments`: 264 rows
 - `finance_institutions`: 9 rows
-- `finance_notification_settings`: 3 rows
+- `finance_notification_settings`: 7 rows
 - `finance_payments`: 82 rows
 - `finance_update_history`: 20 rows
 - `fleet_alerts`: 6 rows
-- `fleet_api_keys`: 3 rows
-- `fleet_audit_logs`: 4 rows
-- `fleet_custom_dashboards`: 6 rows
-- `fleet_custom_records`: 9 rows
+- `fleet_api_keys`: 7 rows
+- `fleet_audit_logs`: 3 rows
+- `fleet_custom_dashboards`: 14 rows
+- `fleet_custom_records`: 21 rows
 - `fleet_document_vault`: 4 rows
-- `fleet_driver_assignments`: 7 rows
+- `fleet_driver_assignments`: 106 rows
 - `fleet_driver_events`: 6 rows
-- `fleet_drivers`: 10 rows
+- `fleet_drivers`: 205 rows
 - `fleet_fuel_transactions`: 8 rows
-- `fleet_inspection_forms`: 9 rows
-- `fleet_inspection_schedules`: 9 rows
+- `fleet_inspection_forms`: 21 rows
+- `fleet_inspection_schedules`: 21 rows
 - `fleet_inspections`: 4 rows
 - `fleet_inventory_transactions`: 3 rows
 - `fleet_invoices`: 4 rows
 - `fleet_maintenance_records`: 4 rows
+- `fleet_partners`: 2 rows
 - `fleet_parts_inventory`: 5 rows
 - `fleet_payments`: 3 rows
 - `fleet_purchase_orders`: 2 rows
-- `fleet_recalls`: 6 rows
+- `fleet_recalls`: 14 rows
 - `fleet_reports`: 2 rows
-- `fleet_service_programs`: 6 rows
+- `fleet_service_programs`: 14 rows
 - `fleet_service_schedules`: 4 rows
-- `fleet_service_tasks`: 15 rows
+- `fleet_service_tasks`: 35 rows
 - `fleet_small_issues`: 4 rows
 - `fleet_suppliers`: 3 rows
-- `fleet_tools`: 12 rows
+- `fleet_tools`: 28 rows
 - `fleet_trips`: 6 rows
 - `fleet_tyre_positions`: 12 rows
-- `fleet_vehicle_components`: 81 rows
-- `fleet_vehicles`: 11 rows
-- `fleet_warranties`: 8 rows
-- `fleet_webhooks`: 3 rows
+- `fleet_vehicle_components`: 2003 rows
+- `fleet_vehicles`: 276 rows
+- `fleet_warranties`: 33 rows
+- `fleet_webhooks`: 7 rows
 - `fleet_work_orders`: 3 rows
 - `fleet_workshops`: 3 rows
-- `fleet_workspace_settings`: 3 rows
-- `org_fleet_blobs`: 3 rows
-- `org_members`: 6 rows
-- `organizations`: 3 rows
+- `fleet_workspace_settings`: 7 rows
+- `individual_vehicle_owners`: 1 rows
+- `org_fleet_blobs`: 8 rows
+- `org_members`: 5 rows
+- `organizations`: 8 rows
 - `password_reset_tokens`: 0 rows
 - `platform_admin_audit_logs`: 1 rows
-- `users`: 7 rows
+- `users`: 18 rows
+- `vehicle_contract_vehicles`: 4 rows
+- `vehicle_contracts`: 3 rows
 - `vehicle_finance_records`: 13 rows
+- `vehicle_handovers`: 1 rows
+- `vehicle_ownership`: 88 rows

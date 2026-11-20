@@ -5,12 +5,15 @@ import PageHeader from '../../components/layout/PageHeader'
 import { EmptySectionState, EnterpriseModal, formatDateTime, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFinance } from '../../hooks/useFinance'
 import { useFleet } from '../../hooks/useFleet'
+import { useVehicleOwnership } from '../../hooks/useContracts'
+import { OwnershipBadge } from '../../pages/contracts/ContractUi'
 import { canPerformAction } from '../../utils/rbac'
 import type { FinanceDocCategory, FinanceDocumentItem } from '../../types/finance'
 import { DOC_CATEGORIES, docCategoryLabel, readFileAsBase64 } from '../../utils/financeHelpers'
 
 export default function FinanceDocumentsPage() {
   const { activeRole, activeOrganization } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const { records, documents, uploadFinanceDocument, verifyFinanceDocument } = useFinance()
 
   const [query, setQuery] = useState('')
@@ -212,7 +215,10 @@ export default function FinanceDocumentsPage() {
                         <p className="text-[11px] text-[#958777] truncate">{d.fileName}</p>
                       </td>
                       <td className="text-xs whitespace-nowrap">
-                        <span className="font-semibold text-[#625346]">{rec?.vehicleRegistration ?? d.vehicleId}</span>
+                        <span className="font-semibold text-[#625346] block">{rec?.vehicleRegistration ?? d.vehicleId}</span>
+                        {rec && ownershipByVehicle.get(rec.vehicleId) && (
+                          <OwnershipBadge type={ownershipByVehicle.get(rec.vehicleId)?.ownershipType} />
+                        )}
                         <span className="block text-[11px] font-mono text-[#958777]">{rec?.loanReferenceNumber ?? '—'}</span>
                       </td>
                       <td className="text-xs">{docCategoryLabel(d.category)}</td>

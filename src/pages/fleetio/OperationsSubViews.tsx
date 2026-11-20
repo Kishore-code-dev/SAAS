@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
 import { useFleet } from '../../hooks/useFleet'
+import { useVehicleOwnership } from '../../hooks/useContracts'
+import { OwnershipBadge } from '../contracts/ContractUi'
 import { classifyComplianceExpiryTier } from '../../utils/intelligenceEngine'
 import { canPerformAction } from '../../utils/rbac'
 import type { FiveAreaHealthCategory, FleetRecallItem, FleetToolItem, RiskSeverity } from '../../types/fleet'
@@ -464,6 +466,7 @@ export function IssuesHubView({ mode }: { mode: 'issues' | 'recalls' }) {
 
 export function RemindersHubView({ mode }: { mode: 'service' | 'vehicle_renewals' | 'contact_renewals' }) {
   const { activeOrganization, activeRole, vehicles, drivers, serviceSchedules, completeServiceSchedule, nowTick } = useFleet()
+  const { ownershipByVehicle } = useVehicleOwnership()
   const canSchedule = canPerformAction(activeRole, 'schedule_maintenance')
 
   if (mode === 'service') {
@@ -480,6 +483,7 @@ export function RemindersHubView({ mode }: { mode: 'service' | 'vehicle_renewals
                 <tr>
                   <th>Reminder</th>
                   <th>Vehicle</th>
+                  <th>Ownership</th>
                   <th>Due Date</th>
                   <th>Due Odometer</th>
                   <th>Status</th>
@@ -496,6 +500,11 @@ export function RemindersHubView({ mode }: { mode: 'service' | 'vehicle_renewals
                         {s.title}
                       </td>
                       <td>{v?.registrationNumber ?? s.vehicleId}</td>
+                      <td>
+                        {ownershipByVehicle.get(s.vehicleId) && (
+                          <OwnershipBadge type={ownershipByVehicle.get(s.vehicleId)?.ownershipType} />
+                        )}
+                      </td>
                       <td className="tabular-nums">{formatShortDate(s.dueDate)}</td>
                       <td className="tabular-nums">{s.dueOdometerKm.toLocaleString('en-IN')} km</td>
                       <td>
@@ -549,6 +558,7 @@ export function RemindersHubView({ mode }: { mode: 'service' | 'vehicle_renewals
               <thead>
                 <tr>
                   <th>Vehicle</th>
+                  <th>Ownership</th>
                   <th>Renewal Type</th>
                   <th>Issuing Authority</th>
                   <th>Expiry Date</th>
@@ -558,9 +568,15 @@ export function RemindersHubView({ mode }: { mode: 'service' | 'vehicle_renewals
               <tbody>
                 {renewalRows.map((row) => {
                   const tier = classifyComplianceExpiryTier(row.expiry, nowTick)
+                  const vehicle = vehicles.find((v) => v.registrationNumber === row.reg)
                   return (
                     <tr key={row.id}>
                       <td className="font-semibold">{row.reg}</td>
+                      <td>
+                        {vehicle && ownershipByVehicle.get(vehicle.id) && (
+                          <OwnershipBadge type={ownershipByVehicle.get(vehicle.id)?.ownershipType} />
+                        )}
+                      </td>
                       <td>{row.type}</td>
                       <td>{row.provider}</td>
                       <td className="tabular-nums">{formatShortDate(row.expiry)}</td>
