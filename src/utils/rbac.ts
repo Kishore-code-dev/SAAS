@@ -248,6 +248,44 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager'
   }
 
+  if (clean === '/dashboard/get-started' || clean === '/dashboard/support') {
+    return role !== 'platform_admin'
+  }
+
+  if (clean === '/dashboard/contracts' || clean.startsWith('/dashboard/contracts/')) {
+    if (clean === '/dashboard/contracts/register/new') {
+      return role === 'org_admin' || role === 'fleet_manager'
+    }
+    if (clean === '/dashboard/contracts/partners/new' || /^\/dashboard\/contracts\/partners\/[^/]+\/edit$/.test(clean)) {
+      return role === 'org_admin' || role === 'fleet_manager'
+    }
+    if (clean === '/dashboard/contracts/owners/new' || /^\/dashboard\/contracts\/owners\/[^/]+\/edit$/.test(clean)) {
+      return role === 'org_admin' || role === 'fleet_manager'
+    }
+    if (clean === '/dashboard/contracts/payments/new') {
+      return role === 'org_admin' || role === 'finance'
+    }
+    if (clean === '/dashboard/contracts/deposits/new') {
+      return role === 'org_admin' || role === 'finance'
+    }
+    if (clean === '/dashboard/contracts/maintenance/new') {
+      return role === 'org_admin' || role === 'fleet_manager' || role === 'maintenance'
+    }
+    if (clean === '/dashboard/contracts/vehicles/handover/new' || /^\/dashboard\/contracts\/vehicles\/return\/[^/]+$/.test(clean)) {
+      return role === 'org_admin' || role === 'fleet_manager' || role === 'maintenance'
+    }
+    if (clean === '/dashboard/contracts/documents/upload') {
+      return role === 'org_admin' || role === 'fleet_manager' || role === 'finance' || role === 'maintenance'
+    }
+    return (
+      role === 'org_admin' ||
+      role === 'fleet_manager' ||
+      role === 'finance' ||
+      role === 'maintenance' ||
+      role === 'viewer'
+    )
+  }
+
   // Specific Finance write routes must check fine-grained action permissions BEFORE '/dashboard/finance/'
   if (clean === '/dashboard/finance/vehicles/new') {
     return canPerformAction(role, 'add_finance_records')

@@ -108,6 +108,11 @@ export interface AddVehiclePayload {
   pucExpiry?: string
   permitExpiry?: string
   specs?: Vehicle['specs']
+  ownershipCategory?: Vehicle['ownershipCategory']
+  legalOwnerName?: string
+  fleetPartnerId?: string | null
+  individualOwnerId?: string | null
+  activeContractId?: string | null
 }
 
 export interface FleetContextValue {
@@ -126,6 +131,7 @@ export interface FleetContextValue {
   refreshStatus: RefreshStatus
   lastRefreshedAt: string
   refreshIntelligence: () => Promise<void>
+  refreshFleet: () => Promise<void>
   corridors: RegionalCorridor[]
   members: OrganizationMember[]
   isTrialWorkspace: boolean
@@ -974,6 +980,11 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       },
       components: baseComponents,
       decommissioned: false,
+      ownershipCategory: payload.ownershipCategory ?? 'company_owned',
+      legalOwnerName: payload.legalOwnerName ?? activeOrganization.name,
+      fleetPartnerId: payload.fleetPartnerId ?? null,
+      individualOwnerId: payload.individualOwnerId ?? null,
+      activeContractId: payload.activeContractId ?? null,
     }
 
     const nowIso = new Date().toISOString()
@@ -1339,7 +1350,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
       (t) => t.vehicleId === vehicleId && (t.status === 'active' || t.status === 'delayed'),
     )
     if (existingActiveDriverTrip || existingActiveVehicleTrip) {
-      throw new Error('An active or delayed trip is already open for this driver or vehicle.')
+      throw new Error('An active or delayed trip is already running for this driver or vehicle.')
     }
 
     const trip: Trip = {
@@ -2719,6 +2730,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     refreshStatus,
     lastRefreshedAt,
     refreshIntelligence,
+    refreshFleet: refreshIntelligence,
     corridors: REGIONAL_CORRIDORS,
     members,
     isTrialWorkspace,

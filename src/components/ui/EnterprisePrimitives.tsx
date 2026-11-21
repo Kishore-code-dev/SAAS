@@ -5,6 +5,35 @@ export function formatInr(value: number): string {
   return `₹${Math.round(value).toLocaleString('en-IN')}`
 }
 
+export function MetricTile({
+  title,
+  value,
+  subtitle,
+  icon: Icon,
+  color = '#6E5696',
+}: {
+  title: string
+  value: string | number
+  subtitle?: string
+  icon?: React.ComponentType<{ className?: string }>
+  color?: string
+}) {
+  return (
+    <div className="enterprise-card p-4 flex items-center justify-between gap-3">
+      <div>
+        <p className="text-xs font-semibold text-[#958777]">{title}</p>
+        <p className="text-xl font-bold text-[#625346] tabular-nums mt-1">{value}</p>
+        {subtitle && <p className="text-[11px] text-[#958777] mt-0.5">{subtitle}</p>}
+      </div>
+      {Icon && (
+        <div className="w-10 h-10 rounded-xl bg-[#EEE8F7] flex items-center justify-center shrink-0" style={{ color }}>
+          <Icon className="w-5 h-5" />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function formatDateTime(iso: string, timeZone = 'Asia/Kolkata'): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'

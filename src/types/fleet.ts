@@ -226,6 +226,11 @@ export interface TyrePositionRecord {
   lastInspectedAt: string
 }
 
+export type VehicleOwnershipCategory =
+  | 'company_owned'
+  | 'contracted_fleet'
+  | 'individual_owner'
+
 export interface Vehicle {
   id: string
   organizationId: string
@@ -255,6 +260,11 @@ export interface Vehicle {
   nextServiceDueDate: string
   nextServiceDueOdometerKm?: number
   monthlyRevenueInr: number
+  ownershipCategory?: VehicleOwnershipCategory
+  legalOwnerName?: string
+  fleetPartnerId?: string | null
+  individualOwnerId?: string | null
+  activeContractId?: string | null
   specs?: VehicleTechnicalSpecs
   telemetry: TelemetrySnapshot
   components: VehicleComponent[]

@@ -2224,6 +2224,22 @@ export function createVehicleFinanceRecord(
   if (!input.vehicleId?.trim() || !input.vehicleRegistration?.trim()) {
     throw new Error('Select a valid vehicle.')
   }
+  const hasFleetVehiclesTable = db
+    .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'fleet_vehicles'")
+    .get()
+  const vehRow = hasFleetVehiclesTable
+    ? (db
+        .prepare('SELECT ownership_category, registration_number FROM fleet_vehicles WHERE id = ? AND organization_id = ?')
+        .get(input.vehicleId, orgId) as { ownership_category?: string; registration_number?: string } | undefined)
+    : undefined
+  if (vehRow && vehRow.ownership_category && vehRow.ownership_category !== 'company_owned') {
+    throw new Error(
+      `${vehRow.registration_number || input.vehicleRegistration} is classified as ${vehRow.ownership_category.replace(/_/g, ' ')}. Company loans and EMIs apply only to company-owned vehicles.`,
+    )
+  }
+  if ((input.vehicleOwnership as string) === 'partner_contracted' || (input.vehicleOwnership as string) === 'individual_owner') {
+    throw new Error('Third-party contracted or individual owner vehicles cannot have company loan liabilities attached.')
+  }
   if (!input.bankName?.trim() || !input.loanAccountNumber?.trim() || !input.loanReferenceNumber?.trim()) {
     throw new Error('Bank name, loan account number, and loan reference number are required.')
   }

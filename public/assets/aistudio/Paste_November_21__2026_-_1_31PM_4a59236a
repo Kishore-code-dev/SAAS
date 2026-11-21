@@ -1,0 +1,1225 @@
+# DRIVEMITRA – COMPLETE UNIFIED MOBILE APPLICATION IMPLEMENTATION
+
+## 1. Project Objective
+
+Build a complete, production-ready **DriveMitra mobile application** using React Native, Expo and JavaScript.
+
+IMPORTANT: This is NOT a driver-only application.
+
+DriveMitra is a unified fleet management mobile application designed for:
+
+1. Fleet Owners
+2. Fleet Staff
+3. Fleet Drivers
+
+All three user types must use the SAME mobile application.
+
+The application must automatically identify the authenticated user's role and display the appropriate dashboard, navigation, modules, actions and permissions.
+
+Do not create three separate applications.
+
+Do not create a driver application and simply add an owner dashboard to it.
+
+Build a complete mobile fleet management platform with role-based experiences.
+
+The mobile application must connect to the existing DriveMitra backend and database. It must preserve the existing web application's functionality and business logic.
+
+---
+
+# 2. Technology Stack
+
+Use the following technologies:
+
+### Core
+- React Native
+- Expo
+- JavaScript (ES6+)
+- JSX
+- Expo Router
+- React Native StyleSheet
+- React Native Safe Area Context
+
+### State Management
+- Zustand for application-level state.
+- TanStack Query for server state, caching and synchronization.
+- React Hook Form for forms.
+- Zod for validation.
+
+### Networking
+- Axios
+- Centralized API client.
+- Authentication interceptors.
+- Request cancellation.
+- Retry and error handling.
+- Network status monitoring.
+
+### Local Storage
+- Expo SecureStore for authentication tokens and sensitive local credentials.
+- Expo SQLite for structured offline data and pending operations.
+- Expo FileSystem for document and evidence storage.
+
+### Device Capabilities
+- Expo Location
+- Expo TaskManager
+- Expo Notifications
+- Expo Device
+- Expo Camera
+- Expo ImagePicker
+- Expo ImageManipulator
+- Expo DocumentPicker
+- Expo Sharing
+- Expo Print
+- Expo Network
+- Expo Haptics
+- Expo Application
+- Expo Constants
+
+### Navigation and UI
+- Expo Router
+- React Native Reanimated
+- React Native Gesture Handler
+- React Native SVG
+- React Native Maps or an appropriate MapLibre implementation after inspecting the existing map provider.
+
+### Development Requirements
+- Use JavaScript only.
+- Use `.js` and `.jsx` files.
+- Do not introduce TypeScript into the mobile application.
+- Use `npx expo install` to install Expo-compatible dependency versions.
+- Use a stable Expo SDK supported by the required native libraries.
+- Use development builds for testing native functionality.
+- Do not assume Expo Go supports every production feature.
+
+---
+
+# 3. Application Architecture
+
+Create a separate mobile application inside the existing DriveMitra repository.
+
+Suggested structure:
+
+mobile/
+  app/
+    _layout.jsx
+
+    (auth)/
+      login.jsx
+      forgot-password.jsx
+      reset-password.jsx
+
+    (owner)/
+      _layout.jsx
+      dashboard.jsx
+      fleet-map.jsx
+      vehicles/
+      drivers/
+      staff/
+      assignments/
+      maintenance/
+      work-orders/
+      tools/
+      inspections/
+      issues/
+      reminders/
+      fuel/
+      charging/
+      expenses/
+      contracts/
+      finance/
+      reports/
+      documents/
+      settings/
+
+    (staff)/
+      _layout.jsx
+      dashboard.jsx
+      vehicles/
+      drivers/
+      assignments/
+      maintenance/
+      work-orders/
+      tools/
+      fuel/
+      expenses/
+      issues/
+
+    (driver)/
+      _layout.jsx
+      dashboard.jsx
+      my-trips/
+      my-vehicle/
+      fuel/
+      expenses/
+      documents/
+      profile/
+
+    notifications/
+    profile/
+    support/
+
+  components/
+  features/
+  hooks/
+  services/
+  store/
+  database/
+  utils/
+  constants/
+  assets/
+
+  app.config.js
+  package.json
+
+This is a suggested organization. Adjust it to the existing repository structure without unnecessary duplication.
+
+The application must have:
+
+- One shared authentication system.
+- One shared API client.
+- One shared design system.
+- One shared notification system.
+- One shared offline synchronization system.
+- Role-specific navigation.
+- Role-specific dashboards.
+- Permission-based feature access.
+- Reusable components across roles.
+
+Do not duplicate the same backend functionality for different roles.
+
+---
+
+# 4. Unified Authentication and Role Detection
+
+All users must access the same application login screen.
+
+Login must support the existing DriveMitra authentication mechanism.
+
+After successful authentication:
+
+1. Validate the access token.
+2. Retrieve the authenticated user profile.
+3. Retrieve the user's organisation/fleet.
+4. Retrieve the user's role.
+5. Retrieve assigned permissions.
+6. Retrieve account and subscription status.
+7. Load the appropriate application configuration.
+8. Navigate to the correct role-based dashboard.
+
+Example:
+
+Fleet Owner:
+Login → Authentication → Owner Dashboard
+
+Fleet Staff:
+Login → Authentication → Staff Dashboard
+
+Fleet Driver:
+Login → Authentication → Driver Dashboard
+
+The user must not manually select a role during normal login.
+
+The backend must determine the actual role.
+
+### Important authentication requirements
+
+- Secure token storage.
+- Token refresh where supported.
+- Automatic logout when authentication expires.
+- Session persistence.
+- Password reset.
+- Account suspension handling.
+- Subscription status validation.
+- Organisation isolation.
+- Secure logout.
+- Device session management where supported.
+
+Never trust a role or permission value supplied by the mobile client.
+
+The backend must validate every protected API request.
+
+---
+
+# 5. Fleet Owner Mobile Experience
+
+The Fleet Owner must receive a complete fleet management experience.
+
+The owner should be able to manage the fleet without depending on the desktop website for normal operational tasks.
+
+## Owner Dashboard
+
+Display:
+
+- Total vehicles.
+- Active vehicles.
+- Inactive vehicles.
+- Vehicles under maintenance.
+- Available vehicles.
+- Assigned vehicles.
+- Total drivers.
+- Total staff.
+- Active trips.
+- Completed trips.
+- Upcoming maintenance.
+- Open issues.
+- Fuel expenditure.
+- Monthly expenses.
+- Outstanding finance.
+- Upcoming EMI payments.
+- Contract renewals.
+- Pending approvals.
+
+Include:
+
+- Fleet utilisation charts.
+- Vehicle status distribution.
+- Maintenance overview.
+- Monthly expense trends.
+- Fuel consumption analysis.
+- Upcoming reminders.
+- Recent activities.
+- Fleet map preview.
+
+All dashboard data must come from real backend records.
+
+Do not display fabricated KPIs or sample information in production.
+
+## Owner Navigation
+
+Provide access to the following modules:
+
+1. Dashboard
+2. Fleet Map
+3. Vehicles
+4. Drivers
+5. Staff
+6. Assignments
+7. Trips
+8. Meter History
+9. Tire Readings
+10. Expense History
+11. Replacement Analysis
+12. Tools
+13. Inspections
+14. Issues
+15. Reminders
+16. Services
+17. Work Orders
+18. Contacts
+19. Vendors
+20. Parts & Inventory
+21. Fuel & Energy
+22. Places
+23. Documents
+24. Warranties
+25. Vehicle Contracts
+26. Finance
+27. Reports
+28. Custom Records
+29. Notifications
+30. Settings
+
+The owner must have complete access to the existing DriveMitra owner features, except Integrations.
+
+Integrations must remain exclusive to the Platform Administrator.
+
+## Owner Actions
+
+The owner must be able to:
+
+- Add and update vehicles.
+- Archive vehicles.
+- Add and manage drivers.
+- Add and manage staff.
+- Assign vehicles.
+- Plan trips.
+- Monitor fleet location.
+- Review fuel submissions.
+- Review driver expenses.
+- Manage maintenance.
+- Create work orders.
+- Manage suppliers and vendors.
+- Manage vehicle contracts.
+- Manage deposits and bonds.
+- Manage vehicle finance.
+- Review and approve payments.
+- Generate reports.
+- Manage documents.
+- Configure reminders.
+- Customise staff permissions.
+
+Support approval workflows for:
+
+- Fuel entries.
+- Expenses.
+- Maintenance requests.
+- Work orders.
+- Trip completion.
+- Vehicle handovers.
+- Contract amendments.
+- Supplier payments.
+- Deposit deductions and refunds.
+
+---
+
+# 6. Fleet Staff Mobile Experience
+
+Staff must use the same application but receive a restricted operational dashboard.
+
+The owner must be able to customise staff permissions.
+
+Do not assume all staff members have identical access.
+
+## Staff Dashboard
+
+Display only information permitted by the owner.
+
+Possible dashboard widgets:
+
+- Assigned operational tasks.
+- Available vehicles.
+- Active trips.
+- Vehicle assignment schedule.
+- Pending maintenance requests.
+- Open issues.
+- Fuel submissions.
+- Expense submissions.
+- Recent operational activities.
+- Notifications.
+
+The dashboard must change according to the individual staff member's permissions.
+
+## Default Staff Permissions
+
+| Module | Default Permission |
+|---|---|
+| Live Monitoring | View |
+| Vehicles | Add / Update |
+| Drivers | Add / Update |
+| Trip Planning | Create / Update |
+| Vehicle Assignment | Add / Update |
+| Meter History | Add / Update |
+| Tire Readings | Hidden |
+| Expense History | Hidden |
+| Replacement Analysis | Hidden |
+| Tools | Add / Update / Maintain |
+| Tool Services | Maintain |
+| Inspections | Hidden |
+| Issues | Add / Update |
+| Reminders | Owner Only |
+| Services | Maintain |
+| Work Orders | Maintain |
+| Contacts | Hidden |
+| Vendors | Hidden |
+| Parts & Inventory | According to permission |
+| Fuel History | View |
+| Charging History | View |
+| Places | According to permission |
+| Documents | Hidden |
+| Warranties | Hidden |
+| Integrations | Hidden |
+| Custom Records | Add / Update |
+| Finance | Restricted |
+| Reports | According to permission |
+
+### Staff restrictions
+
+By default:
+
+- Cannot delete vehicles.
+- Cannot delete drivers.
+- Cannot cancel or delete trips.
+- Cannot remove vehicle assignments.
+- Cannot delete meter records.
+- Cannot delete tools.
+- Cannot delete issues.
+- Cannot delete service records.
+- Cannot delete work orders.
+- Cannot access sensitive financial information.
+- Cannot manage integrations.
+- Cannot approve sensitive payments.
+- Cannot terminate contracts.
+- Cannot change contract financial terms.
+
+The owner may explicitly grant additional permissions.
+
+### Permission implementation
+
+Create a permission system that supports:
+
+- View.
+- Create.
+- Update.
+- Delete.
+- Approve.
+- Export.
+- Manage.
+
+Permissions must be enforced at the backend API level.
+
+Hiding a button or navigation item is not sufficient security.
+
+Every staff operation must be associated with the authenticated staff member.
+
+Maintain a complete audit history.
+
+---
+
+# 7. Fleet Driver Mobile Experience
+
+Drivers must receive a simple, dedicated experience inside the same application.
+
+The driver must not see owner-only or staff-only management screens.
+
+## Driver Dashboard
+
+Display:
+
+- Driver profile.
+- Assigned vehicle.
+- Today's trips.
+- Upcoming trips.
+- Current trip status.
+- Start Trip button.
+- End Trip button.
+- Assigned destination.
+- Navigation/map.
+- Vehicle documents.
+- Fuel submission.
+- Expense submission.
+- Notifications.
+- Pending tasks.
+
+Use large touch-friendly controls.
+
+## Driver Navigation
+
+1. Home
+2. My Trips
+3. My Vehicle
+4. Fuel & Expenses
+5. Documents
+6. Profile
+
+## My Vehicle
+
+Display:
+
+- Vehicle registration number.
+- Vehicle model.
+- Vehicle image.
+- Assigned date.
+- Current odometer reading.
+- Fuel type.
+- Relevant vehicle documents.
+- Insurance and registration expiry information where authorised.
+- Emergency contact information where configured.
+
+Drivers must not modify sensitive ownership, finance or vehicle master records.
+
+## My Trips
+
+Drivers must be able to:
+
+- View assigned trips.
+- View pickup and destination.
+- View trip instructions.
+- Start an authorised trip.
+- Capture starting odometer.
+- Capture starting evidence if required.
+- Track location during an authorised trip.
+- Update trip status.
+- Record stops where supported.
+- Submit trip-related expenses.
+- Capture ending odometer.
+- Submit completion evidence.
+- Request trip closure.
+
+The backend must validate trip state transitions.
+
+Do not allow drivers to start conflicting trips or modify another driver's trip.
+
+## Fuel Submission
+
+Build a fuel entry workflow.
+
+Capture:
+
+- Vehicle.
+- Driver.
+- Odometer before refuelling.
+- Odometer after refuelling where applicable.
+- Fuel type.
+- Quantity.
+- Price per litre.
+- Total amount.
+- Fuel station.
+- Date and time.
+- GPS coordinates where available.
+- Pump display image.
+- Fuel receipt image.
+
+Allow camera capture and image upload.
+
+Calculate:
+
+- Fuel cost.
+- Distance travelled.
+- Mileage when valid readings are available.
+- Fuel cost per kilometre.
+
+Do not calculate mileage from unrelated or incomplete odometer readings.
+
+## Expense Submission
+
+Allow drivers to submit:
+
+- Fuel expenses.
+- Toll expenses.
+- Parking expenses.
+- Repairs.
+- Other authorised expenses.
+
+Capture:
+
+- Amount.
+- Category.
+- Date.
+- Description.
+- Receipt.
+- Vehicle.
+- Trip reference.
+- Location where available.
+
+Submit entries for owner or authorised staff approval.
+
+Drivers must not directly approve their own expenses.
+
+---
+
+# 8. Vehicle Management
+
+Provide a complete mobile vehicle management module for owners and authorised staff.
+
+Features:
+
+- Vehicle listing.
+- Search.
+- Filters.
+- Vehicle status.
+- Vehicle registration.
+- Add vehicle.
+- Edit vehicle.
+- Vehicle profile.
+- Vehicle documents.
+- Assignment history.
+- Meter history.
+- Fuel history.
+- Service history.
+- Maintenance.
+- Work orders.
+- Issues.
+- Inspections.
+- Warranties.
+- Finance information where permitted.
+- Contract information where permitted.
+
+Vehicle profile tabs:
+
+1. Overview
+2. Telematics
+3. Service History
+4. Work Orders
+5. Issues
+6. Inspections
+7. Service Reminders
+8. Assignment History
+9. Meter History
+10. Expense History
+11. Documents
+12. Warranties
+13. Finance
+14. Location History
+
+Show only data that exists and that the current user is authorised to view.
+
+---
+
+# 9. Fleet Map and Location Tracking
+
+Build a mobile-friendly fleet map.
+
+Features:
+
+- Vehicle markers.
+- Driver markers where authorised.
+- Current location.
+- Last known location.
+- Vehicle status.
+- Location freshness.
+- Route history.
+- Destination.
+- Geofences.
+- Street map.
+- Satellite map if supported.
+- Vehicle selection.
+- Map filters.
+- Location details.
+
+Clearly distinguish:
+
+- Live location.
+- Last known location.
+- Stale location.
+- Unavailable location.
+
+Do not falsely label an old GPS coordinate as live.
+
+### Background GPS
+
+Use Expo Location and Expo TaskManager where appropriate.
+
+Requirements:
+
+- Request location permission transparently.
+- Explain why background tracking is required.
+- Track only for authorised operational purposes.
+- Respect OS permission and battery restrictions.
+- Store location timestamps.
+- Queue offline location records.
+- Synchronise when connectivity returns.
+- Avoid excessive battery consumption.
+- Provide clear tracking status.
+
+IMPORTANT:
+
+Do not promise uninterrupted tracking if the operating system terminates the app, the user revokes permission, device battery runs out or device restrictions prevent background execution.
+
+Test background location using a development build and physical devices.
+
+Phone GPS is not equivalent to actual vehicle telematics.
+
+Do not claim phone GPS can measure fuel tank level, engine temperature, RPM, tyre pressure, battery health or diagnostic fault codes.
+
+These require compatible hardware, sensors or integrations.
+
+---
+
+# 10. Vehicle Contracts and Fleet Partners
+
+Implement the existing DriveMitra Vehicle Contracts module.
+
+Support:
+
+- Company-owned vehicles.
+- Vehicles contracted from other fleet companies.
+- Vehicles supplied by individuals.
+
+Example fleet:
+
+- 5 company-owned vehicles.
+- 3 vehicles from another fleet company.
+- 2 individually supplied vehicles.
+
+Total: 10 vehicles.
+
+Features:
+
+- Contract register.
+- Fleet partners.
+- Individual vehicle owners.
+- Multi-vehicle contracts.
+- Vehicle-specific rates.
+- Fixed monthly rental.
+- Per-kilometre rental.
+- Per-trip rental.
+- Revenue sharing.
+- Fixed plus variable rental.
+- Contract amendments.
+- Contract documents.
+- Bond and deposit tracking.
+- Contract maintenance responsibility.
+- Contract payment history.
+- Renewal reminders.
+- Vehicle handover and return inspections.
+
+Keep legal ownership, operational control, financial responsibility and maintenance responsibility separate.
+
+Staff permissions must prevent unauthorised contract termination, financial amendments and deposit release.
+
+---
+
+# 11. Maintenance, Services and Work Orders
+
+Implement:
+
+- Service history.
+- Scheduled maintenance.
+- Preventive maintenance.
+- Maintenance reminders.
+- Work orders.
+- Service tasks.
+- Vehicle issues.
+- Repair history.
+- Maintenance costs.
+- Vendor assignment.
+- Parts usage.
+- Maintenance approvals.
+
+A completed work order must create the appropriate linked service history record.
+
+Do not duplicate maintenance costs when the same transaction appears in multiple views.
+
+Maintain relationships between vehicles, service entries, issues, work orders and vendors.
+
+---
+
+# 12. Finance Module
+
+Provide mobile finance access based on permissions.
+
+Features:
+
+- Finance overview.
+- Vehicle finance.
+- EMI schedule.
+- Upcoming payments.
+- Overdue payments.
+- Payment history.
+- Bank and financier details.
+- Finance documents.
+- Finance reports.
+
+Display:
+
+- Outstanding principal.
+- Monthly EMI.
+- Total financed vehicles.
+- Payments due.
+- Overdue payments.
+- Completed loans.
+- Principal versus interest.
+- Repayment progress.
+
+Support manual payment entries, partial payments, receipts and reconciliation.
+
+Never mark a payment as completed simply because its due date has passed.
+
+Mask sensitive bank and account information.
+
+---
+
+# 13. Notifications
+
+Create a unified notification system.
+
+Notification types:
+
+- Trip assignment.
+- Trip updates.
+- Vehicle assignment.
+- Maintenance due.
+- Service reminders.
+- Vehicle issues.
+- Fuel submission.
+- Expense submission.
+- Approval requests.
+- EMI reminders.
+- Contract renewal.
+- Document expiry.
+- Account status.
+- Subscription status.
+
+Notifications must be role-aware.
+
+Example:
+
+Driver:
+Receives trip assignment and operational notifications.
+
+Staff:
+Receives assigned operational tasks and authorised approval notifications.
+
+Owner:
+Receives fleet-wide operational and financial notifications.
+
+Support push notifications using Expo Notifications and the existing backend notification architecture.
+
+Do not expose private fleet information in notification previews unnecessarily.
+
+---
+
+# 14. Offline Mode and Synchronisation
+
+The mobile application must support practical offline workflows.
+
+Use Expo SQLite for structured local records and pending operations.
+
+Offline support should include:
+
+- Viewing recently synchronised authorised data.
+- Drafting permitted forms.
+- Capturing fuel evidence.
+- Capturing expense evidence.
+- Recording trip updates.
+- Queuing permitted location records.
+- Saving documents for authorised offline access.
+
+When connectivity returns:
+
+1. Check connectivity.
+2. Validate authentication.
+3. Synchronise pending records.
+4. Upload pending images and documents.
+5. Resolve server validation errors.
+6. Prevent duplicate submissions.
+7. Update local records.
+8. Display synchronisation status.
+
+Use stable client-generated operation identifiers or idempotency keys where appropriate.
+
+Do not silently overwrite newer server data.
+
+Display:
+
+- Synced.
+- Pending.
+- Failed.
+- Conflict.
+- Requires attention.
+
+---
+
+# 15. Application Design System
+
+DriveMitra must have a consistent visual language across all three roles.
+
+Use a premium, bright and professional design.
+
+### Brand palette
+
+- Butter Cream: #F7F0D9
+- Pale Lavender: #EEE8F7
+- Vanilla Cream: #F4EBD5
+- Lavender Mist: #E5DDF1
+- Soft Golden Yellow: #E8C65A
+- Royal Lavender: #B8A3D9
+- Lemon Sorbet: #F5E8A8
+- Lilac: #C9B9E5
+- Soft Sage: #A4B99A
+- Golden Apricot: #E6B76B
+- Muted Coral: #D98E83
+- Warm Cocoa: #625346
+- Warm Grey: #958777
+
+Typography:
+
+Plus Jakarta Sans.
+
+### Owner UI
+
+- Detailed dashboards.
+- Operational charts.
+- Data tables adapted for mobile.
+- Advanced filters.
+- Summary cards.
+- Map previews.
+- Approval queues.
+
+### Staff UI
+
+- Task-focused dashboard.
+- Operational shortcuts.
+- Clear permission boundaries.
+- Fast data entry.
+- Simple lists and filters.
+
+### Driver UI
+
+- Large touch targets.
+- Clear trip status.
+- Prominent action buttons.
+- Simple forms.
+- Easy camera access.
+- Minimal navigation.
+- Readable outdoor-friendly layouts.
+
+All three experiences must look like parts of the same DriveMitra product.
+
+Do not create three unrelated visual designs.
+
+---
+
+# 16. Security and Data Isolation
+
+Implement:
+
+- Secure token storage.
+- Backend-authoritative role detection.
+- Backend permission checks.
+- Organisation-level data isolation.
+- Secure document access.
+- Secure image uploads.
+- Input validation.
+- API request validation.
+- Session expiry.
+- Audit logs.
+- Rate limiting on the backend.
+- Sensitive information masking.
+- Secure offline data handling.
+
+A driver must never access another driver's private records.
+
+A staff member must never access a module without permission.
+
+A fleet owner must only access their own organisation's data.
+
+Do not grant Platform Administrator access to all private fleet data automatically.
+
+Integrations remain exclusively accessible to the Platform Administrator.
+
+---
+
+# 17. Backend Integration
+
+Before implementation, inspect the existing DriveMitra project.
+
+Identify:
+
+- Current backend framework.
+- Existing API endpoints.
+- Authentication mechanism.
+- Database schema.
+- Vehicle relationships.
+- Driver relationships.
+- Staff relationships.
+- Permission implementation.
+- Trip and assignment logic.
+- Maintenance logic.
+- Finance logic.
+- Contract logic.
+- Existing file storage.
+- Existing map provider.
+- Notification implementation.
+
+Reuse existing backend logic wherever possible.
+
+Do not create a second backend or a second database for the mobile application.
+
+Do not directly connect the mobile application to SQLite or another server database.
+
+All server data must be accessed through authenticated APIs.
+
+If required APIs are missing:
+
+1. Identify the missing functionality.
+2. Design the endpoint.
+3. Implement backend validation.
+4. Enforce role and permission checks.
+5. Add tenant isolation.
+6. Add audit logging.
+7. Add tests.
+8. Connect the mobile interface.
+
+Do not invent API endpoints and assume they exist.
+
+Do not replace existing business logic with mock data.
+
+---
+
+# 18. Subscription and Account Handling
+
+Preserve the existing DriveMitra subscription structure:
+
+- Monthly: ₹3,500.
+- Annual: ₹36,000.
+
+Both plans must provide identical features.
+
+Do not reintroduce Starter, Growth or Enterprise subscription tiers.
+
+The mobile application must display account and subscription status correctly.
+
+Account access must follow backend verification and activation rules.
+
+Do not activate a subscription simply because a user selects a plan or completes registration.
+
+Do not create a separate subscription system for mobile users.
+
+---
+
+# 19. Testing Requirements
+
+Test all three roles independently.
+
+### Owner testing
+
+- Login.
+- Dashboard.
+- Vehicle management.
+- Driver management.
+- Staff management.
+- Staff permissions.
+- Assignments.
+- Trips.
+- Fleet map.
+- Maintenance.
+- Work orders.
+- Contracts.
+- Finance.
+- Approvals.
+- Reports.
+
+### Staff testing
+
+- Login.
+- Permission-based dashboard.
+- Vehicle updates.
+- Driver updates.
+- Trip planning.
+- Assignments.
+- Maintenance.
+- Work orders.
+- Fuel visibility.
+- Restricted module access.
+- API permission enforcement.
+
+### Driver testing
+
+- Login.
+- Assigned vehicle.
+- Assigned trips.
+- Start trip.
+- End trip.
+- Odometer capture.
+- GPS tracking.
+- Fuel submission.
+- Expense submission.
+- Document access.
+- Offline operation.
+
+### Cross-role testing
+
+Verify:
+
+- Owner can see authorised fleet-wide information.
+- Staff can only perform permitted operations.
+- Drivers can only access their own authorised records.
+- Updates synchronise correctly across roles.
+- Changes appear in the web application.
+- No cross-organisation data leakage occurs.
+
+Test on physical Android devices.
+
+Test iOS compatibility where supported.
+
+Test background GPS, notifications, offline synchronisation and camera functionality using development builds.
+
+---
+
+# 20. Implementation Phases
+
+Implement in the following order.
+
+### Phase 1 – Project Audit and Foundation
+- Inspect the existing repository.
+- Create the Expo mobile project.
+- Configure navigation.
+- Configure API integration.
+- Configure authentication.
+- Configure the design system.
+
+### Phase 2 – Unified Authentication
+- Build login.
+- Build session management.
+- Implement role detection.
+- Implement permission retrieval.
+- Implement role-based navigation.
+
+### Phase 3 – Owner Application
+- Dashboard.
+- Vehicles.
+- Drivers.
+- Staff.
+- Assignments.
+- Trips.
+- Fleet Map.
+
+### Phase 4 – Staff Application
+- Permission-based dashboard.
+- Operational modules.
+- Restricted actions.
+- Staff activity tracking.
+
+### Phase 5 – Driver Application
+- Driver dashboard.
+- My Trips.
+- My Vehicle.
+- Fuel submission.
+- Expense submission.
+- GPS.
+- Documents.
+
+### Phase 6 – Advanced Fleet Modules
+- Maintenance.
+- Work Orders.
+- Tools.
+- Inspections.
+- Issues.
+- Contracts.
+- Finance.
+- Reports.
+
+### Phase 7 – Native Device Features
+- Camera.
+- Image uploads.
+- Location.
+- Background tracking.
+- Push notifications.
+- Offline storage.
+- Synchronisation.
+
+### Phase 8 – Production Readiness
+- Security testing.
+- Performance optimisation.
+- Permission testing.
+- Physical device testing.
+- Android build.
+- iOS build configuration.
+- Production deployment documentation.
+
+---
+
+# 21. Final Non-Negotiable Requirements
+
+1. One DriveMitra mobile application for Owners, Staff and Drivers.
+2. One shared authentication system.
+3. Automatic role detection after login.
+4. Role-specific dashboards.
+5. Role-specific navigation.
+6. Configurable staff permissions.
+7. Dedicated driver experience.
+8. Complete owner fleet management experience.
+9. Secure backend permission enforcement.
+10. Existing DriveMitra backend and database must be reused.
+11. Mobile changes must synchronise with the web application.
+12. No duplicate databases.
+13. No fabricated GPS, telematics or vehicle sensor information.
+14. No fake production data.
+15. No unnecessary paid APIs or AI subscriptions.
+16. Do not break the existing DriveMitra website.
+17. Do not remove existing modules.
+18. Do not replace working features with placeholders.
+19. Do not build only the UI; implement actual backend-connected functionality.
+20. Maintain a consistent DriveMitra design system.
+
+## Expected Final Result
+
+A single, unified, production-ready DriveMitra mobile application.
+
+When a fleet owner logs in, they receive a complete fleet management application.
+
+When a staff member logs in, they receive an operational application controlled by owner-assigned permissions.
+
+When a driver logs in, they receive a simplified driver application focused on trips, vehicle information, fuel, expenses and authorised location tracking.
+
+All three users operate within the same mobile application, the same backend and the same fleet data environment, with strict role-based access control.

@@ -6,6 +6,7 @@ import type { Organization, OrganizationRole, OrganizationStatus } from '../src/
 import { hashPassword } from './authLogic.ts'
 import { ensureFinanceSchemaAndSeed } from './financeDb.ts'
 import { ensureFleetSchemaAndMigrate } from './fleetDb.ts'
+import { ensureContractsSchemaAndSeed } from './contractsDb.ts'
 
 const DATA_DIR = path.resolve(process.cwd(), '.drivemitra-data')
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads')
@@ -175,6 +176,7 @@ export function getDb(): DatabaseSync {
   backfillDeccanOperationalSeedIfNeeded(db)
   ensureFleetSchemaAndMigrate(db)
   ensureFinanceSchemaAndSeed(db)
+  ensureContractsSchemaAndSeed(db)
   ensureSaasInvoicesSeeded(db)
   dbInstance = db
   return db

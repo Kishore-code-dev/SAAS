@@ -79,6 +79,28 @@ import {
   updateFleetToolStatus,
   updateFleetWorkspaceSettings,
 } from './fleetDb.ts'
+import {
+  addDepositDeductionOrRefund,
+  approveMaintenanceAllocation,
+  assertOrgContractPermission,
+  createContractAmendment,
+  createContractDocument,
+  createMaintenanceRuleOrAllocation,
+  createOrUpdateDeposit,
+  createVehicleContract,
+  createVehicleHandoverRecord,
+  getContractsWorkspace,
+  recordContractPayment,
+  renewVehicleContract,
+  reviewContractAmendment,
+  transitionContractStatus,
+  updateContractPaymentState,
+  updateOrgContractPermissions,
+  upsertFleetPartner,
+  upsertIndividualOwner,
+  verifyContractDocument,
+} from './contractsDb.ts'
+import type { ContractPermissionKey } from '../src/types/contracts.ts'
 
 const loginLimiter = new LoginRateLimiter(6, 5 * 60 * 1000)
 
@@ -2374,6 +2396,368 @@ export function buildApiRouter(): Router {
         req.body?.mode ?? 'ack',
       )
       res.json({ ok: true })
+    },
+  )
+
+  // ===================== VEHICLE CONTRACTS & MULTI-OWNERSHIP =====================
+  const contractActorOf = (req: AuthenticatedRequest) => ({
+    userId: req.authUser!.id,
+    fullName: req.authUser!.fullName,
+    role: req.authUser!.role,
+  })
+
+  const checkContractPerm = (req: AuthenticatedRequest, res: Response, perm: ContractPermissionKey): boolean => {
+    try {
+      assertOrgContractPermission(getDb(), req.activeOrg!.id, req.authUser!.role, perm)
+      return true
+    } catch (err) {
+      res.status(403).json({ error: err instanceof Error ? err.message : 'Contract permission denied.' })
+      return false
+    }
+  }
+
+  router.get(
+    '/contracts/workspace',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      if (!checkContractPerm(req, res, 'view_contracts')) return
+      res.json(getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role))
+    },
+  )
+
+  router.post(
+    '/contracts/partners',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const partner = upsertFleetPartner(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ partner, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to save Fleet Partner.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/owners',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const owner = upsertIndividualOwner(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ owner, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to save Individual Owner.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const contract = createVehicleContract(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ contract, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to create contract.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.patch(
+    '/contracts/:contractId/status',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const contract = transitionContractStatus(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.contractId),
+          req.body?.status,
+          req.body?.reason,
+          req.body?.closureExceptionNote,
+        )
+        res.json({ contract, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to update contract status.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/:contractId/amendments',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const amendment = createContractAmendment(getDb(), req.activeOrg!.id, contractActorOf(req), {
+          ...req.body,
+          contractId: String(req.params.contractId),
+        })
+        res.status(201).json({ amendment, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to create contract amendment.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/amendments/:amendmentId/review',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const result = reviewContractAmendment(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.amendmentId),
+          req.body?.decision,
+          req.body?.rejectionReason,
+        )
+        res.json({ ...result, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to review amendment.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/:contractId/renew',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const contract = renewVehicleContract(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.contractId),
+          req.body,
+        )
+        res.json({ contract, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to renew contract.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/payments',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const payment = recordContractPayment(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ payment, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to record contract payment.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/payments/:paymentId/action',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const payment = updateContractPaymentState(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.paymentId),
+          req.body?.action,
+          req.body?.note,
+          req.body?.additionalPaidInr,
+        )
+        res.json({ payment, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to update contract payment.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/deposits',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const deposit = createOrUpdateDeposit(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ deposit, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to record security deposit.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/deposits/:depositId/action',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const deposit = addDepositDeductionOrRefund(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.depositId),
+          req.body?.action,
+          req.body,
+        )
+        res.json({ deposit, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to update deposit.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/maintenance',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const workspace = createMaintenanceRuleOrAllocation(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          req.body?.mode === 'rule' ? 'rule' : 'allocation',
+          req.body,
+        )
+        res.status(201).json({ workspace })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to save contract maintenance record.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/maintenance/:allocId/status',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const allocation = approveMaintenanceAllocation(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.allocId),
+          req.body?.status ?? 'approved',
+        )
+        res.json({ allocation, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to approve maintenance allocation.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/handovers',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const handover = createVehicleHandoverRecord(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ handover, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to record handover.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/documents',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const document = createContractDocument(getDb(), req.activeOrg!.id, contractActorOf(req), req.body)
+        res.status(201).json({ document, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to upload contract document.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.post(
+    '/contracts/documents/:docId/verify',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const document = verifyContractDocument(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          String(req.params.docId),
+          req.body?.status ?? 'verified',
+        )
+        res.json({ document, workspace: getContractsWorkspace(getDb(), req.activeOrg!.id, req.authUser!.role) })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to verify contract document.'
+        res.status(msg.includes('permission') ? 403 : 400).json({ error: msg })
+      }
+    },
+  )
+
+  router.put(
+    '/contracts/permissions',
+    requireAuth,
+    requirePasswordChanged,
+    requireActiveOrganization,
+    (req: AuthenticatedRequest, res: Response) => {
+      try {
+        const workspace = updateOrgContractPermissions(
+          getDb(),
+          req.activeOrg!.id,
+          contractActorOf(req),
+          Array.isArray(req.body?.updates) ? req.body.updates : [],
+        )
+        res.json({ workspace })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unable to update contract permissions.'
+        res.status(msg.includes('Owner') ? 403 : 400).json({ error: msg })
+      }
     },
   )
 

@@ -167,6 +167,7 @@ const CustomRecordsPage = lazyWithRetry(() =>
 const IntegrationsPage = lazyWithRetry(() =>
   import('./pages/fleetio/EnterpriseModulesView').then((m) => ({ default: m.IntegrationsView })),
 )
+const MobileAppSimulator = lazyWithRetry(() => import('./pages/MobileAppSimulator'))
 const FinanceOverviewPage = lazyWithRetry(() => import('./pages/finance/FinanceOverviewPage'))
 const VehicleFinanceListPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceListPage'))
 const VehicleFinanceDetailsPage = lazyWithRetry(() => import('./pages/finance/VehicleFinanceDetailsPage'))
@@ -372,6 +373,7 @@ export function AppRoutes() {
             <Route path="warranties" element={<RoleProtectedRoute><WarrantiesPage /></RoleProtectedRoute>} />
             <Route path="custom-records" element={<RoleProtectedRoute><CustomRecordsPage /></RoleProtectedRoute>} />
             <Route path="integrations" element={<RoleProtectedRoute><IntegrationsPage /></RoleProtectedRoute>} />
+            <Route path="mobile" element={<RoleProtectedRoute><MobileAppSimulator /></RoleProtectedRoute>} />
             <Route path="finance" element={<RoleProtectedRoute><FinanceOverviewPage /></RoleProtectedRoute>} />
             <Route path="finance/vehicles" element={<RoleProtectedRoute><VehicleFinanceListPage /></RoleProtectedRoute>} />
             <Route path="finance/vehicles/:financeId" element={<RoleProtectedRoute><VehicleFinanceDetailsPage /></RoleProtectedRoute>} />

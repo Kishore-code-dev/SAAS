@@ -103,6 +103,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     issues: smallIssues.filter((i) => i.status === 'open' || i.status === 'triaged').length,
     alerts: unreadAlertCount,
     financeOverdue: instalments.filter((i) => i.status === 'overdue').length,
+    contractAlerts: 0,
   }
 
   const allowed = (to: string) => canAccessRoute(activeRole, to)

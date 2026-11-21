@@ -30,6 +30,8 @@ export default defineConfig([
             'useFleet',
             'useFinance',
             'useOptionalFinance',
+            'useContracts',
+            'useOptionalContracts',
             'useTranslation',
             'formatInr',
             'formatDateTime',

@@ -6,6 +6,7 @@ import {
   Building2,
   ClipboardCheck,
   FileCheck2,
+  FileSignature,
   FolderKanban,
   Fuel,
   Hammer,
@@ -17,11 +18,12 @@ import {
   Plug,
   Settings as SettingsIcon,
   ShieldCheck,
+  Smartphone,
   Users,
   Wrench,
 } from 'lucide-react'
 
-export type BadgeKey = 'maintenance' | 'risk' | 'workOrders' | 'alerts' | 'issues' | 'financeOverdue'
+export type BadgeKey = 'maintenance' | 'risk' | 'workOrders' | 'alerts' | 'issues' | 'financeOverdue' | 'contractAlerts'
 type Icon = ComponentType<{ className?: string }>
 
 export interface NavLeaf {
@@ -61,6 +63,24 @@ export const MAIN_NAV: NavEntry[] = [
       { to: '/dashboard/fleet/tire-readings', label: 'Tire Readings' },
       { to: '/dashboard/fleet/expenses', label: 'Expense History' },
       { to: '/dashboard/fleet/replacement-analysis', label: 'Replacement Analysis' },
+    ],
+  },
+  {
+    id: 'contracts',
+    label: 'Vehicle Contracts',
+    icon: FileSignature,
+    children: [
+      { to: '/dashboard/contracts', label: 'Contract Overview', end: true, badge: 'contractAlerts' },
+      { to: '/dashboard/contracts/register', label: 'Contract Register' },
+      { to: '/dashboard/contracts/vehicles', label: 'Contracted Vehicles' },
+      { to: '/dashboard/contracts/partners', label: 'Fleet Partners' },
+      { to: '/dashboard/contracts/owners', label: 'Individual Vehicle Owners' },
+      { to: '/dashboard/contracts/payments', label: 'Contract Payments' },
+      { to: '/dashboard/contracts/maintenance', label: 'Contract Maintenance' },
+      { to: '/dashboard/contracts/deposits', label: 'Bond & Deposits' },
+      { to: '/dashboard/contracts/renewals', label: 'Contract Renewals' },
+      { to: '/dashboard/contracts/documents', label: 'Contract Documents' },
+      { to: '/dashboard/contracts/history', label: 'Contract History' },
     ],
   },
   {
@@ -142,6 +162,7 @@ export const MAIN_NAV: NavEntry[] = [
   { id: 'warranties', to: '/dashboard/warranties', label: 'Warranties', icon: ShieldCheck },
   { id: 'custom-records', to: '/dashboard/custom-records', label: 'Custom Records', icon: FolderKanban },
   { id: 'integrations', to: '/dashboard/integrations', label: 'Integrations', icon: Plug },
+  { id: 'mobile', to: '/dashboard/mobile', label: 'Mobile App', icon: Smartphone },
   {
     id: 'finance',
     label: 'Finance',

@@ -130,7 +130,12 @@ export function ensureFleetSchemaAndMigrate(db: DatabaseSync): void {
       monthly_revenue_inr REAL NOT NULL DEFAULT 0,
       specs_json TEXT,
       telemetry_json TEXT NOT NULL,
-      decommissioned INTEGER NOT NULL DEFAULT 0
+      decommissioned INTEGER NOT NULL DEFAULT 0,
+      ownership_category TEXT NOT NULL DEFAULT 'company_owned',
+      legal_owner_name TEXT,
+      fleet_partner_id TEXT,
+      individual_owner_id TEXT,
+      active_contract_id TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_fleet_vehicles_org ON fleet_vehicles(organization_id);
 
@@ -722,6 +727,24 @@ export function ensureFleetSchemaAndMigrate(db: DatabaseSync): void {
     );
   `)
 
+  // Safe migrations for multi-ownership vehicle columns on pre-existing DBs
+  const vehCols = (db.prepare('PRAGMA table_info(fleet_vehicles)').all() as Array<{ name: string }>).map((c) => c.name)
+  if (!vehCols.includes('ownership_category')) {
+    db.exec("ALTER TABLE fleet_vehicles ADD COLUMN ownership_category TEXT NOT NULL DEFAULT 'company_owned'")
+  }
+  if (!vehCols.includes('legal_owner_name')) {
+    db.exec('ALTER TABLE fleet_vehicles ADD COLUMN legal_owner_name TEXT')
+  }
+  if (!vehCols.includes('fleet_partner_id')) {
+    db.exec('ALTER TABLE fleet_vehicles ADD COLUMN fleet_partner_id TEXT')
+  }
+  if (!vehCols.includes('individual_owner_id')) {
+    db.exec('ALTER TABLE fleet_vehicles ADD COLUMN individual_owner_id TEXT')
+  }
+  if (!vehCols.includes('active_contract_id')) {
+    db.exec('ALTER TABLE fleet_vehicles ADD COLUMN active_contract_id TEXT')
+  }
+
   // 1. Idempotently migrate org_fleet_blobs into normalized relational tables
   const orgRows = db.prepare('SELECT * FROM organizations').all() as Array<Record<string, unknown>>
   for (const orgRow of orgRows) {
@@ -976,6 +999,11 @@ export function getOrgFleetDataset(db: DatabaseSync, orgId: string): OrgOperatio
       }),
       components: compsByVehicle.get(id) ?? [],
       decommissioned: Number(r.decommissioned) === 1,
+      ownershipCategory: (r.ownership_category ? String(r.ownership_category) : 'company_owned') as Vehicle['ownershipCategory'],
+      legalOwnerName: r.legal_owner_name ? String(r.legal_owner_name) : undefined,
+      fleetPartnerId: r.fleet_partner_id ? String(r.fleet_partner_id) : null,
+      individualOwnerId: r.individual_owner_id ? String(r.individual_owner_id) : null,
+      activeContractId: r.active_contract_id ? String(r.active_contract_id) : null,
     }
   })
 
@@ -1440,8 +1468,9 @@ export function saveOrgFleetDataset(
           assigned_driver_id, odometer_km, daily_avg_km, health_score, operation_status, fuel_or_soc_pct,
           corridor_id, city_name, registration_expiry, insurance_expiry, insurance_provider,
           fitness_expiry, puc_expiry, permit_expiry, last_service_date, next_service_due_date,
-          next_service_due_odometer_km, monthly_revenue_inr, specs_json, telemetry_json, decommissioned
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          next_service_due_odometer_km, monthly_revenue_inr, specs_json, telemetry_json, decommissioned,
+          ownership_category, legal_owner_name, fleet_partner_id, individual_owner_id, active_contract_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       const insComp = db.prepare(`
         INSERT OR REPLACE INTO fleet_vehicle_components (
@@ -1483,6 +1512,11 @@ export function saveOrgFleetDataset(
           v.specs ? JSON.stringify(v.specs) : null,
           JSON.stringify(v.telemetry),
           v.decommissioned ? 1 : 0,
+          v.ownershipCategory ?? 'company_owned',
+          v.legalOwnerName ?? null,
+          v.fleetPartnerId ?? null,
+          v.individualOwnerId ?? null,
+          v.activeContractId ?? null,
         )
         for (const c of v.components ?? []) {
           insComp.run(

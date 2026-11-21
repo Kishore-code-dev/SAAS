@@ -1,0 +1,1415 @@
+# DRIVEMITRA — MULTI-OWNERSHIP FLEET & VEHICLE CONTRACT MANAGEMENT
+
+## 1. PROJECT OBJECTIVE
+
+Implement a comprehensive Vehicle Ownership, Contract and Supplier Management system inside the existing DriveMitra fleet management platform.
+
+DriveMitra must support fleet organizations that operate vehicles from different ownership sources.
+
+A fleet organization must not be restricted to managing only vehicles that it owns.
+
+The system must support:
+
+1. Company-owned vehicles.
+2. Vehicles contracted from other fleet organizations.
+3. Vehicles supplied by independent individual vehicle owners, including individuals who also operate their vehicles as drivers.
+
+This module must integrate with the existing DriveMitra ecosystem without damaging, replacing or removing existing functionality.
+
+The objective is to provide complete visibility into:
+
+- Vehicle ownership.
+- Supplier relationships.
+- Contract agreements.
+- Contract duration.
+- Financial commitments.
+- Security deposits and bonds.
+- Maintenance responsibilities.
+- Vehicle handovers.
+- Contract amendments.
+- Payments and settlements.
+- Vehicle returns.
+- Contract expiry and renewal.
+
+**Core principle: Vehicle ownership, operational control, financial responsibility and maintenance responsibility must be treated as separate concepts.**
+
+---
+
+# 2. EXAMPLE BUSINESS SCENARIO
+
+Consider a transportation company operating a fleet of 10 vehicles.
+
+| Vehicle category | Quantity | Ownership |
+|---|---:|---|
+| Company-owned | 5 | Fleet organization |
+| Contracted from other fleets | 3 | External fleet companies |
+| Individually supplied | 2 | Individual vehicle owners |
+| Total | 10 | |
+
+All 10 vehicles must appear in the operating organization's fleet dashboard and vehicle register.
+
+However, DriveMitra must retain their different ownership classifications.
+
+For example:
+
+- Company-owned vehicles belong to the operating organization.
+- Contracted vehicles remain the property of their supplying fleet organizations.
+- Individually supplied vehicles remain the property of their individual owners.
+
+Do not treat all 10 vehicles as company-owned assets.
+
+---
+
+# 3. NEW MAIN NAVIGATION MODULE
+
+Introduce a new main navigation item:
+
+## Vehicle Contracts
+
+Submodules:
+
+1. Contract Overview
+2. Contract Register
+3. Contracted Vehicles
+4. Fleet Partners
+5. Individual Vehicle Owners
+6. Contract Payments
+7. Contract Maintenance
+8. Bond & Deposits
+9. Contract Renewals
+10. Contract Documents
+11. Contract History
+
+Every submenu must have its own dedicated page, data structure, filters, actions and workflows.
+
+Do not reuse one generic table for all pages.
+
+## 3.1 Contract Overview
+
+Create a dedicated dashboard containing:
+
+### Summary KPIs
+- Total active contracts.
+- Total contracted vehicles.
+- Total individual-owner vehicles.
+- Total fleet partners.
+- Contracts expiring within 30 days.
+- Pending contract approvals.
+- Pending vehicle handovers.
+- Outstanding contract payments.
+- Total security deposits.
+- Outstanding refundable deposits.
+- Pending maintenance settlements.
+- Vehicles awaiting return.
+
+### Charts and analytics
+- Company-owned vs contracted vs individually supplied vehicles.
+- Contracted vehicles by supplier.
+- Monthly contract expenditure.
+- Monthly rental commitments.
+- Contract expiry timeline.
+- Security deposit distribution.
+- Maintenance expenses by responsible party.
+- Contracted fleet utilization.
+
+All dashboard values must come from actual database records.
+
+Every KPI and chart must support navigation to its underlying records.
+
+---
+
+# 4. VEHICLE OWNERSHIP CLASSIFICATION
+
+Every vehicle must have an ownership classification.
+
+Create these categories:
+
+### A. Company Owned
+
+Vehicles legally owned by the operating fleet organization.
+
+The organization controls their normal fleet operations, subject to existing organizational permissions.
+
+These vehicles can be associated with:
+
+- Vehicle finance.
+- Insurance.
+- Registration.
+- Maintenance.
+- Service history.
+- Fuel history.
+- Vehicle assignments.
+- Expenses.
+- Replacement analysis.
+- Documents.
+- Warranties.
+
+### B. Contracted Fleet Vehicle
+
+Vehicles supplied by another fleet organization under a commercial agreement.
+
+Required information:
+
+- Supplying organization.
+- Supplier contact.
+- Contract ID.
+- Contract start date.
+- Contract expiry date.
+- Agreement type.
+- Financial terms.
+- Maintenance responsibility.
+- Security deposit.
+- Handover information.
+- Vehicle return conditions.
+
+The supplying organization retains ownership.
+
+### C. Individually Supplied Vehicle
+
+Vehicles provided by independent individual owners.
+
+The individual owner may or may not be the assigned driver.
+
+Required information:
+
+- Owner name.
+- Mobile number.
+- Email.
+- Address.
+- Identity documents.
+- Bank/payment details with restricted access.
+- Vehicle ownership proof.
+- Agreement details.
+- Financial arrangements.
+- Maintenance responsibility.
+- Contract duration.
+
+Do not assume that the vehicle owner and driver are the same individual.
+
+One individual owner may supply multiple vehicles and employ different drivers for each vehicle.
+
+---
+
+# 5. FLEET PARTNER MANAGEMENT
+
+Create a dedicated Fleet Partners module.
+
+One supplier must be able to provide multiple vehicles.
+
+One supplier may have multiple active, expired or historical agreements with the same operating organization.
+
+### Fleet Partner information
+
+- Partner ID.
+- Company name.
+- Business registration details.
+- GSTIN, where applicable.
+- Contact person.
+- Mobile number.
+- Email.
+- Registered address.
+- Operating location.
+- Bank details with restricted access.
+- Supporting documents.
+- Partner status.
+- Internal notes.
+
+### Fleet Partner profile tabs
+
+1. Overview.
+2. Supplied Vehicles.
+3. Contracts.
+4. Payments.
+5. Maintenance Settlements.
+6. Documents.
+7. Activity History.
+
+### Supplier-level analytics
+
+Display:
+
+- Total vehicles supplied.
+- Active contracted vehicles.
+- Expired contracts.
+- Total rental commitments.
+- Outstanding payments.
+- Security deposits.
+- Maintenance settlements.
+- Contract performance history.
+
+Do not create duplicate supplier records when the same supplier enters multiple agreements.
+
+Provide duplicate detection using company registration details, GSTIN, contact information and other available identifiers.
+
+---
+
+# 6. INDIVIDUAL VEHICLE OWNER MANAGEMENT
+
+Create a separate Individual Vehicle Owners directory.
+
+Fields:
+
+- Owner ID.
+- Full name.
+- Mobile number.
+- Email.
+- Address.
+- Identity verification status.
+- Identity documents.
+- Bank details.
+- Payment preferences.
+- Owner status.
+- Notes.
+
+### Owner profile
+
+Tabs:
+
+1. Overview.
+2. Vehicles.
+3. Contracts.
+4. Payments.
+5. Security Deposits.
+6. Documents.
+7. Activity History.
+
+One individual may supply multiple vehicles.
+
+The owner must remain separate from the vehicle's assigned driver and from the operating organization's user accounts.
+
+Sensitive identity and financial information must be permission-controlled and masked by default.
+
+---
+
+# 7. CONTRACT REGISTER
+
+Build a comprehensive contract management system.
+
+### Contract categories
+
+- Fixed Monthly Rental.
+- Per-Kilometre Rental.
+- Per-Trip Rental.
+- Revenue Sharing.
+- Fixed + Variable.
+- Custom Agreement.
+
+Allow configurable contract terms instead of restricting users to fixed templates.
+
+### Contract creation form
+
+#### General details
+- Contract ID (automatically generated).
+- Contract name.
+- Contract category.
+- Operating organization.
+- Supplier type.
+- Supplier reference.
+- Agreement reference number.
+- Agreement date.
+- Start date.
+- Expiry date.
+- Contract duration.
+- Currency.
+- Contract description.
+
+#### Vehicle details
+- Select one or multiple vehicles.
+- Vehicle registration numbers.
+- Ownership category.
+- Vehicle owner.
+- Supplier.
+- Vehicle category.
+- Vehicle condition.
+- Initial odometer.
+- Handover date.
+
+Support multiple vehicles under one agreement.
+
+A contract may cover multiple vehicles from the same supplier.
+
+The system must also support one supplier having multiple separate agreements.
+
+#### Financial terms
+
+- Fixed rental amount.
+- Monthly rental.
+- Per-kilometre rate.
+- Per-trip rate.
+- Revenue-sharing percentage.
+- Fixed and variable components.
+- Payment frequency.
+- Payment due date.
+- Advance payment.
+- Security deposit.
+- Bond amount.
+- Late payment terms.
+- Tax treatment.
+- Additional charges.
+- Deduction conditions.
+- Settlement conditions.
+
+All monetary values must be stored using precise decimal types.
+
+Use INR as the default currency, with appropriate support for future configuration.
+
+#### Contract conditions
+
+- Maintenance responsibilities.
+- Fuel responsibility.
+- Insurance responsibility.
+- Accident responsibility.
+- Tyre replacement responsibility.
+- Breakdown responsibility.
+- Driver responsibility.
+- Permit responsibility.
+- Fitness and PUC responsibility.
+- Vehicle replacement conditions.
+- Downtime conditions.
+- Termination conditions.
+- Renewal conditions.
+- Vehicle return conditions.
+
+Allow individual terms to be customized for each agreement.
+
+---
+
+# 8. MULTIPLE SUPPLIER AND VEHICLE RELATIONSHIPS
+
+Implement flexible supplier-to-contract-to-vehicle relationships.
+
+Required scenarios:
+
+1. One supplier provides multiple vehicles under one agreement.
+2. One supplier provides vehicles under multiple agreements.
+3. One contract contains multiple vehicles.
+4. Different vehicles under the same contract have different agreed rental values.
+5. Different vehicles have different maintenance responsibilities.
+6. One individual owner supplies multiple vehicles.
+7. One vehicle must not have overlapping active operating contracts unless an explicitly authorized arrangement permits it.
+
+Do not create a one-to-one supplier-to-contract relationship.
+
+Use proper relational tables.
+
+---
+
+# 9. CONTRACT AMENDMENT MANAGEMENT
+
+This is a mandatory feature.
+
+Contracts must support amendments without overwriting original agreement information.
+
+For example:
+
+Original agreement:
+- Monthly rental: ₹30,000.
+- Contract duration: 12 months.
+- Maintenance responsibility: Supplier.
+
+Amended agreement:
+- Monthly rental: ₹35,000.
+- Revised expiry date.
+- Maintenance responsibility: Operating organization for selected components.
+
+DriveMitra must preserve both versions.
+
+### Amendment creation
+
+Allow authorized users to create amendments for:
+
+- Rental amounts.
+- Payment frequency.
+- Contract duration.
+- Expiry date.
+- Security deposits.
+- Maintenance responsibilities.
+- Vehicle additions.
+- Vehicle removals.
+- Financial responsibilities.
+- Other contractual conditions.
+
+### Amendment fields
+
+- Amendment ID.
+- Contract ID.
+- Amendment title.
+- Amendment reason.
+- Previous values.
+- Revised values.
+- Effective date.
+- Supporting documents.
+- Created by.
+- Approved by.
+- Approval status.
+- Creation timestamp.
+- Approval timestamp.
+
+### Amendment workflow
+
+Draft → Submitted for Approval → Approved / Rejected → Effective.
+
+Do not modify the original agreement when an amendment is submitted.
+
+Once approved, create a new contract version and preserve the historical version.
+
+An amendment must not silently recalculate previously completed payments or settlements.
+
+Future financial schedules should use the correct effective version.
+
+If an amendment changes an existing EMI-like rental schedule, clearly identify affected future entries and require confirmation before recalculation.
+
+Provide a comparison view showing:
+
+- Previous terms.
+- Revised terms.
+- Differences.
+- Effective date.
+- Approval details.
+
+---
+
+# 10. CONTRACT-SPECIFIC PERMISSIONS
+
+Implement granular permissions for contract management.
+
+Do not rely only on hiding buttons or navigation items.
+
+Enforce permissions through the backend APIs and database-level organization scoping.
+
+### Permission categories
+
+- View Contracts.
+- Create Contracts.
+- Edit Contracts.
+- Submit Contracts for Approval.
+- Approve Contracts.
+- Reject Contracts.
+- Terminate Contracts.
+- Renew Contracts.
+- Create Amendments.
+- Approve Amendments.
+- Manage Suppliers.
+- Manage Individual Owners.
+- Manage Contract Vehicles.
+- Manage Contract Payments.
+- Approve Contract Payments.
+- Manage Security Deposits.
+- Approve Deposit Refunds.
+- Manage Maintenance Responsibilities.
+- Approve Contract Maintenance.
+- Manage Contract Documents.
+- View Contract Financial Reports.
+
+### Fleet Owner
+
+The owner has full organizational control.
+
+The owner can:
+
+- Create contracts.
+- Add suppliers.
+- Add individual owners.
+- Approve agreements.
+- Approve amendments.
+- Approve financial settlements.
+- Approve deposits and refunds.
+- Terminate agreements.
+- Manage contract-specific permissions.
+
+### Fleet Staff
+
+Staff access must be configurable.
+
+Default staff restrictions:
+
+- View permitted contracts.
+- View linked vehicles.
+- Create maintenance requests.
+- Update permitted operational information.
+- Record handover inspections.
+- Upload permitted evidence.
+- Submit payment or settlement information for review.
+
+Staff cannot automatically:
+
+- Delete contracts.
+- Terminate contracts.
+- Approve amendments.
+- Change agreed rental values.
+- Approve supplier payments.
+- Release security deposits.
+- Change ownership information.
+- Modify sensitive supplier bank details.
+
+All actions must be checked against permissions.
+
+### Platform Administrator
+
+The DriveMitra Platform Administrator manages global platform functions.
+
+The Platform Administrator must not automatically become a financial decision-maker for individual fleet organizations.
+
+Any support access to organization data must be explicitly authorized and audited.
+
+---
+
+# 11. BOND & SECURITY DEPOSIT MANAGEMENT
+
+Create a dedicated Bond & Deposits module.
+
+Support:
+
+- Refundable security deposits.
+- Non-refundable contract charges.
+- Performance bonds.
+- Bank guarantees.
+- Other contractual security instruments.
+
+Do not treat every bond as a cash payment.
+
+### Deposit information
+
+- Deposit ID.
+- Contract ID.
+- Supplier.
+- Vehicle or vehicle group.
+- Deposit type.
+- Required amount.
+- Paid amount.
+- Outstanding amount.
+- Payment date.
+- Payment reference.
+- Payment method.
+- Receiving party.
+- Refundability.
+- Refund conditions.
+- Expiry date, where applicable.
+- Document reference.
+- Deposit status.
+
+### Example
+
+Three vehicles are contracted.
+
+Security deposit per vehicle: ₹50,000.
+
+Total deposit required: ₹1,50,000.
+
+Deposit paid: ₹1,00,000.
+
+Outstanding deposit: ₹50,000.
+
+The dashboard must display these amounts accurately.
+
+### Deposit lifecycle
+
+Deposit Defined → Payment Recorded → Payment Verified → Active → Contract Expiry → Vehicle Inspection → Deductions → Refund Approval → Refund Payment → Closed.
+
+### Refund calculations
+
+Example:
+
+Original refundable deposit: ₹50,000.
+
+Approved deductions: ₹5,000.
+
+Refund amount: ₹45,000.
+
+Record the reason and evidence for every deduction.
+
+Do not allow deductions without authorization and supporting information.
+
+Maintain the original deposit record even after refunds.
+
+---
+
+# 12. CONTRACT MAINTENANCE MANAGEMENT
+
+Integrate Vehicle Contracts with the existing DriveMitra Maintenance and Work Order modules.
+
+Maintenance responsibilities must be configurable by:
+
+- Maintenance category.
+- Vehicle.
+- Contract.
+- Component.
+- Cost threshold.
+- Contract period.
+- Accident or breakdown circumstances.
+
+### Example
+
+A contracted vehicle requires engine repair costing ₹18,000.
+
+Contract terms specify:
+
+- Operating organization responsibility: ₹5,000.
+- Supplier responsibility: ₹13,000.
+
+Record the full repair amount and split the financial responsibility.
+
+Do not create two unrelated maintenance records.
+
+Maintain one original maintenance transaction with separate responsibility allocations.
+
+### Maintenance workflow
+
+Vehicle Issue → Contract Responsibility Lookup → Maintenance Request → Approval (if required) → Work Order → Repair → Cost Allocation → Supplier Settlement → Service History.
+
+### Maintenance categories
+
+- Engine.
+- Transmission.
+- Brakes.
+- Tyres.
+- Electrical.
+- Battery.
+- Suspension.
+- Accident repairs.
+- Preventive maintenance.
+- Periodic servicing.
+- Other custom categories.
+
+### Important rules
+
+1. Maintenance responsibility must be derived from the effective contract terms.
+2. If no rule exists, mark responsibility as Unspecified.
+3. Never automatically charge the supplier or operating organization without an applicable rule or authorized decision.
+4. Record who approved the maintenance expense.
+5. Maintain the original repair amount.
+6. Preserve responsibility allocation history.
+7. Link all work orders and service entries to the relevant vehicle and contract.
+
+---
+
+# 13. VEHICLE HANDOVER AND RETURN MANAGEMENT
+
+Create a dedicated handover workflow.
+
+### Initial handover
+
+Record:
+
+- Contract ID.
+- Vehicle ID.
+- Supplier.
+- Handover date and time.
+- Initial odometer.
+- Fuel level.
+- Exterior condition.
+- Interior condition.
+- Tyre condition.
+- Existing damages.
+- Accessories.
+- Equipment.
+- Vehicle photographs.
+- Document checklist.
+- Handover notes.
+- Supplier representative.
+- Receiving representative.
+- Digital acknowledgements/signatures.
+
+### Vehicle return
+
+Repeat the inspection process.
+
+Compare:
+
+- Initial and final odometer.
+- Initial and final condition.
+- Fuel levels.
+- Missing equipment.
+- New damages.
+- Pending repairs.
+- Outstanding expenses.
+- Contractual deductions.
+
+Generate a handover comparison report.
+
+The system must retain both the initial and final evidence.
+
+Vehicle return must not automatically close a contract if other vehicles remain active under the same agreement.
+
+Support vehicle-level return and contract-level closure separately.
+
+---
+
+# 14. CONTRACT PAYMENTS AND SETTLEMENTS
+
+Create a dedicated financial tracking module.
+
+Support:
+
+- Fixed monthly rental.
+- Per-kilometre payments.
+- Per-trip payments.
+- Revenue-sharing settlements.
+- Advance payments.
+- Partial payments.
+- Additional charges.
+- Deductions.
+- Refunds.
+- Final settlements.
+
+### Payment fields
+
+- Transaction ID.
+- Contract ID.
+- Supplier.
+- Vehicle.
+- Billing period.
+- Due date.
+- Payment amount.
+- Paid amount.
+- Outstanding amount.
+- Payment method.
+- Payment reference.
+- Receipt.
+- Transaction status.
+- Recorded by.
+- Approved by.
+
+### Payment statuses
+
+- Draft.
+- Pending Approval.
+- Approved.
+- Partially Paid.
+- Paid.
+- Overdue.
+- Disputed.
+- Cancelled.
+- Reconciled.
+
+Never mark a payment as paid merely because its due date has passed.
+
+Do not fabricate bank reconciliation.
+
+Manual reconciliation must be supported, and actual bank integration can be introduced separately.
+
+---
+
+# 15. CONTRACT STATUS MANAGEMENT
+
+Implement these statuses:
+
+- Draft.
+- Pending Approval.
+- Awaiting Handover.
+- Active.
+- Temporarily Suspended.
+- Renewal Pending.
+- Expired.
+- Termination Requested.
+- Terminated.
+- Vehicle Return Pending.
+- Closed.
+
+Status changes must follow valid workflows.
+
+A contract must not become Closed while outstanding vehicle returns, deposits, payments or required settlements remain unresolved unless an authorized user explicitly approves closure with documented exceptions.
+
+A vehicle must not automatically become available for another agreement merely because its previous contract expires.
+
+---
+
+# 16. INTEGRATION WITH EXISTING DRIVEMITRA MODULES
+
+Ownership and contract information must be available wherever relevant.
+
+### Vehicles
+
+Display:
+
+- Ownership category.
+- Legal owner.
+- Supplier.
+- Contract ID.
+- Contract status.
+- Contract start and end.
+- Operational organization.
+
+### Vehicle detail profile
+
+Add a dedicated Contract & Ownership section.
+
+Tabs:
+
+- Ownership Overview.
+- Supplier Information.
+- Contract Details.
+- Financial Terms.
+- Maintenance Responsibilities.
+- Handover Records.
+- Contract Documents.
+- Contract History.
+
+### Fleet Map
+
+All operational vehicles can appear on the map according to GPS availability and permissions.
+
+Show ownership category as a vehicle attribute.
+
+Do not imply that contracted vehicles have live GPS when no tracking source exists.
+
+### Vehicle Assignments
+
+Prevent assignments outside the valid operational contract period unless explicitly authorized.
+
+### Maintenance and Work Orders
+
+Identify applicable contractual maintenance responsibilities.
+
+### Service History
+
+Preserve complete vehicle maintenance history.
+
+### Fuel and Energy
+
+Record operating expenses separately from supplier rental payments.
+
+### Documents
+
+Link vehicle documents, supplier documents and contract documents without mixing their ownership or access rules.
+
+### Finance
+
+Keep company-owned vehicle loans separate from contracted vehicle rental obligations.
+
+Do not treat a contracted vehicle as a company-owned financed asset.
+
+### Reminders
+
+Support:
+
+- Contract expiry.
+- Agreement renewal.
+- Insurance expiry.
+- Permit expiry.
+- Fitness expiry.
+- PUC expiry.
+- Deposit expiry.
+- Pending settlements.
+- Vehicle return.
+- Required document renewals.
+
+### Replacement Analysis
+
+Exclude contracted and individually supplied vehicles from company-owned asset replacement decisions by default.
+
+### Reports
+
+Provide ownership-aware reports and filters.
+
+---
+
+# 17. REPORTS AND ANALYTICS
+
+Create reports for:
+
+1. Ownership Distribution.
+2. Company-Owned Vehicles.
+3. Contracted Fleet Vehicles.
+4. Individually Supplied Vehicles.
+5. Supplier Performance.
+6. Active Contract Register.
+7. Expiring Contracts.
+8. Contract Renewal History.
+9. Monthly Rental Expenditure.
+10. Contract Payments.
+11. Outstanding Payments.
+12. Security Deposits.
+13. Deposit Refunds.
+14. Contract Maintenance Costs.
+15. Supplier Maintenance Settlements.
+16. Vehicle Handover and Return.
+17. Contract Amendment History.
+18. Contract Profitability and Operational Cost.
+
+Allow filtering by:
+
+- Date.
+- Supplier.
+- Vehicle.
+- Ownership type.
+- Contract status.
+- Payment status.
+- Maintenance responsibility.
+
+All financial reports must use actual transaction data.
+
+---
+
+# 18. NOTIFICATIONS AND ALERTS
+
+Generate alerts for:
+
+- Contract approval pending.
+- Amendment approval pending.
+- Contract starting soon.
+- Contract expiring in 30/15/7/3 days.
+- Renewal pending.
+- Missing contract documents.
+- Security deposit outstanding.
+- Payment due.
+- Payment overdue.
+- Maintenance approval pending.
+- Supplier settlement pending.
+- Vehicle return pending.
+- Deposit refund pending.
+
+Notifications must respect user roles and organization permissions.
+
+Do not claim SMS or WhatsApp notifications unless a real integration is configured.
+
+---
+
+# 19. DATABASE ARCHITECTURE
+
+First inspect the existing DriveMitra database and migration framework.
+
+Do not blindly recreate existing tables.
+
+Preserve all existing records and relationships.
+
+Extend the existing schema using versioned migrations.
+
+Recommended entities:
+
+### Ownership
+- vehicle_ownership
+- vehicle_owner_relationships
+
+### Suppliers
+- fleet_partners
+- individual_vehicle_owners
+
+### Contracts
+- vehicle_contracts
+- vehicle_contract_vehicles
+- contract_terms
+- contract_versions
+- contract_amendments
+- contract_amendment_approvals
+
+### Maintenance
+- contract_maintenance_rules
+- contract_maintenance_allocations
+- contract_maintenance_approvals
+
+### Finance
+- contract_payments
+- contract_payment_allocations
+- contract_settlements
+- contract_bonds
+- contract_deposits
+- contract_deductions
+- contract_refunds
+
+### Handover
+- vehicle_handovers
+- vehicle_handover_inspections
+- vehicle_handover_photos
+- vehicle_return_records
+
+### Documents and history
+- contract_documents
+- contract_history
+- supplier_documents
+- contract_notifications
+
+### Security
+- contract_permissions
+- contract_activity_logs
+
+These are proposed logical entities. Reuse existing DriveMitra tables where an equivalent structure already exists.
+
+### Database requirements
+
+- Organization-level tenant isolation.
+- Proper primary keys.
+- Foreign key constraints.
+- Correct indexes.
+- Unique constraints where appropriate.
+- Transaction-safe financial updates.
+- Decimal monetary types.
+- UTC timestamps with consistent timezone conversion.
+- Soft deletion or archival for appropriate business records.
+- Immutable audit history.
+- Secure document storage references.
+
+A supplier's organization and the operating organization must remain separate tenants.
+
+Never expose another organization's private vehicle, financial or personal information through shared supplier relationships.
+
+---
+
+# 20. FINANCIAL AND DATA INTEGRITY RULES
+
+Implement these rules:
+
+1. Never merge vehicle ownership with operational control.
+2. Never merge contract rental payments with vehicle loan EMIs.
+3. Never classify refundable deposits as ordinary operating expenses.
+4. Never overwrite historical contract versions.
+5. Never delete completed payment records.
+6. Never silently change historical maintenance costs.
+7. Never automatically allocate expenses without valid contractual terms or authorized approval.
+8. Never automatically close an agreement without resolving outstanding obligations or recording approved exceptions.
+9. Never allow overlapping active contracts for a vehicle without explicit authorization.
+10. Never expose supplier financial information to unauthorized staff.
+11. Never create duplicate vehicles when a vehicle is already registered within the same operating organization.
+12. Preserve all audit records when contracts are amended, suspended, renewed or terminated.
+
+All financial calculations must be deterministic and traceable.
+
+---
+
+# 21. USER INTERFACE AND DESIGN REQUIREMENTS
+
+Use the existing DriveMitra design system.
+
+Maintain its premium, clean and professional appearance.
+
+Design requirements:
+
+- Clear information hierarchy.
+- Responsive layouts.
+- Distinct ownership badges.
+- Supplier profile cards.
+- Contract status indicators.
+- Financial summary cards.
+- Contract timelines.
+- Amendment comparison views.
+- Deposit tracking visualizations.
+- Maintenance responsibility indicators.
+- Vehicle handover comparison screens.
+
+Use ownership badges consistently:
+
+- Company Owned.
+- Contracted Fleet.
+- Individual Owner.
+
+Do not use different ownership colours without maintaining a consistent design system.
+
+Every submenu must include:
+
+- Search.
+- Sorting.
+- Relevant filters.
+- Pagination.
+- Empty states.
+- Loading states.
+- Error states.
+- Permission-aware actions.
+- Detail views.
+- Activity history where applicable.
+
+Do not introduce decorative-only buttons.
+
+Every implemented action must perform a real backend operation.
+
+---
+
+# 22. MOBILE APPLICATION INTEGRATION
+
+The mobile application must support the same centralized contract data.
+
+### Fleet Owner
+
+Can:
+
+- View all ownership categories.
+- Manage suppliers.
+- Create and approve contracts.
+- Manage amendments.
+- Review deposits.
+- Approve financial settlements.
+- View maintenance responsibilities.
+- Approve contract-related decisions.
+
+### Fleet Staff
+
+Can perform assigned operational activities:
+
+- View permitted contract details.
+- View contracted vehicles.
+- Submit handover inspections.
+- Submit maintenance requests.
+- Upload supporting photographs.
+- Update permitted operational information.
+
+Cannot approve restricted financial or contractual decisions.
+
+### Fleet Driver
+
+Drivers must not have access to contract administration.
+
+They can access their assigned vehicle and trip information according to their existing driver permissions.
+
+### Platform Administrator
+
+Global application and subscription management remains separate.
+
+---
+
+# 23. IMPLEMENTATION PHASES
+
+Do not attempt a risky one-shot implementation.
+
+Implement in the following sequence.
+
+### Phase 1 — Existing System Audit
+
+- Inspect the entire repository.
+- Inspect database schema.
+- Inspect vehicle records and relationships.
+- Inspect user roles and permissions.
+- Inspect existing Finance, Documents, Maintenance and Reports modules.
+- Identify reusable components.
+- Identify schema conflicts.
+- Prepare a migration plan.
+
+Do not modify code until the audit is complete.
+
+### Phase 2 — Ownership Architecture
+
+- Implement ownership categories.
+- Implement supplier entities.
+- Implement individual vehicle owners.
+- Link vehicles to their legal owners.
+- Preserve existing vehicle records.
+
+### Phase 3 — Contract Management
+
+- Contract register.
+- Contract creation.
+- Multi-vehicle agreements.
+- Multiple supplier agreements.
+- Contract terms.
+- Contract status lifecycle.
+- Contract details.
+
+### Phase 4 — Contract Amendments
+
+- Versioned agreements.
+- Amendment creation.
+- Amendment comparison.
+- Approval workflow.
+- Effective-date handling.
+- Historical version preservation.
+
+### Phase 5 — Bond and Financial Management
+
+- Security deposits.
+- Performance bonds.
+- Contract payments.
+- Partial payments.
+- Deductions.
+- Refunds.
+- Settlements.
+
+### Phase 6 — Maintenance Integration
+
+- Maintenance responsibility rules.
+- Work order integration.
+- Expense allocation.
+- Supplier settlement.
+- Service history integration.
+
+### Phase 7 — Handover and Return
+
+- Initial inspections.
+- Return inspections.
+- Photographic evidence.
+- Condition comparison.
+- Deposit deduction workflow.
+
+### Phase 8 — Permissions and Audit
+
+- Owner permissions.
+- Staff permissions.
+- Contract-specific authorization.
+- Backend access control.
+- Audit logs.
+
+### Phase 9 — Reports and Dashboard
+
+- Ownership analytics.
+- Supplier reports.
+- Financial reports.
+- Contract expiry alerts.
+- Maintenance analytics.
+
+### Phase 10 — Mobile Integration and Testing
+
+- Owner interface.
+- Staff interface.
+- Driver interface.
+- API authorization.
+- Data synchronization.
+- Offline behaviour where applicable.
+
+---
+
+# 24. ACCEPTANCE TEST SCENARIOS
+
+The implementation is incomplete until these scenarios work.
+
+### Scenario A — Mixed Ownership Fleet
+
+Create an organization with:
+
+- Five company-owned vehicles.
+- Three vehicles from an external fleet supplier.
+- Two vehicles from individual owners.
+
+Verify that all 10 vehicles appear in the operational fleet.
+
+Verify that ownership classification and legal ownership remain correct.
+
+### Scenario B — Multiple Supplier Agreements
+
+Create one fleet partner.
+
+Create two contracts with that supplier.
+
+Attach multiple vehicles to each contract.
+
+Verify supplier analytics and contract separation.
+
+### Scenario C — Contract Amendment
+
+Create a contract with ₹30,000 monthly rental.
+
+Amend it to ₹35,000.
+
+Verify that:
+
+- Original agreement remains unchanged.
+- Amendment is recorded.
+- Approval is required.
+- Effective date is respected.
+- Historical payments remain unchanged.
+- Future schedules use the approved terms.
+
+### Scenario D — Security Deposit
+
+Create a ₹50,000 refundable deposit.
+
+Record ₹40,000 paid.
+
+Verify ₹10,000 outstanding.
+
+Record the remaining payment.
+
+At contract closure, record ₹5,000 authorized deductions.
+
+Verify ₹45,000 refundable.
+
+### Scenario E — Maintenance Responsibility
+
+Create a contracted vehicle.
+
+Create a maintenance request worth ₹18,000.
+
+Allocate ₹5,000 to the operating organization and ₹13,000 to the supplier.
+
+Verify that one maintenance transaction contains both allocations.
+
+### Scenario F — Handover and Return
+
+Record initial odometer, photographs and vehicle condition.
+
+Record final odometer and condition.
+
+Compare the two records.
+
+Verify that evidence remains accessible.
+
+### Scenario G — Staff Permissions
+
+Log in as a staff member.
+
+Verify that the staff member can submit permitted maintenance and handover records.
+
+Verify that restricted contract amendments, payments, refunds and termination actions are blocked by the backend.
+
+### Scenario H — Tenant Isolation
+
+Create two separate fleet organizations.
+
+Share a vehicle under a contract relationship.
+
+Verify that each organization sees only its permitted information.
+
+Attempt unauthorized API access.
+
+Verify that the backend rejects it.
+
+### Scenario I — Existing Module Compatibility
+
+Verify that ownership classification works correctly with:
+
+- Vehicles.
+- Fleet Map.
+- Assignments.
+- Maintenance.
+- Work Orders.
+- Service History.
+- Fuel.
+- Expenses.
+- Documents.
+- Finance.
+- Reminders.
+- Reports.
+- Mobile interfaces.
+
+Ensure no existing functionality is broken.
+
+---
+
+# 25. FINAL IMPLEMENTATION INSTRUCTIONS
+
+This is an extension of the existing DriveMitra product, not a separate application.
+
+Do not:
+
+- Rebuild the entire platform.
+- Replace the existing vehicle management system.
+- Remove existing modules.
+- Introduce duplicate vehicle records.
+- Hard-code supplier relationships.
+- Hard-code contract payment models.
+- Invent supplier data.
+- Invent financial transactions.
+- Use dummy operational data as real information.
+- Introduce unnecessary LLM or paid API dependencies.
+- Break existing authentication or role permissions.
+
+Use the existing backend, database, design system and application architecture wherever appropriate.
+
+All data must be real, persistent, organization-scoped and permission-controlled.
+
+Before implementing, audit the repository and produce a short implementation plan identifying the exact files, tables, APIs and existing modules that need changes.
+
+After implementation, provide:
+
+1. Completed features.
+2. Database migrations.
+3. New API endpoints.
+4. Updated navigation.
+5. Permission matrix.
+6. Integration details.
+7. Tests performed.
+8. Known limitations.
+
+**FINAL PRODUCT GOAL**
+
+DriveMitra must support a transportation organization that owns some vehicles, rents vehicles from other fleet companies and operates vehicles supplied by independent individuals.
+
+It must provide complete ownership visibility, contract lifecycle management, supplier relationships, financial commitments, security deposits, maintenance responsibilities, amendments, handovers, returns and settlements.
+
+The result must be a reliable, scalable, multi-tenant fleet contract management system integrated into DriveMitra.
