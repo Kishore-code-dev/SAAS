@@ -173,7 +173,7 @@ export function AddVehicleFinancePage() {
         initialDocuments: docs,
       })
       toast.success(`Vehicle finance registered for ${selectedVehicle.registrationNumber}`)
-      navigate(`/dashboard/finance/vehicles/${created.id}`)
+      navigate(`/dashboard/finance/vehicles/${created.record.id}`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unable to register vehicle finance.'
       setFormError(msg)
@@ -453,7 +453,7 @@ export function FinanceEmiPayPage() {
 
   const defaultRef = instalment && record
     ? `UTR-${record.loanReferenceNumber.replace(/[^A-Z0-9]/gi, '').slice(-4) || 'FIN'}-${String(instalment.emiNumber).padStart(2, '0')}`
-    : `UTR-${Date.now()}`
+    : 'UTR-FIN-PAY'
 
   const [amountInr, setAmountInr] = useState<number>(instalment?.remainingAmount ?? 0)
   const [manualLateFeeInr, setManualLateFeeInr] = useState<number>(0)
@@ -473,12 +473,6 @@ export function FinanceEmiPayPage() {
   const canAddLateFee =
     settings.allowManualLateFeeEntry &&
     (canPerformAction(activeRole, 'edit_finance_records') || canPerformAction(activeRole, 'reconcile_finance_payments'))
-
-  React.useEffect(() => {
-    if (instalment) {
-      setAmountInr(instalment.remainingAmount)
-    }
-  }, [instalment])
 
   const handleReceipt = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]

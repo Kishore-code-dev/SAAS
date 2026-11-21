@@ -25,7 +25,7 @@ export function IndividualOwnersListPage() {
         o.fullName.toLowerCase().includes(query) ||
         o.ownerCode.toLowerCase().includes(query) ||
         o.mobile.toLowerCase().includes(query) ||
-        o.city.toLowerCase().includes(query),
+        (o.city ?? '').toLowerCase().includes(query),
     )
   }, [owners, q])
 
@@ -44,21 +44,22 @@ export function IndividualOwnersListPage() {
       </PageHeader>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <MetricTile label="Individual Owners" value={owners.length} hint="PAN & Aadhaar duplicate-checked" tone="gold" />
+        <MetricTile title="Individual Owners" value={owners.length} subtitle="PAN & Aadhaar duplicate-checked" color="#6E5696" />
         <MetricTile
-          label="Active Owner Contracts"
+          title="Active Owner Contracts"
           value={contracts.filter((c) => c.supplierType === 'individual_owner' && c.status === 'active').length}
-          hint="Live individual owner agreements"
-          tone="success"
+          subtitle="Live individual owner agreements"
+          color="#4D6E4A"
         />
         <MetricTile
-          label="Total Owner Payouts"
+          title="Total Owner Payouts"
           value={formatInr(
             payments
               .filter((pay) => contracts.some((c) => c.id === pay.contractId && c.supplierType === 'individual_owner'))
               .reduce((s, p) => s + p.paidAmountInr, 0),
           )}
-          hint="Settled rental / share payouts"
+          subtitle="Settled rental / share payouts"
+          color="#D8B442"
         />
       </div>
 
@@ -175,7 +176,7 @@ export function IndividualOwnerFormPage() {
   const [ifscCode, setIfscCode] = useState(existing?.ifscCode ?? '')
   const [emergencyContact, setEmergencyContact] = useState(existing?.emergencyContact ?? '')
   const [payoutCycle, setPayoutCycle] = useState(existing?.payoutCycle ?? 'Monthly (5th of month)')
-  const [status, setStatus] = useState<'active' | 'onboarding' | 'suspended'>(existing?.status ?? 'active')
+  const [status, setStatus] = useState<'active' | 'on_hold' | 'inactive'>(existing?.status ?? 'active')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -313,10 +314,10 @@ export function IndividualOwnerFormPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#625346] mb-1">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'onboarding' | 'suspended')} className="dm-input text-xs">
+            <select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'on_hold' | 'inactive')} className="dm-input text-xs">
               <option value="active">Active</option>
-              <option value="onboarding">Onboarding</option>
-              <option value="suspended">Suspended</option>
+              <option value="on_hold">On Hold</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
           <div className="md:col-span-2">
@@ -381,7 +382,7 @@ export function IndividualOwnerDetailPage() {
   const oVehicles = contractVehicles.filter((l) => cIds.has(l.contractId))
   const oPayments = payments.filter((p) => cIds.has(p.contractId))
   const oDeposits = deposits.filter((d) => cIds.has(d.contractId))
-  const oDocs = documents.filter((d) => cIds.has(d.contractId))
+  const oDocs = documents.filter((d) => d.contractId && cIds.has(d.contractId))
   const oHistory = history.filter((h) => (h.contractId && cIds.has(h.contractId)) || h.entityId === owner.id)
 
   return (
@@ -536,7 +537,7 @@ export function IndividualOwnerDetailPage() {
                 <tr key={p.id}>
                   <td className="font-semibold text-xs">{p.transactionCode}</td>
                   <td className="text-xs">{p.billingPeriod}</td>
-                  <td className="text-xs tabular-nums">{formatInr(p.payableAmountInr)}</td>
+                  <td className="text-xs tabular-nums">{formatInr(p.payableAmountInr ?? p.paymentAmountInr ?? 0)}</td>
                   <td className="text-xs tabular-nums">{formatInr(p.paidAmountInr)}</td>
                   <td><ContractPaymentStatusBadge status={p.status} /></td>
                 </tr>
@@ -572,7 +573,7 @@ export function IndividualOwnerDetailPage() {
                   </td>
                   <td className="text-xs tabular-nums">{formatInr(d.requiredAmountInr)}</td>
                   <td className="text-xs tabular-nums">{formatInr(d.paidAmountInr)}</td>
-                  <td className="text-xs font-semibold tabular-nums">{formatInr(d.netRefundableInr)}</td>
+                  <td className="text-xs font-semibold tabular-nums">{formatInr(d.netRefundableInr ?? 0)}</td>
                   <td><DepositStatusBadge status={d.status} /></td>
                 </tr>
               ))}
@@ -596,7 +597,7 @@ export function IndividualOwnerDetailPage() {
               {oDocs.map((d) => (
                 <tr key={d.id}>
                   <td className="font-semibold text-xs">{d.title}</td>
-                  <td className="text-xs capitalize">{d.documentType.replace(/_/g, ' ')}</td>
+                  <td className="text-xs capitalize">{(d.documentType ?? d.category ?? 'document').replace(/_/g, ' ')}</td>
                   <td className="text-xs">{d.uploadedAt.slice(0, 10)}</td>
                   <td className="text-xs capitalize font-semibold">{d.verificationStatus}</td>
                 </tr>
@@ -614,7 +615,7 @@ export function IndividualOwnerDetailPage() {
                 <div className="font-semibold text-[#625346]">{h.summary}</div>
                 <div className="text-[#958777]">By {h.actorName}</div>
               </div>
-              <span className="text-[#958777]">{h.createdAt.slice(0, 16).replace('T', ' ')}</span>
+              <span className="text-[#958777]">{((h.createdAt ?? h.timestamp) ?? '').slice(0, 16).replace('T', ' ')}</span>
             </div>
           ))}
         </div>

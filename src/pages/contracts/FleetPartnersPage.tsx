@@ -181,7 +181,7 @@ export function FleetPartnerFormPage() {
   const [bankAccountNumber, setBankAccountNumber] = useState('')
   const [ifscCode, setIfscCode] = useState(existing?.ifscCode ?? '')
   const [slaTargetUptimePct, setSlaTargetUptimePct] = useState(existing?.slaTargetUptimePct ?? 95)
-  const [status, setStatus] = useState<'active' | 'onboarding' | 'suspended'>(existing?.status ?? 'active')
+  const [status, setStatus] = useState<'active' | 'on_hold' | 'inactive'>(existing?.status ?? 'active')
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -304,10 +304,10 @@ export function FleetPartnerFormPage() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-[#625346] mb-1">Status</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'onboarding' | 'suspended')} className="dm-input text-xs">
+            <select value={status} onChange={(e) => setStatus(e.target.value as 'active' | 'on_hold' | 'inactive')} className="dm-input text-xs">
               <option value="active">Active</option>
-              <option value="onboarding">Onboarding</option>
-              <option value="suspended">Suspended</option>
+              <option value="on_hold">On Hold</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
           <div className="md:col-span-2">
@@ -372,8 +372,8 @@ export function FleetPartnerDetailPage() {
   const pVehicles = contractVehicles.filter((l) => contractIds.has(l.contractId))
   const pPayments = payments.filter((pay) => contractIds.has(pay.contractId))
   const pMaint = maintenanceAllocations.filter((m) => contractIds.has(m.contractId))
-  const pDocs = documents.filter((d) => contractIds.has(d.contractId))
-  const pHistory = history.filter((h) => (h.contractId && contractIds.has(h.contractId)) || h.entityId === partner.id)
+  const pDocs = documents.filter((d) => d.contractId && contractIds.has(d.contractId))
+  const pHistory = history.filter((h) => ((h.contractId && contractIds.has(h.contractId)) || h.entityId === partner.id))
 
   return (
     <div className="space-y-6">
@@ -528,7 +528,7 @@ export function FleetPartnerDetailPage() {
                 <tr key={pay.id}>
                   <td className="font-semibold text-xs">{pay.transactionCode}</td>
                   <td className="text-xs">{pay.billingPeriod}</td>
-                  <td className="text-xs tabular-nums">{formatInr(pay.payableAmountInr)}</td>
+                  <td className="text-xs tabular-nums">{formatInr(pay.payableAmountInr ?? pay.paymentAmountInr ?? 0)}</td>
                   <td className="text-xs tabular-nums">{formatInr(pay.paidAmountInr)}</td>
                   <td className="text-xs tabular-nums">{formatInr(pay.outstandingAmountInr)}</td>
                   <td><ContractPaymentStatusBadge status={pay.status} /></td>
@@ -583,7 +583,7 @@ export function FleetPartnerDetailPage() {
               {pDocs.map((d) => (
                 <tr key={d.id}>
                   <td className="font-semibold text-xs">{d.title}</td>
-                  <td className="text-xs capitalize">{d.documentType.replace(/_/g, ' ')}</td>
+                  <td className="text-xs capitalize">{(d.documentType ?? d.category ?? 'document').replace(/_/g, ' ')}</td>
                   <td className="text-xs">{d.uploadedAt.slice(0, 10)}</td>
                   <td className="text-xs capitalize font-semibold">{d.verificationStatus}</td>
                 </tr>
@@ -604,7 +604,7 @@ export function FleetPartnerDetailPage() {
                   <div className="font-semibold text-[#625346]">{h.summary}</div>
                   <div className="text-[#958777]">By {h.actorName} ({h.actorRole})</div>
                 </div>
-                <span className="text-[#958777] whitespace-nowrap">{h.createdAt.slice(0, 16).replace('T', ' ')}</span>
+                <span className="text-[#958777] whitespace-nowrap">{((h.createdAt ?? h.timestamp) ?? '').slice(0, 16).replace('T', ' ')}</span>
               </div>
             ))
           )}

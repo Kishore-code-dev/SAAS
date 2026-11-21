@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { Smartphone, Shield, Truck, Users, Wifi, WifiOff, Camera, MapPin, CheckCircle2, RefreshCw } from 'lucide-react'
+import { Smartphone, Wifi, WifiOff, Camera, MapPin, CheckCircle2 } from 'lucide-react'
 import { useFleet } from '../hooks/useFleet'
 import PageHeader from '../components/layout/PageHeader'
-import { formatInr } from '../components/ui/EnterprisePrimitives'
 
 export default function MobileAppSimulator() {
   const { activeOrganization, vehicles, drivers, workOrders, fuelTransactions } = useFleet()

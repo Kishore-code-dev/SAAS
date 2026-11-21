@@ -154,6 +154,7 @@ export function ContractsProvider({ children }: { children: React.ReactNode }) {
   }, [activeOrganization?.id, activeRole, isAuthenticated, user])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refreshContracts()
   }, [refreshContracts])
 

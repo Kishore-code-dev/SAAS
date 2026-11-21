@@ -41,9 +41,9 @@ export default function HandoverReturnFormPage() {
     initialRecord ? initialRecord.odometerKm + 2400 : 12000,
   )
   const [fuelLevelPct, setFuelLevelPct] = useState(initialRecord ? initialRecord.fuelLevelPct : 85)
-  const [exteriorCondition, setExteriorCondition] = useState('Clean, minor road dust only')
-  const [interiorCondition, setInteriorCondition] = useState('Good condition, seats intact')
-  const [tyreCondition, setTyreCondition] = useState('All tyres > 6mm tread')
+  const [exteriorCondition, setExteriorCondition] = useState<string>('good')
+  const [interiorCondition, setInteriorCondition] = useState<string>('good')
+  const [tyreCondition, setTyreCondition] = useState<string>('good')
   const [accessoriesChecklist, setAccessoriesChecklist] = useState<string[]>(
     initialRecord ? [...initialRecord.accessoriesChecklist] : [...DEFAULT_ACCESSORIES],
   )
@@ -64,29 +64,39 @@ export default function HandoverReturnFormPage() {
 
   const liveComparison = useMemo(() => {
     if (!isReturnMode || !initialRecord) return null
-    const draftReturn: VehicleHandoverRecord = {
+    const draftReturn = {
       id: 'preview',
       organizationId: initialRecord.organizationId,
       contractId,
       vehicleId,
       vehicleRegistration: initialRecord.vehicleRegistration,
       recordType: 'vehicle_return',
+      handoverCode: 'PREVIEW',
+      supplierType: initialRecord.supplierType,
+      supplierName: initialRecord.supplierName,
+      handoverDatetime: handoverDate,
       handoverDate,
       odometerKm,
       fuelLevelPct,
-      exteriorCondition,
-      interiorCondition,
-      tyreCondition,
+      exteriorCondition: exteriorCondition as 'excellent' | 'good' | 'fair' | 'damaged',
+      interiorCondition: interiorCondition as 'excellent' | 'good' | 'fair' | 'damaged',
+      tyreCondition: tyreCondition as 'good' | 'worn' | 'critical',
       accessoriesChecklist,
       equipmentChecklist,
-      existingDamageNotes,
+      documentChecklist: [],
+      photos: [],
+      supplierRepresentative: '',
+      receivingRepresentative: '',
+      supplierAckName: '',
+      receivingAckName: '',
+      existingDamages: existingDamageNotes,
       pendingRepairsInr,
       outstandingExpensesInr,
       recommendedDeductionInr,
-      remarks,
-      recordedBy: 'Current User',
+      handoverNotes: remarks,
+      createdBy: 'Current User',
       createdAt: '',
-    }
+    } as VehicleHandoverRecord
     return compareHandoverVsReturn(initialRecord, draftReturn)
   }, [
     accessoriesChecklist,

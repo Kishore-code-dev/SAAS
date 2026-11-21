@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bar,
@@ -51,7 +51,7 @@ export default function ContractOverviewPage() {
     hasPermission,
   } = useContracts()
 
-  const nowMs = useMemo(() => Date.now(), [])
+  const [nowMs] = useState(() => Date.now())
   const stats = useMemo(() => {
     const companyOwnedCount = vehicles.filter((v) => (v.ownershipCategory ?? 'company_owned') === 'company_owned').length
     const contractedCount = vehicles.filter((v) => v.ownershipCategory === 'contracted_fleet').length
@@ -364,7 +364,7 @@ export default function ContractOverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#625346' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#625346' }} />
-                <Tooltip formatter={(val: any) => formatInr(Number(val ?? 0))} />
+                <Tooltip formatter={(val: unknown) => formatInr(Number(val ?? 0))} />
                 <Bar dataKey="amount" fill="#4D6E4A" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -386,7 +386,7 @@ export default function ContractOverviewPage() {
                     <Cell key={entry.name} fill={COLORS[(idx + 1) % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: any) => formatInr(Number(val ?? 0))} />
+                <Tooltip formatter={(val: unknown) => formatInr(Number(val ?? 0))} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -406,7 +406,7 @@ export default function ContractOverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#625346' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#625346' }} />
-                <Tooltip formatter={(val: any) => formatInr(Number(val ?? 0))} />
+                <Tooltip formatter={(val: unknown) => formatInr(Number(val ?? 0))} />
                 <Bar dataKey="amount" fill="#6E5696" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -426,7 +426,7 @@ export default function ContractOverviewPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#625346' }} />
                 <YAxis tick={{ fontSize: 11, fill: '#625346' }} />
-                <Tooltip formatter={(val: any) => formatInr(Number(val ?? 0))} />
+                <Tooltip formatter={(val: unknown) => formatInr(Number(val ?? 0))} />
                 <Bar dataKey="amount" fill="#D9786C" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

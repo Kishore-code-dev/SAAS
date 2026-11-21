@@ -10,9 +10,9 @@ import { ContractStatusBadge } from '../../components/contracts/ContractPrimitiv
 export function ContractRenewalsPage() {
   const navigate = useNavigate()
   const { contracts, hasPermission } = useContracts()
+  const [now] = useState(() => Date.now())
 
   const renewalQueue = useMemo(() => {
-    const now = Date.now()
     return contracts
       .filter((c) => !c.archived && c.status !== 'closed' && c.status !== 'terminated')
       .map((c) => ({
@@ -20,7 +20,7 @@ export function ContractRenewalsPage() {
         daysLeft: Math.ceil((new Date(c.expiryDate).getTime() - now) / 86400000),
       }))
       .sort((a, b) => a.daysLeft - b.daysLeft)
-  }, [contracts])
+  }, [contracts, now])
 
   const within30 = renewalQueue.filter((x) => x.daysLeft <= 30).length
   const expired = renewalQueue.filter((x) => x.daysLeft <= 0).length

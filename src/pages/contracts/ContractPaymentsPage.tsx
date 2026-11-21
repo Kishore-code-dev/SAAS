@@ -150,7 +150,7 @@ export function ContractPaymentsPage() {
                         <div className="text-[#958777]">Due: {p.dueDate}</div>
                       </td>
                       <td className="text-xs tabular-nums">
-                        <div className="font-semibold text-[#625346]">{formatInr(p.payableAmountInr)}</div>
+                        <div className="font-semibold text-[#625346]">{formatInr(p.payableAmountInr ?? p.paymentAmountInr ?? 0)}</div>
                         <div className="text-[#4D6E4A]">Paid: {formatInr(p.paidAmountInr)}</div>
                       </td>
                       <td className="text-xs font-bold tabular-nums text-[#A24034]">

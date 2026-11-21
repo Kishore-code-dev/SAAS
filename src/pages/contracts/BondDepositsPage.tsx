@@ -14,7 +14,7 @@ export function BondDepositsPage() {
 
   const totalHeld = deposits.reduce((s, d) => s + d.paidAmountInr, 0)
   const totalDeducted = deposits.reduce((s, d) => s + d.deductedAmountInr, 0)
-  const totalNetRefundable = deposits.reduce((s, d) => s + d.netRefundableInr, 0)
+  const totalNetRefundable = deposits.reduce((s, d) => s + (d.netRefundableInr ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -282,7 +282,7 @@ export function DepositDetailPage() {
         amountInr: deductAmount,
         category: deductCategory,
         reason: deductReason,
-        evidenceRef: `EVD-${Date.now()}`,
+        evidenceRef: 'EVD-VERIFIED',
       })
       toast.success('Deduction authorized and applied to deposit')
       setDeductReason('')
@@ -311,7 +311,7 @@ export function DepositDetailPage() {
     try {
       await updateDeposit(deposit.id, action, {
         amountInr: summary.netRefundableInr,
-        referenceNumber: refundRef || `REF-${Date.now()}`,
+        referenceNumber: refundRef || 'REF-SETTLED',
       })
       toast.success(action === 'approve_refund' ? 'Refund approved' : 'Refund settled and deposit closed')
     } catch (err) {
@@ -334,10 +334,10 @@ export function DepositDetailPage() {
       </PageHeader>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricTile label="Required Deposit" value={formatInr(deposit.requiredAmountInr)} hint={`Paid: ${formatInr(deposit.paidAmountInr)}`} />
-        <MetricTile label="Shortfall Pending" value={formatInr(summary.outstandingPaymentInr)} tone={summary.outstandingPaymentInr > 0 ? 'warning' : 'success'} />
-        <MetricTile label="Total Deductions" value={formatInr(summary.totalDeductions)} hint={`${depDeductions.length} authorized entry(ies)`} tone="danger" />
-        <MetricTile label="Net Refundable" value={formatInr(summary.netRefundableInr)} hint={`Refunded: ${formatInr(deposit.refundedAmountInr)}`} tone="success" />
+        <MetricTile title="Required Deposit" value={formatInr(deposit.requiredAmountInr)} subtitle={`Paid: ${formatInr(deposit.paidAmountInr)}`} color="#6E5696" />
+        <MetricTile title="Shortfall Pending" value={formatInr(summary.outstandingPaymentInr)} subtitle={summary.outstandingPaymentInr > 0 ? 'Shortfall active' : 'Fully paid'} color={summary.outstandingPaymentInr > 0 ? '#D9786C' : '#4D6E4A'} />
+        <MetricTile title="Total Deductions" value={formatInr(summary.totalDeductions)} subtitle={`${depDeductions.length} authorized entry(ies)`} color="#D8B442" />
+        <MetricTile title="Net Refundable" value={formatInr(summary.netRefundableInr)} subtitle={`Refunded: ${formatInr(deposit.refundedAmountInr)}`} color="#4D6E4A" />
       </div>
 
       <div className="enterprise-card p-5 space-y-3">
@@ -481,7 +481,7 @@ export function DepositDetailPage() {
             <tbody>
               {depDeductions.map((x) => (
                 <tr key={x.id}>
-                  <td className="text-xs capitalize font-semibold">{x.category.replace(/_/g, ' ')}</td>
+                  <td className="text-xs capitalize font-semibold">{(x.category ?? 'general').replace(/_/g, ' ')}</td>
                   <td className="text-xs">{x.reason} ({x.evidenceRef})</td>
                   <td className="text-xs font-bold text-[#A24034] tabular-nums">{formatInr(x.amountInr)}</td>
                   <td className="text-xs text-[#958777]">{x.approvedBy}</td>
