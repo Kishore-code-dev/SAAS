@@ -6,7 +6,6 @@ import { useFleet } from '../hooks/useFleet'
 import { classifyTelemetryFreshness } from '../utils/intelligenceEngine'
 import { canPerformAction } from '../utils/rbac'
 import { EmptySectionState, SeverityText } from '../components/ui/EnterprisePrimitives'
-import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 import PageHeader from '../components/layout/PageHeader'
 
 const PAGE_SIZE = 10
@@ -31,7 +30,6 @@ export default function Vehicles() {
   const [healthFilter, setHealthFilter] = useState<'all' | 'healthy' | 'at-risk' | 'critical'>('all')
   const [sortBy, setSortBy] = useState<'health_asc' | 'odometer_desc' | 'reg_asc'>('health_asc')
   const [page, setPage] = useState(1)
-  const [addOpen, setAddOpen] = useState(false)
 
   const canAdd = canPerformAction(activeRole, 'add_vehicle')
   const canRestore = canPerformAction(activeRole, 'restore_vehicle')
@@ -79,7 +77,7 @@ export default function Vehicles() {
     <div className="space-y-6">
       <PageHeader title="Fleet & Vehicle Digital Twins" subtitle={<>{activeOrganization.name} · {vehicles.length} active, {archivedVehicles.length} archived (Plan limit {activeOrganization.vehicleLimit})</>}>
         {canAdd && (
-          <button type="button" onClick={() => setAddOpen(true)} className="btn-accent">
+          <button type="button" onClick={() => navigate('/dashboard/fleet/new')} className="btn-accent">
             <Plus className="w-4 h-4" />
             Register Vehicle
           </button>
@@ -183,7 +181,7 @@ export default function Vehicles() {
               : 'Adjust your filters or register a new commercial vehicle in this organization.'
           }
           actionLabel={lifecycleTab === 'active' && canAdd ? 'Register Vehicle' : undefined}
-          onAction={lifecycleTab === 'active' && canAdd ? () => setAddOpen(true) : undefined}
+          onAction={lifecycleTab === 'active' && canAdd ? () => navigate('/dashboard/fleet/new') : undefined}
         />
       ) : (
         <div className="enterprise-card overflow-hidden">
@@ -306,8 +304,6 @@ export default function Vehicles() {
           )}
         </div>
       )}
-
-      <AddVehicleDialog open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )
 }

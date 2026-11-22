@@ -9,6 +9,7 @@ import { BrandLogo } from '../components/ui/BrandLogo'
 import { SUBSCRIPTION_PLANS } from '../data/seedOrganizations'
 import { canAccessRoute } from '../utils/rbac'
 import type { SubscriptionPlanId } from '../types/fleet'
+import { PWAInstallButton } from '../components/mobile/PWAInstallButton'
 
 export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
   const navigate = useNavigate()
@@ -129,7 +130,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
         setErrorMessage(result.error.message)
         return
       }
-      toast.success(`Provisioned isolated SaaS workspace for ${orgName.trim()}.`)
+      toast.success(`Provisioned isolated workspace for ${orgName.trim()}.`)
       navigate(result.redirectTo ?? '/dashboard', { replace: true })
     } finally {
       setSubmitting(false)
@@ -196,15 +197,13 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
 
   return (
     <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
-      <header className="bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <header className="bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 sm:px-6 h-14 flex items-center justify-between gap-4 sticky top-0 z-30">
         <Link to="/" aria-label="DriveMitra Home" className="flex items-center shrink-0">
           <BrandLogo size="header" />
         </Link>
-        <div className="flex items-center gap-3">
-          <Link to="/" className="text-xs font-semibold text-[#6E5696] hover:underline whitespace-nowrap">
-            Back to Website
-          </Link>
-          <div className="flex items-center gap-1.5 border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 bg-[#FAFAFA]">
+        <div className="flex items-center gap-2.5">
+          <PWAInstallButton compact />
+          <div className="flex items-center gap-1.5 border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 bg-[#FAFAFA] min-h-[40px]">
             <Globe className="w-3.5 h-3.5 text-[#958777]" />
             <label htmlFor="auth-lang" className="sr-only">Language</label>
             <select
@@ -225,36 +224,36 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
         <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          <div className="lg:col-span-5 bg-[#EEE8F7] border border-[#DDD3ED] text-[#625346] rounded-2xl p-7 sm:p-8 shadow-card flex flex-col justify-between">
+          <div className="lg:col-span-5 order-2 lg:order-1 bg-[#EEE8F7] border border-[#DDD3ED] text-[#625346] rounded-2xl p-6 sm:p-8 shadow-card flex flex-col justify-between">
             <div>
-              <BrandLogo size="lg" className="mb-5" />
+              <BrandLogo size="lg" className="mb-4" />
               <h1 className="text-2xl font-bold text-[#625346]">
-                {mode === 'signup' ? 'Create Your Fleet SaaS Workspace' : 'DriveMitra Workspace Login'}
+                {mode === 'signup' ? 'Create Your Fleet Mobile Workspace' : 'DriveMitra Workspace Login'}
               </h1>
               <p className="text-sm text-[#625346]/85 mt-3 leading-relaxed">
                 {mode === 'signup'
-                  ? 'Launch an isolated multi-tenant fleet organization in seconds with a 14-day full-feature trial.'
-                  : 'Sign in with your organization-issued username and password. Role authorization and tenant routing are enforced automatically on the server.'}
+                  ? 'Launch an isolated multi-tenant fleet app workspace in seconds with a 14-day full-feature trial.'
+                  : 'Sign in with your organization-issued username and password. Role authorization and mobile navigation adapt automatically on sign-in.'}
               </p>
             </div>
 
-            <div className="mt-8 space-y-3 text-xs text-[#625346] border-t border-[#DDD3ED] pt-6">
+            <div className="mt-6 space-y-3 text-xs text-[#625346] border-t border-[#DDD3ED] pt-5">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-[#4D6E4A] shrink-0" />
-                <span>HttpOnly session security & strict tenant data isolation</span>
+                <span>HttpOnly &amp; bearer session security with strict tenant isolation</span>
               </div>
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#6E5696] shrink-0" />
-                <span>Owner ERP for vehicles, drivers, work orders & inventory</span>
+                <span>Unified mobile operations for vehicles, contracts &amp; work orders</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[#6E5696] shrink-0" />
-                <span>Role-based access control & GST billing ledger</span>
+                <span>Role-based access control &amp; offline field synchronization</span>
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-7 enterprise-card p-6 sm:p-8 flex flex-col justify-center">
+          <div className="lg:col-span-7 order-1 lg:order-2 enterprise-card p-6 sm:p-8 flex flex-col justify-center">
             {orgBlockedState && (
               <div
                 role="alert"

@@ -5,6 +5,7 @@ import { Toaster } from 'sonner'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { FleetProvider, useFleet } from './hooks/useFleet'
 import { FinanceProvider } from './hooks/useFinance'
+import { ContractsProvider } from './hooks/useContracts'
 import { I18nProvider } from './i18n/useTranslation'
 import Layout from './components/layout/Layout'
 import { AccessDeniedState } from './components/ui/EnterprisePrimitives'
@@ -45,6 +46,7 @@ const LiveMap = lazyWithRetry(() => import('./pages/LiveMap'))
 const Trips = lazyWithRetry(() => import('./pages/Trips'))
 const Vehicles = lazyWithRetry(() => import('./pages/Vehicles'))
 const VehicleDetails = lazyWithRetry(() => import('./pages/VehicleDetails'))
+const VehicleFormPage = lazyWithRetry(() => import('./pages/forms/VehicleFormPage'))
 const Drivers = lazyWithRetry(() => import('./pages/Drivers'))
 const DriverDetails = lazyWithRetry(() => import('./pages/DriverDetails'))
 const FuelLogs = lazyWithRetry(() => import('./pages/FuelLogs'))
@@ -179,6 +181,66 @@ const BanksDirectoryPage = lazyWithRetry(() => import('./pages/finance/BanksDire
 const FinanceDocumentsPage = lazyWithRetry(() => import('./pages/finance/FinanceDocumentsPage'))
 const FinanceReportsPage = lazyWithRetry(() => import('./pages/finance/FinanceReportsPage'))
 
+const ContractOverviewPage = lazyWithRetry(() => import('./pages/contracts/ContractOverviewPage'))
+const ContractRegisterPage = lazyWithRetry(() => import('./pages/contracts/ContractRegisterPage'))
+const ContractFormPage = lazyWithRetry(() => import('./pages/contracts/ContractFormPage'))
+const ContractDetailPage = lazyWithRetry(() => import('./pages/contracts/ContractDetailPage'))
+const ContractAmendmentFormPage = lazyWithRetry(() => import('./pages/contracts/ContractAmendmentFormPage'))
+const ContractRenewalsPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractRenewalsPage').then((m) => ({ default: m.ContractRenewalsPage })),
+)
+const ContractRenewFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractRenewalsPage').then((m) => ({ default: m.ContractRenewFormPage })),
+)
+const ContractedVehiclesPage = lazyWithRetry(() => import('./pages/contracts/ContractedVehiclesPage'))
+const HandoverReturnFormPage = lazyWithRetry(() => import('./pages/contracts/HandoverReturnFormPage'))
+const FleetPartnersListPage = lazyWithRetry(() =>
+  import('./pages/contracts/FleetPartnersPage').then((m) => ({ default: m.FleetPartnersListPage })),
+)
+const FleetPartnerFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/FleetPartnersPage').then((m) => ({ default: m.FleetPartnerFormPage })),
+)
+const FleetPartnerDetailPage = lazyWithRetry(() =>
+  import('./pages/contracts/FleetPartnersPage').then((m) => ({ default: m.FleetPartnerDetailPage })),
+)
+const IndividualOwnersListPage = lazyWithRetry(() =>
+  import('./pages/contracts/IndividualOwnersPage').then((m) => ({ default: m.IndividualOwnersListPage })),
+)
+const IndividualOwnerFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/IndividualOwnersPage').then((m) => ({ default: m.IndividualOwnerFormPage })),
+)
+const IndividualOwnerDetailPage = lazyWithRetry(() =>
+  import('./pages/contracts/IndividualOwnersPage').then((m) => ({ default: m.IndividualOwnerDetailPage })),
+)
+const ContractPaymentsPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractPaymentsPage').then((m) => ({ default: m.ContractPaymentsPage })),
+)
+const ContractPaymentFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractPaymentsPage').then((m) => ({ default: m.ContractPaymentFormPage })),
+)
+const ContractMaintenancePage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractMaintenancePage').then((m) => ({ default: m.ContractMaintenancePage })),
+)
+const ContractMaintenanceFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractMaintenancePage').then((m) => ({ default: m.ContractMaintenanceFormPage })),
+)
+const BondDepositsPage = lazyWithRetry(() =>
+  import('./pages/contracts/BondDepositsPage').then((m) => ({ default: m.BondDepositsPage })),
+)
+const DepositFormPage = lazyWithRetry(() =>
+  import('./pages/contracts/BondDepositsPage').then((m) => ({ default: m.DepositFormPage })),
+)
+const DepositDetailPage = lazyWithRetry(() =>
+  import('./pages/contracts/BondDepositsPage').then((m) => ({ default: m.DepositDetailPage })),
+)
+const ContractDocumentsPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractDocumentsPage').then((m) => ({ default: m.ContractDocumentsPage })),
+)
+const ContractDocumentUploadPage = lazyWithRetry(() =>
+  import('./pages/contracts/ContractDocumentsPage').then((m) => ({ default: m.ContractDocumentUploadPage })),
+)
+const ContractHistoryPermissionsPage = lazyWithRetry(() => import('./pages/contracts/ContractHistoryPermissionsPage'))
+
 class RouteErrorBoundary extends Component<
   { children: React.ReactNode },
   { hasError: boolean }
@@ -293,12 +355,25 @@ function LegacyVehicleRedirect() {
   return <Navigate to={id ? `/dashboard/fleet/vehicles/${id}` : '/dashboard/fleet'} replace />
 }
 
+function MobileAppRoot() {
+  const { loading, isAuthenticated, user, passwordChangeRequired } = useAuth()
+  if (loading) return <LoadingScreen />
+  if (!isAuthenticated || !user) {
+    return <Navigate to="/auth" replace />
+  }
+  if (passwordChangeRequired) {
+    return <Navigate to="/change-password" replace />
+  }
+  return <Navigate to={getDefaultHomeForRole(user.role)} replace />
+}
+
 export function AppRoutes() {
   return (
     <RouteErrorBoundary>
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<MobileAppRoot />} />
+          <Route path="/website" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/signup" element={<Auth initialMode="signup" />} />
           <Route
@@ -335,13 +410,16 @@ export function AppRoutes() {
             <Route path="map" element={<RoleProtectedRoute><LiveMap /></RoleProtectedRoute>} />
             <Route path="trips" element={<RoleProtectedRoute><Trips /></RoleProtectedRoute>} />
             <Route path="fleet" element={<RoleProtectedRoute><Vehicles /></RoleProtectedRoute>} />
+            <Route path="fleet/new" element={<RoleProtectedRoute><VehicleFormPage /></RoleProtectedRoute>} />
             <Route path="fleet/assignments" element={<RoleProtectedRoute><VehicleAssignmentsPage /></RoleProtectedRoute>} />
             <Route path="fleet/meter-history" element={<RoleProtectedRoute><MeterHistoryPage /></RoleProtectedRoute>} />
             <Route path="fleet/tire-readings" element={<RoleProtectedRoute><TireReadingsPage /></RoleProtectedRoute>} />
             <Route path="fleet/expenses" element={<RoleProtectedRoute><ExpenseHistoryPage /></RoleProtectedRoute>} />
             <Route path="fleet/replacement-analysis" element={<RoleProtectedRoute><ReplacementAnalysisPage /></RoleProtectedRoute>} />
             <Route path="fleet/vehicles/:vehicleId" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
+            <Route path="fleet/vehicles/:vehicleId/edit" element={<RoleProtectedRoute><VehicleFormPage /></RoleProtectedRoute>} />
             <Route path="fleet/:id" element={<RoleProtectedRoute><VehicleDetails /></RoleProtectedRoute>} />
+            <Route path="fleet/:id/edit" element={<RoleProtectedRoute><VehicleFormPage /></RoleProtectedRoute>} />
             <Route path="tools" element={<RoleProtectedRoute><ToolsListPage /></RoleProtectedRoute>} />
             <Route path="tools/service-entries" element={<RoleProtectedRoute><ToolsServicePage /></RoleProtectedRoute>} />
             <Route path="tools/reminders" element={<RoleProtectedRoute><ToolsRemindersPage /></RoleProtectedRoute>} />
@@ -384,6 +462,35 @@ export function AppRoutes() {
             <Route path="finance/banks" element={<RoleProtectedRoute><BanksDirectoryPage /></RoleProtectedRoute>} />
             <Route path="finance/documents" element={<RoleProtectedRoute><FinanceDocumentsPage /></RoleProtectedRoute>} />
             <Route path="finance/reports" element={<RoleProtectedRoute><FinanceReportsPage /></RoleProtectedRoute>} />
+            <Route path="contracts" element={<RoleProtectedRoute><ContractOverviewPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register" element={<RoleProtectedRoute><ContractRegisterPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register/new" element={<RoleProtectedRoute><ContractFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register/:contractId" element={<RoleProtectedRoute><ContractDetailPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register/:contractId/edit" element={<RoleProtectedRoute><ContractFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register/:contractId/amend" element={<RoleProtectedRoute><ContractAmendmentFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/register/:contractId/renew" element={<RoleProtectedRoute><ContractRenewFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/vehicles" element={<RoleProtectedRoute><ContractedVehiclesPage /></RoleProtectedRoute>} />
+            <Route path="contracts/vehicles/handover/new" element={<RoleProtectedRoute><HandoverReturnFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/vehicles/return/:handoverId" element={<RoleProtectedRoute><HandoverReturnFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/partners" element={<RoleProtectedRoute><FleetPartnersListPage /></RoleProtectedRoute>} />
+            <Route path="contracts/partners/new" element={<RoleProtectedRoute><FleetPartnerFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/partners/:partnerId" element={<RoleProtectedRoute><FleetPartnerDetailPage /></RoleProtectedRoute>} />
+            <Route path="contracts/partners/:partnerId/edit" element={<RoleProtectedRoute><FleetPartnerFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/owners" element={<RoleProtectedRoute><IndividualOwnersListPage /></RoleProtectedRoute>} />
+            <Route path="contracts/owners/new" element={<RoleProtectedRoute><IndividualOwnerFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/owners/:ownerId" element={<RoleProtectedRoute><IndividualOwnerDetailPage /></RoleProtectedRoute>} />
+            <Route path="contracts/owners/:ownerId/edit" element={<RoleProtectedRoute><IndividualOwnerFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/payments" element={<RoleProtectedRoute><ContractPaymentsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/payments/new" element={<RoleProtectedRoute><ContractPaymentFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/maintenance" element={<RoleProtectedRoute><ContractMaintenancePage /></RoleProtectedRoute>} />
+            <Route path="contracts/maintenance/new" element={<RoleProtectedRoute><ContractMaintenanceFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/deposits" element={<RoleProtectedRoute><BondDepositsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/deposits/new" element={<RoleProtectedRoute><DepositFormPage /></RoleProtectedRoute>} />
+            <Route path="contracts/deposits/:depositId" element={<RoleProtectedRoute><DepositDetailPage /></RoleProtectedRoute>} />
+            <Route path="contracts/renewals" element={<RoleProtectedRoute><ContractRenewalsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/documents" element={<RoleProtectedRoute><ContractDocumentsPage /></RoleProtectedRoute>} />
+            <Route path="contracts/documents/upload" element={<RoleProtectedRoute><ContractDocumentUploadPage /></RoleProtectedRoute>} />
+            <Route path="contracts/history" element={<RoleProtectedRoute><ContractHistoryPermissionsPage /></RoleProtectedRoute>} />
             <Route path="financials" element={<RoleProtectedRoute><Financials /></RoleProtectedRoute>} />
             <Route path="reports" element={<RoleProtectedRoute><Reports /></RoleProtectedRoute>} />
             <Route path="alerts" element={<RoleProtectedRoute><AlertsPage /></RoleProtectedRoute>} />
@@ -412,22 +519,26 @@ export default function App() {
         <AuthProvider>
           <FleetProvider>
             <FinanceProvider>
-              <BrowserRouter>
-                <AppRoutes />
-                <Toaster
-                  position="bottom-right"
-                  theme="light"
-                  toastOptions={{
-                    style: {
-                      background: '#FFFFFF',
-                      border: '1px solid #E5E5E5',
-                      color: '#625346',
-                      borderRadius: '10px',
-                      fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
-                    },
-                  }}
-                />
-              </BrowserRouter>
+              <ContractsProvider>
+                <BrowserRouter>
+                  <AppRoutes />
+                  <Toaster
+                    position="top-center"
+                    offset={{ top: 64 }}
+                    mobileOffset={{ top: 64 }}
+                    theme="light"
+                    toastOptions={{
+                      style: {
+                        background: '#FFFFFF',
+                        border: '1px solid #E5E5E5',
+                        color: '#625346',
+                        borderRadius: '10px',
+                        fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif',
+                      },
+                    }}
+                  />
+                </BrowserRouter>
+              </ContractsProvider>
             </FinanceProvider>
           </FleetProvider>
         </AuthProvider>

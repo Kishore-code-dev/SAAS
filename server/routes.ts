@@ -257,7 +257,8 @@ export function buildApiRouter(): Router {
       'Set-Cookie',
       formatCookieHeader(SESSION_COOKIE_NAME, rawToken, Math.floor(SESSION_TTL_MS / 1000)),
     )
-    res.json(sendSafeUser(user, org))
+    const safeUser = sendSafeUser(user, org)
+    res.json({ ...safeUser, token: rawToken, user: safeUser })
   })
 
   router.get('/auth/me', (req: AuthenticatedRequest, res: Response) => {

@@ -1,12 +1,18 @@
-import React from 'react'
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native'
+import React, { useEffect } from 'react'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, RefreshControl } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore } from '../../store/authStore'
+import { useFleetStore } from '../../store/fleetStore'
 import { useRouter } from 'expo-router'
 
 export default function StaffDashboard() {
   const { user, organization, logout } = useAuthStore()
+  const { workOrders, vehicles, isLoading, loadFleetData, pendingSync, flushOfflineQueue } = useFleetStore()
   const router = useRouter()
+
+  useEffect(() => {
+    loadFleetData()
+  }, [])
 
   const handleLogout = async () => {
     await logout()
@@ -16,23 +22,41 @@ export default function StaffDashboard() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View>
-          <Text style={styles.orgName}>{organization?.name ?? 'Kaveri Logistics'} (Staff)</Text>
-          <Text style={styles.welcome}>Welcome, {user?.fullName ?? 'Fleet Staff'}</Text>
+        <View style={styles.headerText}>
+          <Text style={styles.orgName} numberOfLines={1}>
+            {organization?.name ?? 'DriveMitra'} · Staff
+          </Text>
+          <Text style={styles.welcome} numberOfLines={1}>
+            {user?.fullName ?? 'Fleet Staff'}
+          </Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={loadFleetData} />}
+      >
+        {pendingSync.length > 0 && (
+          <TouchableOpacity style={styles.syncBanner} onPress={flushOfflineQueue}>
+            <Text style={styles.syncTitle}>
+              {pendingSync.length} Pending Offline Task(s) · Tap to Sync
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Permitted Operational Modules</Text>
+          <Text style={styles.sectionTitle}>Permitted Operational Desk ({workOrders.length} Work Orders · {vehicles.length} Vehicles)</Text>
           <View style={styles.moduleList}>
-            {['Vehicle Inspections & Defect Triage', 'Workshop Work Orders & Parts', 'Driver Assignments & Meter History', 'Fuel & Energy Logging', 'Service Reminders'].map((mod) => (
-              <View key={mod} style={styles.moduleItem}>
-                <Text style={styles.moduleText}>{mod}</Text>
-                <Text style={styles.moduleAction}>Open →</Text>
+            {workOrders.slice(0, 6).map((wo) => (
+              <View key={wo.id} style={styles.moduleItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.moduleText}>{wo.title}</Text>
+                  <Text style={styles.moduleMeta}>{wo.workOrderNumber} · {wo.workshopName}</Text>
+                </View>
+                <Text style={styles.moduleAction}>{wo.status}</Text>
               </View>
             ))}
           </View>
@@ -52,16 +76,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E5E5',
+    gap: 12,
   },
-  orgName: { fontSize: 12, fontWeight: '700', color: '#1F7A4C', textTransform: 'uppercase' },
+  headerText: { flex: 1 },
+  orgName: { fontSize: 12, fontWeight: '700', color: '#1F7A4C' },
   welcome: { fontSize: 16, fontWeight: '800', color: '#625346', marginTop: 2 },
-  logoutBtn: { backgroundColor: '#FCECEB', borderWidth: 1, borderColor: '#D9786C', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  logoutText: { fontSize: 11, fontWeight: '700', color: '#B84E42' },
-  scroll: { padding: 16 },
+  logoutBtn: {
+    backgroundColor: '#FCECEB',
+    borderWidth: 1,
+    borderColor: '#D9786C',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  logoutText: { fontSize: 12, fontWeight: '700', color: '#B84E42' },
+  scroll: { padding: 16, gap: 12 },
+  syncBanner: {
+    backgroundColor: '#FCF5DE',
+    borderWidth: 1,
+    borderColor: '#D8B442',
+    borderRadius: 12,
+    padding: 12,
+  },
+  syncTitle: { fontSize: 12, fontWeight: '700', color: '#625346', textAlign: 'center' },
   section: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 12, padding: 16 },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#625346', marginBottom: 12 },
   moduleList: { gap: 8 },
   moduleItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#FAFAFA' },
   moduleText: { fontSize: 13, fontWeight: '600', color: '#625346' },
-  moduleAction: { fontSize: 12, fontWeight: '700', color: '#1F7A4C' },
+  moduleMeta: { fontSize: 11, color: '#958777', marginTop: 2 },
+  moduleAction: { fontSize: 11, fontWeight: '700', color: '#1F7A4C', textTransform: 'capitalize' },
 })

@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   Bell,
-  Building2,
   CheckCheck,
   ChevronDown,
   Cpu,
@@ -26,6 +25,8 @@ import { languageOptions } from '../../i18n/translations'
 import type { RiskCategory } from '../../types/fleet'
 import { canAccessRoute, canPerformAction } from '../../utils/rbac'
 import { DhiyuLogo } from '../ui/DhiyuLogo'
+import { BrandLogo } from '../ui/BrandLogo'
+import { PWAInstallButton } from '../mobile/PWAInstallButton'
 
 function CategoryIcon({ category }: { category: RiskCategory }) {
   switch (category) {
@@ -104,29 +105,37 @@ export default function Header({
 
   return (
     <>
-      <header className="h-16 bg-[#FFFFFF] border-b border-[#E5E5E5] px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sm:gap-3 sticky top-0 z-30 shrink-0">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+      <header className="h-14 bg-[#FFFFFF]/95 backdrop-blur-md border-b border-[#E5E5E5] px-2.5 sm:px-4 lg:px-6 flex items-center justify-between gap-2 sticky top-0 z-30 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1">
           <button
             type="button"
             onClick={onMenuToggle}
-            aria-label="Open navigation menu"
-            className="lg:hidden p-2 rounded-[10px] text-[#625346] hover:bg-[#EEE8F7] shrink-0"
+            aria-label="Open app modules launcher"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-[#625346] hover:bg-[#EEE8F7] shrink-0"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Scoped Tenant Organization Pill */}
-          <div className="flex items-center gap-1.5 bg-[#FAFAFA] border border-[#E5E5E5] rounded-[10px] px-2.5 py-1.5 min-w-0 max-w-[155px] sm:max-w-[230px]">
-            <Building2 className="w-4 h-4 text-[#6E5696] shrink-0" />
-            <span className="text-xs font-semibold text-[#625346] truncate">
-              {activeOrganization.name} ({activeOrganization.code})
-            </span>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 min-w-0 text-left"
+          >
+            <BrandLogo size="sm" className="shrink-0" />
+            <div className="min-w-0 hidden sm:block">
+              <p className="text-sm font-bold text-[#625346] truncate leading-tight">
+                {activeOrganization.name}
+              </p>
+              <p className="text-[11px] text-[#958777] truncate leading-none">
+                {activeOrganization.code} · {(activeRole ?? 'viewer').replace(/_/g, ' ')}
+              </p>
+            </div>
+          </button>
         </div>
 
-        {/* Controls */}
+        {/* App Action Controls */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <div className="relative hidden md:block w-36 xl:w-44">
+          <div className="relative hidden lg:block w-44">
             <Search className="w-4 h-4 text-[#958777] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="search"
@@ -138,13 +147,15 @@ export default function Header({
             />
           </div>
 
+          <PWAInstallButton compact />
+
           {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
             <button
               type="button"
               onClick={onOpenCopilot}
               title="Dhiyu — Fleet Management AI"
               aria-label="Open Dhiyu Fleet Management AI"
-              className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-[10px] border border-[#DDD3ED] bg-[#EEE8F7]/75 text-[#625346] hover:bg-[#EEE8F7] hover:border-[#B8A3D9] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+              className="min-h-[40px] inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[10px] border border-[#DDD3ED] bg-[#EEE8F7]/80 text-[#625346] hover:bg-[#EEE8F7] hover:border-[#B8A3D9] text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
             >
               <DhiyuLogo size="xs" />
               <span className="hidden sm:inline text-[11px] font-bold text-[#6E5696]">AI</span>
@@ -177,11 +188,11 @@ export default function Header({
               setUserMenuOpen(false)
             }}
             aria-label={`Open Notifications (${totalUnreadCount} unread)`}
-            className="relative p-2 rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
+            className="relative min-h-[40px] min-w-[40px] flex items-center justify-center rounded-[10px] border border-[#E5E5E5] bg-[#FFFFFF] text-[#625346] hover:bg-[#EEE8F7] transition-colors"
           >
             <Bell className="w-4 h-4" />
             {totalUnreadCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FCECEB] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#FCECEB] border border-[#D9786C] text-[#625346] text-[10px] font-bold tabular-nums flex items-center justify-center shadow-subtle">
                 {totalUnreadCount}
               </span>
             )}
@@ -192,7 +203,8 @@ export default function Header({
             <button
               type="button"
               onClick={onAddVehicle}
-              className="btn-primary text-xs px-2.5 sm:px-3 py-1.5 whitespace-nowrap"
+              aria-label="Add Vehicle"
+              className="btn-primary min-h-[40px] text-xs px-2.5 sm:px-3 py-1.5 whitespace-nowrap shrink-0"
             >
               <Plus className="w-3.5 h-3.5 text-[#625346]" />
               <span className="hidden sm:inline">Add Vehicle</span>

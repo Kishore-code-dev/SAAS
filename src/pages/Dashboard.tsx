@@ -48,7 +48,6 @@ import {
 } from '../components/ui/EnterprisePrimitives'
 import { computeFleetBounds, summarizeFleetTrackingStatuses } from '../utils/fleetTracking'
 import type { Vehicle } from '../types/fleet'
-import AddVehicleDialog from '../components/vehicles/AddVehicleDialog'
 
 function createDashboardPinIcon(
   variant: 'lavender' | 'yellow',
@@ -134,7 +133,6 @@ export default function Dashboard() {
     nowTick,
   } = useFleet()
 
-  const [addModalOpen, setAddModalOpen] = useState(false)
   const [focusedMapVehicleId, setFocusedMapVehicleId] = useState<string | null>(null)
   const [mapFitNonce, setMapFitNonce] = useState(0)
   const [mapFocusNonce, setMapFocusNonce] = useState(0)
@@ -344,7 +342,7 @@ export default function Dashboard() {
             </p>
           </div>
           {canRegisterVehicle && (
-            <button type="button" onClick={() => setAddModalOpen(true)} className="btn-primary">
+            <button type="button" onClick={() => navigate('/dashboard/fleet/new')} className="btn-primary">
               <Plus className="w-4 h-4" />
               Add Vehicle
             </button>
@@ -355,9 +353,8 @@ export default function Dashboard() {
           title="No vehicles registered in this organization yet"
           description="Production workspaces start isolated with zero sample records. Register your first commercial vehicle to activate telemetry, compliance tracking, and ERP operations."
           actionLabel={canRegisterVehicle ? 'Add Vehicle' : undefined}
-          onAction={canRegisterVehicle ? () => setAddModalOpen(true) : undefined}
+          onAction={canRegisterVehicle ? () => navigate('/dashboard/fleet/new') : undefined}
         />
-        <AddVehicleDialog open={addModalOpen} onClose={() => setAddModalOpen(false)} />
       </div>
     )
   }
@@ -416,7 +413,7 @@ export default function Dashboard() {
 
         <div className="flex flex-wrap items-center gap-2.5">
           {canRegisterVehicle && (
-            <button type="button" onClick={() => setAddModalOpen(true)} className="btn-primary text-xs px-3.5 py-2">
+            <button type="button" onClick={() => navigate('/dashboard/fleet/new')} className="btn-primary text-xs px-3.5 py-2">
               <Plus className="w-4 h-4" />
               Add Vehicle
             </button>
@@ -1037,7 +1034,6 @@ export default function Dashboard() {
         </div>
       </section>
 
-      <AddVehicleDialog open={addModalOpen} onClose={() => setAddModalOpen(false)} />
     </div>
   )
 }

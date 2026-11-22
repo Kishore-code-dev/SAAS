@@ -9,7 +9,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('DriveMitra@2026')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const { login, role } = useAuthStore()
+  const { login } = useAuthStore()
   const router = useRouter()
 
   const handleLogin = async () => {

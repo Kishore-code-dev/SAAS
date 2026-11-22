@@ -1,4 +1,4 @@
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import type { ComponentType } from 'react'
 import { DEFAULT_SETTINGS_SLUG, SETTINGS_BASE, SETTINGS_NAV } from '../config/settings.nav.config'
 import {
@@ -126,20 +126,45 @@ const SECTIONS: Record<string, ComponentType> = {
 
 export default function Settings() {
   const { section } = useParams()
+  const navigate = useNavigate()
   const Section = section ? SECTIONS[section] : undefined
   if (!section || !Section) return <Navigate to={`${SETTINGS_BASE}/${DEFAULT_SETTINGS_SLUG}`} replace />
 
-  const link = SETTINGS_NAV.flatMap((s) => s.links.map((l) => ({ ...l, group: s.title }))).find(
-    (l) => l.slug === section,
-  )
+  const allLinks = SETTINGS_NAV.flatMap((s) => s.links.map((l) => ({ ...l, group: s.title })))
+  const link = allLinks.find((l) => l.slug === section)
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#958777]">
-          Settings{link ? ` / ${link.group}` : ''}
-        </p>
-        <h1 className="dm-page-title">{link?.label ?? 'Workspace Settings'}</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#958777]">
+            Settings{link ? ` / ${link.group}` : ''}
+          </p>
+          <h1 className="dm-page-title">{link?.label ?? 'Workspace Settings'}</h1>
+        </div>
+        <div className="sm:w-72">
+          <label htmlFor="settings-section-select" className="sr-only">
+            Settings section
+          </label>
+          <select
+            id="settings-section-select"
+            value={section}
+            onChange={(e) => navigate(`${SETTINGS_BASE}/${e.target.value}`)}
+            className="dm-input min-h-[44px] text-xs font-semibold"
+          >
+            {SETTINGS_NAV.map((group) => (
+              <optgroup key={group.id} label={group.title}>
+                {group.links
+                  .filter((l) => Boolean(SECTIONS[l.slug]))
+                  .map((l) => (
+                    <option key={l.slug} value={l.slug}>
+                      {l.label}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
       </div>
       <Section />
     </div>

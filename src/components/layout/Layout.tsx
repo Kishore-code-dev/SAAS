@@ -1,21 +1,20 @@
 import React, { useEffect, useState } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Sparkles, X } from 'lucide-react'
-import Sidebar from './Sidebar'
-import SettingsSidebar from './SettingsSidebar'
 import Header from './Header'
 import FleetCopilotDrawer from '../ai/FleetCopilotDrawer'
-import AddVehicleDialog from '../vehicles/AddVehicleDialog'
 import { useFleet } from '../../hooks/useFleet'
+import { MobileBottomNav } from '../mobile/MobileBottomNav'
+import { MobileAppsSheet } from '../mobile/MobileAppsSheet'
+import { OfflineIndicator } from '../mobile/OfflineIndicator'
 
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [appsOpen, setAppsOpen] = useState(false)
   const [copilotOpen, setCopilotOpen] = useState(false)
-  const [addVehicleOpen, setAddVehicleOpen] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
   const { environment, activeOrganization, activeRole, isTrialWorkspace, nowTick } = useFleet()
   const { pathname } = useLocation()
-  const inSettings = pathname.startsWith('/dashboard/settings')
+  const navigate = useNavigate()
   const onSubscriptionPage = pathname === '/dashboard/subscription'
 
   useEffect(() => {
@@ -34,28 +33,24 @@ export default function Layout() {
       activeOrganization.status === 'payment_pending')
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-[#625346] flex">
-      {inSettings ? (
-        <SettingsSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      ) : (
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      )}
-      <div className="flex-1 flex flex-col min-w-0 bg-[#FFFFFF]">
-        <Header
-          onMenuToggle={() => setSidebarOpen((prev) => !prev)}
-          onOpenCopilot={() => setCopilotOpen(true)}
-          onAddVehicle={() => setAddVehicleOpen(true)}
-        />
+    <div className="min-h-screen bg-[#FFFFFF] text-[#625346] flex flex-col">
+      <Header
+        onMenuToggle={() => setAppsOpen((prev) => !prev)}
+        onOpenCopilot={() => setCopilotOpen(true)}
+        onAddVehicle={() => navigate('/dashboard/fleet/new')}
+      />
+
+      <main className="flex-1 px-3.5 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-24 max-w-7xl w-full mx-auto bg-[#FFFFFF] space-y-4">
         {showBillingAlert && (
-          <div className="bg-[#EEE8F7] border-b border-[#DDD3ED] px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-3 text-xs text-[#625346]">
+          <div className="bg-[#EEE8F7] border border-[#DDD3ED] rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs text-[#625346]">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-3.5 h-3.5 text-[#6E5696] shrink-0" />
               <span className="font-medium truncate">
                 {isTrialWorkspace
-                  ? `14-Day ${activeOrganization.planId.toUpperCase()} Trial · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining before renewal (${activeOrganization.subscriptionExpiryDate})`
+                  ? `14-Day ${activeOrganization.planId.toUpperCase()} Trial · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining (${activeOrganization.subscriptionExpiryDate})`
                   : activeOrganization.status === 'grace_period'
-                    ? `Grace Period Active · Update subscription before ${activeOrganization.gracePeriodUntil ?? activeOrganization.subscriptionExpiryDate}`
-                    : 'Subscription Payment Pending · Complete plan activation to avoid service interruption'}
+                    ? `Grace Period · Renew before ${activeOrganization.gracePeriodUntil ?? activeOrganization.subscriptionExpiryDate}`
+                    : 'Subscription Payment Pending · Complete activation'}
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
@@ -63,29 +58,38 @@ export default function Layout() {
                 to="/dashboard/subscription"
                 className="font-semibold text-[#6E5696] hover:underline whitespace-nowrap"
               >
-                {isTrialWorkspace ? 'Activate Paid Plan' : 'Manage Billing'}
+                {isTrialWorkspace ? 'Activate Plan' : 'Billing'}
               </Link>
               <button
                 type="button"
                 onClick={() => setBannerDismissed(true)}
                 aria-label="Dismiss trial banner"
-                className="p-1 rounded hover:bg-[#DDD3ED]/50 text-[#958777] hover:text-[#625346]"
+                className="p-1.5 rounded-lg hover:bg-[#DDD3ED]/50 text-[#958777] hover:text-[#625346]"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-[1600px] w-full mx-auto bg-[#FFFFFF]">
-          <Outlet key={`${environment}:${activeOrganization.id}`} />
-        </main>
-      </div>
+
+        <Outlet key={`${environment}:${activeOrganization.id}`} />
+      </main>
+
+      <OfflineIndicator />
+
+      <MobileBottomNav
+        role={activeRole}
+        appsOpen={appsOpen}
+        onOpenApps={() => setAppsOpen(true)}
+      />
+
+      <MobileAppsSheet open={appsOpen} onClose={() => setAppsOpen(false)} />
+
       <FleetCopilotDrawer
         key={`${environment}:${activeOrganization.id}:${activeRole}`}
         open={copilotOpen}
         onClose={() => setCopilotOpen(false)}
       />
-      <AddVehicleDialog open={addVehicleOpen} onClose={() => setAddVehicleOpen(false)} />
     </div>
   )
 }

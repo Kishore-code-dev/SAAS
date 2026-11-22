@@ -13,7 +13,12 @@ export interface AuthenticatedRequest extends Request {
 export function attachSession(req: AuthenticatedRequest, _res: Response, next: NextFunction): void {
   try {
     const cookies = parseCookies(req.headers.cookie)
-    const rawToken = cookies[SESSION_COOKIE_NAME]
+    const authHeader = req.headers.authorization
+    const bearerToken =
+      typeof authHeader === 'string' && authHeader.startsWith('Bearer ')
+        ? authHeader.slice(7).trim()
+        : undefined
+    const rawToken = cookies[SESSION_COOKIE_NAME] || bearerToken
     if (!rawToken) {
       next()
       return
