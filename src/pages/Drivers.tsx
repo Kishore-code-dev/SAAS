@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowUpRight, Info, MessageSquareWarning, Plus } from 'lucide-react'
+import { ArrowUpRight, Copy, Info, KeyRound, MessageSquareWarning, Plus, ShieldOff, UserCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
 import { classifyComplianceExpiryTier, evaluateDriverSafety } from '../utils/intelligenceEngine'
@@ -56,6 +56,36 @@ export default function Drivers() {
   const canAddDriver = canPerformAction(activeRole, 'add_driver')
   const canDispute = canPerformAction(activeRole, 'dispute_driver_event')
   const canResolveDispute = canPerformAction(activeRole, 'resolve_driver_dispute')
+  const canManagePortal = canPerformAction(activeRole, 'manage_driver_status')
+
+  const [driverAccounts, setDriverAccounts] = useState<
+    Array<{ userId: string; driverId: string; username: string; email: string; status: string; lastLoginAt: string | null }>
+  >([])
+  const [pendingInvites, setPendingInvites] = useState<
+    Array<{ invitationId: string; driverId: string; inviteToken: string; expiresAt: string }>
+  >([])
+  const [issuedPortalInfo, setIssuedPortalInfo] = useState<{
+    driverName: string
+    inviteUrl?: string
+    username?: string
+    temporaryPassword?: string
+  } | null>(null)
+
+  const loadDriverAccounts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/fleet/driver-accounts', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      setDriverAccounts(data.accounts ?? [])
+      setPendingInvites(data.pendingInvites ?? [])
+    } catch {
+      // keep existing state when offline
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadDriverAccounts()
+  }, [loadDriverAccounts])
 
   const filteredRoster = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
@@ -150,9 +180,60 @@ export default function Drivers() {
     }
   }
 
+  const handleInviteDriverPortal = async (driverId: string, driverName: string, direct: boolean) => {
+    try {
+      const res = await fetch(`/api/fleet/drivers/${driverId}/invite`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(direct ? { createCredentialsDirectly: true } : {}),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to provision driver portal access')
+      setIssuedPortalInfo({
+        driverName,
+        inviteUrl: data.inviteUrl ? `${window.location.origin}${data.inviteUrl}` : undefined,
+        username: data.temporaryCredentials?.username ?? data.username,
+        temporaryPassword: data.temporaryCredentials?.temporaryPassword,
+      })
+      toast.success(direct ? `Driver portal login ready for ${driverName}` : `Invitation link generated for ${driverName}`)
+      void loadDriverAccounts()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Driver portal action failed')
+    }
+  }
+
+  const handleToggleDriverPortalStatus = async (driverId: string, driverName: string, nextStatus: 'active' | 'deactivated') => {
+    try {
+      const res = await fetch(`/api/fleet/drivers/${driverId}/account-status`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update driver portal login status')
+      toast.success(
+        nextStatus === 'deactivated'
+          ? `Deactivated portal login for ${driverName}. Driver master record & history preserved.`
+          : `Reactivated portal login for ${driverName}.`,
+      )
+      void loadDriverAccounts()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update driver login status')
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Drivers & Indian Compliance Master" subtitle={<>{activeOrganization.name} · Owner-managed commercial driver records, DL categories, and safety scoring (no driver login)</>}>
+      <PageHeader
+        title="Drivers & Indian Compliance Master"
+        subtitle={
+          <>
+            {activeOrganization.name} · Driver Record ≠ Driver Login — manage all driver compliance profiles and optionally invite drivers to the Driver Portal
+          </>
+        }
+      >
         {canAddDriver && (
           <button
             type="button"
@@ -167,6 +248,41 @@ export default function Drivers() {
           </button>
         )}
       </PageHeader>
+
+      {issuedPortalInfo && (
+        <div className="enterprise-card p-4 border border-[#789A75] bg-[#EDF4EC] flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div>
+            <p className="font-bold text-[#4D6E4A]">Driver Portal Access Issued — {issuedPortalInfo.driverName}</p>
+            {issuedPortalInfo.inviteUrl && (
+              <p className="font-mono text-[#625346] mt-0.5 break-all">{issuedPortalInfo.inviteUrl}</p>
+            )}
+            {issuedPortalInfo.username && (
+              <p className="font-mono text-[#625346] mt-0.5">
+                Username: <strong>{issuedPortalInfo.username}</strong>
+                {issuedPortalInfo.temporaryPassword ? ` · Temp Password: ${issuedPortalInfo.temporaryPassword}` : ''}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {issuedPortalInfo.inviteUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(issuedPortalInfo.inviteUrl!)
+                  toast.success('Copied driver invite URL')
+                }}
+                className="btn-secondary text-xs px-2.5 py-1"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Copy Link
+              </button>
+            )}
+            <button type="button" onClick={() => setIssuedPortalInfo(null)} className="btn-secondary text-xs px-2.5 py-1">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Operational Status Filters */}
       <div className="enterprise-card p-3 flex flex-wrap items-center justify-between gap-3">
@@ -276,6 +392,84 @@ export default function Drivers() {
                   </button>
                 </div>
               </div>
+
+              {/* Driver Record != Driver Login Card */}
+              {(() => {
+                const portalAcct = driverAccounts.find((a) => a.driverId === selectedDriver.id)
+                const pendingInv = pendingInvites.find((p) => p.driverId === selectedDriver.id)
+                return (
+                  <div className="p-3.5 rounded-xl border border-[#DDD3ED] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-bold text-[#625346] flex items-center gap-1.5">
+                        <KeyRound className="w-3.5 h-3.5 text-[#6E5696]" />
+                        Optional Driver Portal Account:
+                        <span
+                          className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border ${
+                            portalAcct?.status === 'active'
+                              ? 'bg-[#EDF4EC] border-[#789A75] text-[#4D6E4A]'
+                              : portalAcct
+                                ? 'bg-[#FCECEB] border-[#D9786C] text-[#B84E42]'
+                                : pendingInv
+                                  ? 'bg-[#FCF5DE] border-[#D8B442] text-[#8E6F19]'
+                                  : 'bg-[#FFFFFF] border-[#E5E5E5] text-[#958777]'
+                          }`}
+                        >
+                          {portalAcct
+                            ? `Login ${portalAcct.status} (${portalAcct.username})`
+                            : pendingInv
+                              ? 'Invitation Pending'
+                              : 'No Portal Login (Record Only)'}
+                        </span>
+                      </p>
+                      <p className="text-[11px] text-[#958777] mt-0.5">
+                        Deactivating a driver&apos;s login only blocks Driver Portal access while preserving their driver profile, trips &amp; safety history.
+                      </p>
+                    </div>
+                    {canManagePortal && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {!portalAcct && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleInviteDriverPortal(selectedDriver.id, selectedDriver.name, false)}
+                              className="btn-secondary text-[11px] px-2.5 py-1"
+                            >
+                              Invite to Portal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleInviteDriverPortal(selectedDriver.id, selectedDriver.name, true)}
+                              className="btn-primary text-[11px] px-2.5 py-1"
+                            >
+                              Generate Temp Login
+                            </button>
+                          </>
+                        )}
+                        {portalAcct?.status === 'active' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleDriverPortalStatus(selectedDriver.id, selectedDriver.name, 'deactivated')}
+                            className="btn-secondary text-[11px] px-2.5 py-1 text-[#B84E42]"
+                          >
+                            <ShieldOff className="w-3 h-3" />
+                            Deactivate Login
+                          </button>
+                        )}
+                        {portalAcct && portalAcct.status !== 'active' && (
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleDriverPortalStatus(selectedDriver.id, selectedDriver.name, 'active')}
+                            className="btn-primary text-[11px] px-2.5 py-1"
+                          >
+                            <UserCheck className="w-3 h-3" />
+                            Reactivate Login
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
 
               <div className="bg-[#EEE8F7] border border-[#DDD3ED] rounded-[10px] p-3.5 flex items-start gap-2.5 text-xs text-[#625346]">
                 <Info className="w-4 h-4 text-[#6E5696] shrink-0 mt-0.5" />
@@ -412,7 +606,7 @@ export default function Drivers() {
         open={addModalOpen}
         onClose={() => setAddModalOpen(false)}
         title="Add Commercial Driver"
-        subtitle="Creates an owner-managed Indian driver profile (no separate driver login required)"
+        subtitle="Creates a fleet driver record (optional Driver Portal login can be invited separately)"
       >
         <form onSubmit={handleAddDriver} className="space-y-4">
           {addError && (

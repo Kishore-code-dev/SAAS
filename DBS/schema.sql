@@ -1,5 +1,5 @@
 -- DriveMitra Full SQLite Database Schema Reference
--- Snapshot created: 2026-11-22T08:10:27.516Z
+-- Snapshot created: 2026-11-22T08:22:52.634Z
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE auth_sessions (

@@ -34,56 +34,72 @@ export interface SubscriptionPlanSpec {
   id: SubscriptionPlanId
   name: string
   tagline: string
-  monthlyInr: number | null
+  billingFrequency: 'monthly' | 'annual'
+  monthlyInr: number
+  annualInr: number
+  taxRatePct: number
+  gstAmountInr: number
+  totalPayableInr: number
+  monthlyEquivalentInr: number
+  savingsVsMonthlyInr: number
+  savingsPercent: number
   vehicleLimit: number
   driverLimit: number
+  staffLimit: number
   features: string[]
 }
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlanSpec[] = [
   {
-    id: 'starter',
-    name: 'Starter',
-    tagline: 'For growing regional fleets transitioning away from manual spreadsheets.',
-    monthlyInr: 4999,
-    vehicleLimit: 15,
-    driverLimit: 25,
+    id: 'monthly',
+    name: 'Monthly Plan',
+    tagline: 'Full DriveMitra Fleet Intelligence SaaS billed monthly with unlimited vehicles, drivers & staff.',
+    billingFrequency: 'monthly',
+    monthlyInr: 3500,
+    annualInr: 3500,
+    taxRatePct: 18,
+    gstAmountInr: 630,
+    totalPayableInr: 4130,
+    monthlyEquivalentInr: 3500,
+    savingsVsMonthlyInr: 0,
+    savingsPercent: 0,
+    vehicleLimit: -1,
+    driverLimit: -1,
+    staffLimit: -1,
     features: [
-      'Up to 15 vehicles and 25 owner-managed drivers',
+      'Unlimited commercial vehicles, drivers & staff seats',
       'Live satellite route map & corridor monitoring',
-      '5-area predictive health intelligence',
-      'Trip, fuel, inspection & service logging',
-      'CSV & Print/PDF operational exports',
+      'Driver Portal & Expo Go mobile app access',
+      '5-area predictive health & 10-category Risk Radar',
+      'Granular 31-module Staff RBAC & activity audit logs',
+      'Work orders, parts inventory, fuel & expense verification',
+      'GST tax invoices & compliance document vault',
     ],
   },
   {
-    id: 'growth',
-    name: 'Growth',
-    tagline: 'Full fleet intelligence, work orders, parts inventory, and risk radar.',
-    monthlyInr: 14999,
-    vehicleLimit: 75,
-    driverLimit: 120,
+    id: 'annual',
+    name: 'Annual Plan',
+    tagline: 'Save ₹6,000 per year (14.29%) with identical full capabilities billed annually.',
+    billingFrequency: 'annual',
+    monthlyInr: 3000,
+    annualInr: 36000,
+    taxRatePct: 18,
+    gstAmountInr: 6480,
+    totalPayableInr: 42480,
+    monthlyEquivalentInr: 3000,
+    savingsVsMonthlyInr: 6000,
+    savingsPercent: 14.29,
+    vehicleLimit: -1,
+    driverLimit: -1,
+    staffLimit: -1,
     features: [
-      'Up to 75 vehicles and 120 owner-managed drivers',
-      '5-area predictive health & multi-axle tyre intelligence',
-      'Work orders, parts inventory & PO management',
-      '10-category Fleet Risk Radar & ICE vs EV TCO',
-      'Indian compliance vault & 7-language owner UI',
-    ],
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    tagline: 'Multi-depot fleet operations with custom retention, RBAC, and API workflows.',
-    monthlyInr: null,
-    vehicleLimit: 500,
-    driverLimit: 800,
-    features: [
-      'Unlimited regional depots & custom vehicle caps',
-      'Organization-isolated PostgreSQL & RLS enforcement',
-      'Level-2 platform governance & immutable audit trail',
-      'Commercial truck routing & workshop SLA billing',
-      'Full private document vault & compliance reporting',
+      'Save ₹6,000/year (14.29% savings — ₹3,000/mo eq.)',
+      'Unlimited commercial vehicles, drivers & staff seats',
+      'Live satellite route map & corridor monitoring',
+      'Driver Portal & Expo Go mobile app access',
+      '5-area predictive health & 10-category Risk Radar',
+      'Granular 31-module Staff RBAC & activity audit logs',
+      'Work orders, parts inventory, fuel & expense verification',
     ],
   },
 ]
@@ -2770,11 +2786,15 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
         state: 'Tamil Nadu',
         timezone: 'Asia/Kolkata',
         currency: 'INR',
-        planId: 'growth',
-        vehicleLimit: 75,
-        driverLimit: 120,
+        planId: 'annual',
+        billingFrequency: 'annual',
+        businessType: 'Goods Transportation',
+        vehicleLimit: -1,
+        driverLimit: -1,
         status: 'active',
         paymentStatus: 'paid',
+        onboardingCompleted: true,
+        onboardingStep: 6,
         subscriptionStartDate: daysAgo(180).slice(0, 10),
         subscriptionExpiryDate: daysFromNowDate(185),
         ownerName: 'Karthikeyan R',
@@ -2792,13 +2812,17 @@ export function buildSeedDataset(_env?: OperatingEnvironment, referenceNowMs: nu
         state: 'Karnataka',
         timezone: 'Asia/Kolkata',
         currency: 'INR',
-        planId: 'starter',
-        vehicleLimit: 15,
-        driverLimit: 25,
+        planId: 'monthly',
+        billingFrequency: 'monthly',
+        businessType: 'Logistics',
+        vehicleLimit: -1,
+        driverLimit: -1,
         status: 'active',
         paymentStatus: 'paid',
+        onboardingCompleted: true,
+        onboardingStep: 6,
         subscriptionStartDate: daysAgo(90).slice(0, 10),
-        subscriptionExpiryDate: daysFromNowDate(275),
+        subscriptionExpiryDate: daysFromNowDate(25),
         ownerName: 'Nandini Rao',
         ownerEmail: 'nandini@deccanev.in',
         ownerPhone: '+91 98451 66778',

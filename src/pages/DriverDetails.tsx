@@ -1,15 +1,19 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowLeft,
+  Copy,
   Download,
   FileCheck2,
+  KeyRound,
   Lock,
   Save,
   ShieldAlert,
+  ShieldOff,
   Truck,
   Upload,
+  UserCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useFleet } from '../hooks/useFleet'
@@ -119,6 +123,39 @@ export default function DriverDetails() {
   const canEdit = canPerformAction(activeRole, 'manage_driver_status')
   const canVerifyDocs = canPerformAction(activeRole, 'verify_documents')
   const canResolveDispute = canPerformAction(activeRole, 'resolve_driver_dispute')
+
+  const [portalAccount, setPortalAccount] = useState<{
+    userId: string
+    username: string
+    email: string
+    status: string
+    lastLoginAt: string | null
+  } | null>(null)
+  const [pendingInvite, setPendingInvite] = useState<{ inviteToken: string; expiresAt: string } | null>(null)
+  const [issuedCreds, setIssuedCreds] = useState<{
+    inviteUrl?: string
+    username?: string
+    temporaryPassword?: string
+  } | null>(null)
+
+  const loadPortalAccount = useCallback(async () => {
+    if (!resolvedId) return
+    try {
+      const res = await fetch('/api/fleet/driver-accounts', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      const acct = (data.accounts ?? []).find((a: { driverId: string }) => a.driverId === resolvedId) ?? null
+      const inv = (data.pendingInvites ?? []).find((p: { driverId: string }) => p.driverId === resolvedId) ?? null
+      setPortalAccount(acct)
+      setPendingInvite(inv)
+    } catch {
+      // ignore offline
+    }
+  }, [resolvedId])
+
+  useEffect(() => {
+    void loadPortalAccount()
+  }, [loadPortalAccount])
 
   const safetyEvaluation = useMemo(() => {
     if (!driver) return null
@@ -266,6 +303,49 @@ export default function DriverDetails() {
     }
   }
 
+  const handlePortalInvite = async (direct: boolean) => {
+    try {
+      const res = await fetch(`/api/fleet/drivers/${driver.id}/invite`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(direct ? { createCredentialsDirectly: true } : {}),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to provision portal login')
+      setIssuedCreds({
+        inviteUrl: data.inviteUrl ? `${window.location.origin}${data.inviteUrl}` : undefined,
+        username: data.temporaryCredentials?.username ?? data.username,
+        temporaryPassword: data.temporaryCredentials?.temporaryPassword,
+      })
+      toast.success(direct ? 'Temporary driver portal credentials created.' : 'Driver portal invitation generated.')
+      void loadPortalAccount()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to issue portal login')
+    }
+  }
+
+  const handlePortalToggle = async (nextStatus: 'active' | 'deactivated') => {
+    try {
+      const res = await fetch(`/api/fleet/drivers/${driver.id}/account-status`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update portal status')
+      toast.success(
+        nextStatus === 'deactivated'
+          ? 'Driver Portal login deactivated. Driver record & trip history preserved.'
+          : 'Driver Portal login reactivated.',
+      )
+      void loadPortalAccount()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update portal status')
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -352,13 +432,84 @@ export default function DriverDetails() {
         </div>
       )}
 
+      {/* Driver Record != Driver Login Portal Access */}
+      <div className="enterprise-card p-4 border-[#DDD3ED] bg-[#FAFAFA] space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-[#625346] flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-[#6E5696]" />
+              Driver Portal Login Access (Driver Record ≠ Driver Login)
+            </p>
+            <p className="text-xs text-[#958777] mt-0.5">
+              {portalAccount
+                ? `Account: ${portalAccount.username} (${portalAccount.status})${portalAccount.lastLoginAt ? ` · Last login ${formatShortDate(portalAccount.lastLoginAt)}` : ''}`
+                : pendingInvite
+                  ? `Invitation pending (expires ${formatShortDate(pendingInvite.expiresAt)})`
+                  : 'Record only — this driver does not have Driver Portal login credentials yet.'}
+            </p>
+          </div>
+          {canEdit && (
+            <div className="flex flex-wrap items-center gap-2">
+              {!portalAccount && (
+                <>
+                  <button type="button" onClick={() => void handlePortalInvite(false)} className="btn-secondary text-xs px-3 py-1.5">
+                    Send Portal Invite
+                  </button>
+                  <button type="button" onClick={() => void handlePortalInvite(true)} className="btn-primary text-xs px-3 py-1.5">
+                    Issue Temp Credentials
+                  </button>
+                </>
+              )}
+              {portalAccount?.status === 'active' && (
+                <button type="button" onClick={() => void handlePortalToggle('deactivated')} className="btn-secondary text-xs px-3 py-1.5 text-[#B84E42]">
+                  <ShieldOff className="w-3.5 h-3.5" />
+                  Deactivate Portal Login
+                </button>
+              )}
+              {portalAccount && portalAccount.status !== 'active' && (
+                <button type="button" onClick={() => void handlePortalToggle('active')} className="btn-primary text-xs px-3 py-1.5">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Reactivate Portal Login
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {issuedCreds && (
+          <div className="p-3 rounded-xl bg-[#EDF4EC] border border-[#789A75] text-xs flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-0.5 font-mono text-[#4D6E4A]">
+              {issuedCreds.inviteUrl && <p>Invite Link: {issuedCreds.inviteUrl}</p>}
+              {issuedCreds.username && (
+                <p>
+                  Username: {issuedCreds.username}
+                  {issuedCreds.temporaryPassword ? ` · Temp Password: ${issuedCreds.temporaryPassword}` : ''}
+                </p>
+              )}
+            </div>
+            {issuedCreds.inviteUrl && (
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(issuedCreds.inviteUrl!)
+                  toast.success('Copied invite link')
+                }}
+                className="btn-secondary text-[11px] px-2.5 py-1"
+              >
+                <Copy className="w-3 h-3" />
+                Copy
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Identity & Indian Commercial Licence Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <form onSubmit={handleSaveIdentity} className="enterprise-card p-6 space-y-4">
           <div className="flex items-center justify-between border-b border-[#E5E5E5] pb-3">
             <div>
               <h2 className="dm-card-title text-base">Identity & Emergency Contact</h2>
-              <p className="text-xs text-[#958777]">Owner-managed ERP record · No driver self-login enabled</p>
+              <p className="text-xs text-[#958777]">Canonical commercial driver master record (preserved independently of login status)</p>
             </div>
             {canEdit && (
               <button type="submit" className="btn-primary text-xs px-3 py-1.5">

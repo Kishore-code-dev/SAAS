@@ -203,7 +203,9 @@ export default function AdminConsole() {
                       <td className="tabular-nums text-xs">{org.code}</td>
                       <td className="text-xs text-[#958777]">{org.city}, {org.state}</td>
                       <td className="capitalize font-medium">{org.planId}</td>
-                      <td className="tabular-nums text-xs">{org.vehicleLimit} / {org.driverLimit}</td>
+                      <td className="tabular-nums text-xs">
+                        {org.vehicleLimit < 0 ? 'Unlimited' : org.vehicleLimit} / {org.driverLimit < 0 ? 'Unlimited' : org.driverLimit}
+                      </td>
                       <td className="text-right">
                         {org.id === activeOrganization.id ? (
                           <SeverityText severity="normal" label="Active Workspace" />
@@ -227,7 +229,10 @@ export default function AdminConsole() {
       {tab === 'Users & RBAC' && (
         <div className="space-y-4">
           {canManageMembers && (
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => navigate('/dashboard/staff')} className="btn-secondary text-xs">
+                Open 31-Module Staff Matrix
+              </button>
               <button type="button" onClick={() => setInviteOpen(true)} className="btn-primary text-xs">
                 <Plus className="w-3.5 h-3.5" />
                 Add Staff Member
@@ -263,10 +268,11 @@ export default function AdminConsole() {
                           {(activeRole === 'platform_admin' || m.role === 'platform_admin') && (
                             <option value="platform_admin">Platform Admin</option>
                           )}
-                          <option value="org_admin">Org Admin</option>
-                          <option value="fleet_manager">Fleet Manager</option>
-                          <option value="maintenance">Maintenance</option>
-                          <option value="finance">Finance</option>
+                          <option value="org_admin">Fleet Owner (Org Admin)</option>
+                          <option value="fleet_staff">Fleet Staff (31-Module RBAC)</option>
+                          <option value="fleet_manager">Fleet Manager (Preset)</option>
+                          <option value="maintenance">Maintenance (Preset)</option>
+                          <option value="finance">Finance (Preset)</option>
                           <option value="viewer">Viewer (Read-Only)</option>
                         </select>
                       </td>
@@ -330,11 +336,13 @@ export default function AdminConsole() {
       )}
 
       {tab === 'Subscriptions' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {SUBSCRIPTION_PLANS.map((p) => (
             <div key={p.id} className="enterprise-card p-5">
               <p className="font-bold text-[#625346]">{p.name}</p>
-              <p className="text-xs text-[#958777] mt-1">Limit: {p.vehicleLimit} vehicles · {p.driverLimit} drivers</p>
+              <p className="text-xs text-[#958777] mt-1">
+                {p.billingFrequency === 'annual' ? '₹36,000/year' : '₹3,500/month'} + 18% GST · Unlimited vehicles, drivers &amp; staff
+              </p>
               <button type="button" onClick={() => navigate('/dashboard/subscription')} className="btn-secondary text-xs mt-4">
                 Manage Plan
               </button>

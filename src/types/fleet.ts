@@ -3,6 +3,8 @@ export type OperatingEnvironment = 'production'
 export type OrganizationRole =
   | 'platform_admin'
   | 'org_admin'
+  | 'fleet_staff'
+  | 'driver'
   | 'fleet_manager'
   | 'maintenance'
   | 'finance'
@@ -16,7 +18,17 @@ export type OrganizationStatus =
   | 'terminated'
   | 'archived'
 
-export type SubscriptionPlanId = 'starter' | 'growth' | 'enterprise'
+export type SubscriptionPlanId = 'monthly' | 'annual' | 'starter' | 'growth' | 'enterprise'
+export type BillingFrequency = 'monthly' | 'annual'
+
+export type BusinessType =
+  | 'Transport'
+  | 'Logistics'
+  | 'Passenger Transport'
+  | 'Goods Transportation'
+  | 'School/Staff Transportation'
+  | 'Construction Fleet'
+  | 'Other'
 
 export type ReportingPeriod = '7d' | '30d' | '90d'
 
@@ -105,6 +117,12 @@ export interface Organization {
   ownerEmail?: string
   ownerPhone?: string
   gstin?: string
+  businessType?: BusinessType
+  onboardingCompleted?: boolean
+  onboardingStep?: number
+  billingFrequency?: BillingFrequency
+  gracePeriodDays?: number
+  expiredAccessPolicy?: 'read_only' | 'blocked'
   createdAt: string
   environment: OperatingEnvironment
 }
@@ -117,7 +135,7 @@ export interface OrganizationMember {
   fullName: string
   email: string
   role: OrganizationRole
-  status: 'active' | 'invited' | 'suspended'
+  status: 'active' | 'invited' | 'suspended' | 'invitation_pending' | 'deactivated' | 'draft'
   lastActiveAt: string
 }
 
@@ -382,17 +400,40 @@ export interface Trip {
   driverId: string
   originAddress: string
   destinationAddress: string
+  origin?: string
+  destination?: string
   startLocation: LatLng
   endLocation?: LatLng
   startTime: string
   endTime?: string
+  startedAt?: string
+  startedByUserId?: string
+  completedAt?: string
+  completedByUserId?: string
+  odometerStart?: number
+  odometerEnd?: number
+  odometerFlag?: 'verified' | 'inconsistent'
+  odometerFlagReason?: string
+  driverNotes?: string
   distanceKm: number
   plannedDistanceKm?: number
   durationMinutes: number
   plannedDurationMinutes?: number
   avgSpeedKmh: number
   maxSpeedKmh: number
-  status: 'scheduled' | 'active' | 'completed' | 'delayed' | 'interrupted'
+  status:
+    | 'scheduled'
+    | 'active'
+    | 'completed'
+    | 'delayed'
+    | 'interrupted'
+    | 'Assigned'
+    | 'Accepted'
+    | 'Ready to Start'
+    | 'In Progress'
+    | 'On Hold'
+    | 'Completed'
+    | 'Cancelled'
   truckRoutingMode?: 'google_truck_verified' | 'google_truck_partial_restrictions' | 'highway_geometry_unverified'
   route: LatLng[]
   speedTimeline: TripSpeedPoint[]
@@ -936,4 +977,217 @@ export interface FleetModulesDataset {
   visitedIntegrations: boolean
   visitedReports: boolean
 }
+
+export type PermissionModuleKey =
+  | 'dashboard'
+  | 'live_monitoring'
+  | 'vehicles'
+  | 'drivers'
+  | 'staff'
+  | 'trips'
+  | 'assignments'
+  | 'meter_history'
+  | 'tyre_readings'
+  | 'expense_history'
+  | 'replacement_analysis'
+  | 'tools_equipment'
+  | 'inspections'
+  | 'issues'
+  | 'reminders'
+  | 'maintenance'
+  | 'work_orders'
+  | 'contacts'
+  | 'vendors'
+  | 'parts_inventory'
+  | 'fuel_history'
+  | 'charging_history'
+  | 'places'
+  | 'documents'
+  | 'warranties'
+  | 'custom_records'
+  | 'vehicle_contracts'
+  | 'finance'
+  | 'reports'
+  | 'settings'
+  | 'integrations'
+
+export type PermissionAction =
+  | 'view'
+  | 'add'
+  | 'edit'
+  | 'delete'
+  | 'approve'
+  | 'export'
+  | 'manage'
+
+export type SensitivePermissionKey =
+  | 'viewBankDetails'
+  | 'modifyContractRates'
+  | 'releaseDeposits'
+  | 'approveContractAmendments'
+  | 'viewFinancialLedgers'
+
+export type ModulePermissionEntry = Record<PermissionAction, boolean>
+
+export interface StaffPermissionMatrix {
+  modules: Record<PermissionModuleKey, ModulePermissionEntry>
+  sensitive: Record<SensitivePermissionKey, boolean>
+}
+
+export type StaffAccountStatus =
+  | 'draft'
+  | 'invitation_pending'
+  | 'active'
+  | 'suspended'
+  | 'deactivated'
+
+export interface StaffProfile {
+  id: string
+  organizationId: string
+  userId: string | null
+  fullName: string
+  mobile: string
+  email: string
+  jobTitle: string
+  department: string
+  branchLocation: string
+  employeeCode: string
+  employmentStatus: 'active' | 'on_leave' | 'terminated'
+  accountStatus: StaffAccountStatus
+  username?: string
+  invitationToken?: string
+  invitationSentAt?: string
+  invitedBy?: string
+  permissions: StaffPermissionMatrix
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StaffActivityLog {
+  id: string
+  organizationId: string
+  staffId: string
+  staffName: string
+  action: string
+  module: string
+  recordId: string | null
+  previousValueJson: string | null
+  newValueJson: string | null
+  timestamp: string
+  deviceInfo: string
+}
+
+export type CanonicalSubscriptionStatus =
+  | 'pending_payment'
+  | 'pending_verification'
+  | 'active'
+  | 'renewal_due'
+  | 'past_due'
+  | 'grace_period'
+  | 'expired'
+  | 'suspended'
+  | 'cancelled'
+
+export type SubscriptionPaymentStatus =
+  | 'created'
+  | 'pending'
+  | 'processing'
+  | 'successful'
+  | 'failed'
+  | 'cancelled'
+  | 'refunded'
+  | 'partially_refunded'
+
+export interface SubscriptionRecord {
+  id: string
+  organizationId: string
+  planId: 'monthly' | 'annual'
+  billingFrequency: BillingFrequency
+  status: CanonicalSubscriptionStatus
+  baseAmountInr: number
+  taxRatePct: number
+  taxAmountInr: number
+  totalPayableInr: number
+  currentPeriodStart: string | null
+  currentPeriodEnd: string | null
+  gracePeriodDays: number
+  expiredAccessPolicy: 'read_only' | 'blocked'
+  cancelAtPeriodEnd: boolean
+  cancellationReason: string | null
+  cancelledAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SubscriptionPaymentRecord {
+  id: string
+  subscriptionId: string
+  organizationId: string
+  planId: 'monthly' | 'annual'
+  billingFrequency: BillingFrequency
+  baseAmountInr: number
+  taxAmountInr: number
+  totalAmountInr: number
+  status: SubscriptionPaymentStatus
+  paymentMethod: string
+  gatewayReference: string | null
+  idempotencyKey: string | null
+  failureReason: string | null
+  verifiedBy: string | null
+  verifiedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type DriverExpenseCategory =
+  | 'Fuel'
+  | 'Toll'
+  | 'Parking'
+  | 'Repairs'
+  | 'Loading and Unloading'
+  | 'Other Approved Expenses'
+
+export type DriverExpenseStatus =
+  | 'Draft'
+  | 'Submitted'
+  | 'Pending Review'
+  | 'Approved'
+  | 'Rejected'
+  | 'Requires Additional Information'
+
+export interface DriverExpenseSubmission {
+  id: string
+  organizationId: string
+  driverId: string
+  vehicleId: string | null
+  tripId: string | null
+  category: DriverExpenseCategory
+  amountInr: number
+  odometerKm: number | null
+  receiptFileName: string | null
+  notes: string
+  status: DriverExpenseStatus
+  paymentState: 'unpaid' | 'reimbursed' | 'company_paid'
+  reviewedBy: string | null
+  reviewedAt: string | null
+  reviewNote: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AppNotification {
+  id: string
+  organizationId: string | null
+  targetRole: string | null
+  targetUserId: string | null
+  category: string
+  title: string
+  message: string
+  actionRoute: string
+  entityType: string | null
+  entityId: string | null
+  read: boolean
+  createdAt: string
+}
+
 

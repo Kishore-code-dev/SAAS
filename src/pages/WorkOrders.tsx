@@ -205,7 +205,7 @@ export default function WorkOrders() {
                 </div>
 
                 {canManage && (
-                  <div>
+                  <div className="flex flex-wrap items-center gap-2">
                     <label htmlFor="wo-status-sel" className="sr-only">Update Work Order Status</label>
                     <select
                       id="wo-status-sel"
@@ -214,12 +214,40 @@ export default function WorkOrders() {
                         updateWorkOrderStatus(selectedWo.id, e.target.value as WorkOrderStatus)
                         toast.success(`Updated ${selectedWo.workOrderNumber} to ${e.target.value.replace('_', ' ')}`)
                       }}
-                      className="dm-input text-xs font-semibold capitalize"
+                      className="dm-input text-xs font-semibold capitalize w-auto"
                     >
                       {WO_STATUS_FLOW.map((st) => (
                         <option key={st} value={st}>{st.replace('_', ' ')}</option>
                       ))}
                     </select>
+                    {selectedWo.status !== 'completed' && selectedWo.status !== 'closed' && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(`/api/fleet/work-orders/${selectedWo.id}/complete`, {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                actualCostInr: selectedWo.totalCostInr,
+                                odometerKm: selectedVehicle?.odometerKm ?? 0,
+                                workshopName: selectedWo.workshopName,
+                              }),
+                            })
+                            const data = await res.json()
+                            if (!res.ok) throw new Error(data.error || 'Failed to complete work order')
+                            updateWorkOrderStatus(selectedWo.id, 'completed')
+                            toast.success(`Completed ${selectedWo.workOrderNumber} & posted Maintenance Record`)
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : 'Unable to complete work order')
+                          }
+                        }}
+                        className="btn-primary text-xs px-3 py-1.5"
+                      >
+                        Complete &amp; Log Maintenance
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

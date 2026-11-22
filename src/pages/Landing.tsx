@@ -39,8 +39,8 @@ export default function Landing() {
     navigate(isAuthenticated ? workspaceHref : '/auth')
   }
 
-  const handleStartTrial = (planId = 'growth') => {
-    navigate(isAuthenticated ? workspaceHref : `/signup?plan=${planId}&billing=${billingCycle}`)
+  const handleStartSignup = (planId: 'monthly' | 'annual' = 'monthly') => {
+    navigate(isAuthenticated ? workspaceHref : `/signup?plan=${planId}`)
   }
 
   const platformModules = [
@@ -136,7 +136,7 @@ export default function Landing() {
                   Login
                 </Link>
                 <Link to="/signup" className="btn-primary text-xs sm:text-sm whitespace-nowrap hidden sm:inline-flex">
-                  Start Free Trial
+                  Get Started
                 </Link>
               </>
             )}
@@ -192,10 +192,10 @@ export default function Landing() {
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => handleStartTrial('growth')}
+                onClick={() => handleStartSignup('monthly')}
                 className="btn-primary text-sm px-6 py-3"
               >
-                {isAuthenticated ? 'Enter Workspace' : 'Start 14-Day Free Trial'}
+                {isAuthenticated ? 'Enter Workspace' : 'Create Fleet Account'}
               </button>
               <button type="button" onClick={handleBegin} className="btn-secondary text-sm px-5 py-3">
                 {isAuthenticated ? 'Open Workspace' : 'Sign In'}
@@ -398,10 +398,10 @@ export default function Landing() {
             <div className="max-w-2xl">
               <p className="text-xs font-semibold text-[#6E5696] uppercase tracking-wider">Transparent SaaS Licensing</p>
               <h2 className="dm-section-title text-3xl mt-2">
-                Predictable pricing per active fleet organization
+                Choose Your DriveMitra Subscription
               </h2>
               <p className="text-[#958777] mt-2 text-sm">
-                Start with a 14-day self-serve trial or onboard directly into an isolated tenant workspace.
+                One complete DriveMitra platform with unlimited vehicles, drivers &amp; staff — billed monthly or annually (+18% GST).
               </p>
             </div>
             <div className="inline-flex items-center gap-1 bg-[#FFFFFF] p-1 rounded-[10px] border border-[#DDD3ED]">
@@ -412,7 +412,7 @@ export default function Landing() {
                   billingCycle === 'monthly' ? 'bg-[#EEE8F7] text-[#6E5696]' : 'text-[#958777] hover:text-[#625346]'
                 }`}
               >
-                Monthly
+                Monthly (₹3,500)
               </button>
               <button
                 type="button"
@@ -421,48 +421,46 @@ export default function Landing() {
                   billingCycle === 'annual' ? 'bg-[#EEE8F7] text-[#6E5696]' : 'text-[#958777] hover:text-[#625346]'
                 }`}
               >
-                Annual (Save 20%)
+                Annual (Save ₹6,000 / 14.29%)
               </button>
             </div>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-5xl mx-auto">
             {SUBSCRIPTION_PLANS.map((plan) => {
-              const displayedPrice =
-                plan.monthlyInr !== null
-                  ? billingCycle === 'annual'
-                    ? Math.round(plan.monthlyInr * 0.8)
-                    : plan.monthlyInr
-                  : null
+              const isHighlighted = plan.billingFrequency === billingCycle
+              const canonicalCycle = plan.billingFrequency
+              const primaryPrice = canonicalCycle === 'annual' ? plan.annualInr : plan.monthlyInr
               return (
                 <div
                   key={plan.id}
-                  className={`rounded-xl p-6 flex flex-col justify-between border shadow-card ${
-                    plan.id === 'growth'
-                      ? 'bg-[#FFFFFF] text-[#625346] border-2 border-[#E8C65A]'
-                      : 'bg-[#FAFAFA] text-[#625346] border-[#E5E5E5]'
+                  className={`rounded-2xl p-7 flex flex-col justify-between border shadow-card ${
+                    isHighlighted
+                      ? 'bg-[#FFFFFF] text-[#625346] border-2 border-[#6E5696]'
+                      : 'bg-[#FAFAFA] text-[#625346] border-[#DDD3ED]'
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-lg font-bold text-[#625346]">{plan.name}</h3>
-                      {plan.id === 'growth' && (
-                        <span className="text-xs font-semibold text-[#625346] bg-[#E8C65A]/45 border border-[#D8B442] px-2.5 py-0.5 rounded-[8px]">
-                          Recommended
+                      <h3 className="text-xl font-bold text-[#625346]">{plan.name}</h3>
+                      {plan.savingsVsMonthlyInr > 0 && (
+                        <span className="text-xs font-semibold text-[#4D6E4A] bg-[#EDF4EC] border border-[#789A75] px-2.5 py-0.5 rounded-[8px]">
+                          Save ₹6,000/yr (14.29%)
                         </span>
                       )}
                     </div>
                     <p className="text-xs mt-1.5 text-[#958777]">{plan.tagline}</p>
                     <div className="mt-5 pb-5 border-b border-[#E5E5E5]">
-                      {displayedPrice !== null ? (
-                        <p className="text-3xl font-bold tabular-nums text-[#625346]">
-                          {formatInr(displayedPrice)}
-                          <span className="text-xs font-normal ml-1 text-[#958777]">
-                            / month{billingCycle === 'annual' ? ' (billed annually)' : ''}
-                          </span>
+                      <p className="text-3xl font-bold tabular-nums text-[#625346]">
+                        {formatInr(primaryPrice)}
+                        <span className="text-xs font-normal ml-1 text-[#958777]">
+                          / {canonicalCycle === 'annual' ? 'year' : 'month'} + 18% GST ({formatInr(plan.totalPayableInr)} total)
+                        </span>
+                      </p>
+                      {canonicalCycle === 'annual' && (
+                        <p className="text-xs text-[#4D6E4A] font-semibold mt-1">
+                          Equivalent to ₹3,000/month · Full platform access
                         </p>
-                      ) : (
-                        <p className="text-2xl font-bold text-[#625346]">Custom Contract</p>
                       )}
                     </div>
                     <ul className="mt-5 space-y-2.5 text-sm">
@@ -477,10 +475,10 @@ export default function Landing() {
 
                   <button
                     type="button"
-                    onClick={() => handleStartTrial(plan.id)}
-                    className={`mt-8 w-full ${plan.id === 'growth' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => handleStartSignup(canonicalCycle)}
+                    className={`mt-8 w-full ${isHighlighted ? 'btn-primary' : 'btn-secondary'}`}
                   >
-                    {isAuthenticated ? 'Open Workspace' : `Start ${plan.name} 14-Day Trial`}
+                    {isAuthenticated ? 'Open Workspace' : `Choose ${plan.name}`}
                   </button>
                 </div>
               )

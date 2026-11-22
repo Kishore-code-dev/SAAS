@@ -2,11 +2,13 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { apiClient } from '../services/api'
 
-export const useAuthStore = create((set, get) => ({
+export const useAuthStore = create((set) => ({
   user: null,
   token: null,
   role: 'viewer',
   organization: null,
+  permissions: null,
+  subscription: null,
   isLoading: true,
   isAuthenticated: false,
 
@@ -21,6 +23,8 @@ export const useAuthStore = create((set, get) => ({
           user,
           role: user.role ?? 'viewer',
           organization: user.organization ?? null,
+          permissions: user.permissions ?? null,
+          subscription: user.subscription ?? null,
           isAuthenticated: true,
           isLoading: false,
         })
@@ -43,9 +47,11 @@ export const useAuthStore = create((set, get) => ({
         user,
         role: user.role ?? 'viewer',
         organization: user.organization ?? null,
+        permissions: user.permissions ?? null,
+        subscription: user.subscription ?? null,
         isAuthenticated: true,
       })
-      return { success: true }
+      return { success: true, role: user.role }
     } catch (err) {
       return {
         success: false,
@@ -61,6 +67,14 @@ export const useAuthStore = create((set, get) => ({
     } catch {
       // ignore
     }
-    set({ user: null, token: null, role: 'viewer', organization: null, isAuthenticated: false })
+    set({
+      user: null,
+      token: null,
+      role: 'viewer',
+      organization: null,
+      permissions: null,
+      subscription: null,
+      isAuthenticated: false,
+    })
   },
 }))

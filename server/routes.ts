@@ -31,13 +31,19 @@ import {
 } from './authLogic.ts'
 import {
   attachSession,
+  loadOrgSubscription,
+  loadUserPermissionMatrix,
   requireActiveOrganization,
   requireAuth,
   requireFleetAction,
+  requirePaidActiveSubscription,
   requirePasswordChanged,
   requirePlatformAdmin,
   type AuthenticatedRequest,
 } from './authMiddleware.ts'
+import { buildCanonicalRouter } from './canonicalRoutes.ts'
+import { emitNotification } from './notifications.ts'
+import { computeCheckoutTotals, UNLIMITED_SEAT_CAP } from './subscriptionEngine.ts'
 import { createEmptyOrgDataset, getDb, getUploadsDir, mapOrgRow, mapSaasInvoiceRow, mapUserRow } from './db.ts'
 import { scheduleDbsSync } from './dbsSync.ts'
 import {
@@ -140,7 +146,36 @@ function describeWmoCode(code: number): string {
   return 'Overcast'
 }
 
-function sendSafeUser(user: ReturnType<typeof mapUserRow>, org: Organization | null) {
+function sendSafeUser(
+  user: ReturnType<typeof mapUserRow>,
+  org: Organization | null,
+  options?: {
+    permissions?: ReturnType<typeof loadUserPermissionMatrix>
+    subscription?: ReturnType<typeof loadOrgSubscription>['subscription']
+    subscriptionAccess?: ReturnType<typeof loadOrgSubscription>['operationalAccess']
+  },
+) {
+  const permissions = options?.permissions ?? loadUserPermissionMatrix(user)
+  const subInfo =
+    user.organizationId && org
+      ? {
+          subscription: options?.subscription ?? loadOrgSubscription(user.organizationId, org).subscription,
+          operationalAccess:
+            options?.subscriptionAccess ?? loadOrgSubscription(user.organizationId, org).operationalAccess,
+        }
+      : { subscription: null, operationalAccess: 'full' as const }
+
+  let redirectTo = getBackendRedirectForRole(user.role)
+  if (user.passwordChangeRequired) {
+    redirectTo = '/change-password'
+  } else if (
+    user.role === 'org_admin' &&
+    org &&
+    (org.onboardingCompleted === false || org.status === 'payment_pending' || org.paymentStatus === 'pending')
+  ) {
+    redirectTo = '/onboarding'
+  }
+
   return {
     id: user.id,
     username: user.username,
@@ -148,13 +183,17 @@ function sendSafeUser(user: ReturnType<typeof mapUserRow>, org: Organization | n
     fullName: user.fullName,
     role: user.role,
     organizationId: user.organizationId,
+    driverId: user.driverId,
+    staffProfileId: user.staffProfileId,
+    mobile: user.mobile,
     passwordChangeRequired: user.passwordChangeRequired,
     status: user.status,
     lastLoginAt: user.lastLoginAt,
     organization: org,
-    redirectTo: user.passwordChangeRequired
-      ? '/change-password'
-      : getBackendRedirectForRole(user.role),
+    permissions,
+    subscription: subInfo.subscription,
+    subscriptionAccess: subInfo.operationalAccess,
+    redirectTo,
   }
 }
 
@@ -280,7 +319,14 @@ export function buildApiRouter(): Router {
         return
       }
     }
-    res.json({ authenticated: true, ...sendSafeUser(req.authUser, req.activeOrg ?? null) })
+    res.json({
+      authenticated: true,
+      ...sendSafeUser(req.authUser, req.activeOrg ?? null, {
+        permissions: req.authPermissions,
+        subscription: req.activeSubscription,
+        subscriptionAccess: req.subscriptionAccess,
+      }),
+    })
   })
 
   router.post('/auth/logout', (req: AuthenticatedRequest, res: Response) => {
@@ -415,35 +461,59 @@ export function buildApiRouter(): Router {
     res.json({ ok: true, message: 'Password updated successfully. You may now log in with your new password.' })
   })
 
-  // Self-Serve SaaS Tenant Onboarding (creates isolated org + owner account + 14-day trial + session cookie)
+  // Canonical Fleet Owner Registration (creates isolated org + owner account in pending onboarding state — NO 14-day free trial)
   router.post('/auth/register', (req: AuthenticatedRequest, res: Response) => {
     const body = req.body as {
       organizationName?: unknown
+      businessType?: unknown
       city?: unknown
       state?: unknown
       ownerName?: unknown
       email?: unknown
       phone?: unknown
+      mobile?: unknown
       gstin?: unknown
       username?: unknown
       password?: unknown
+      confirmPassword?: unknown
+      termsAccepted?: unknown
       planId?: unknown
       billingCycle?: unknown
     }
 
     const organizationName = typeof body.organizationName === 'string' ? body.organizationName.trim() : ''
+    const businessType =
+      typeof body.businessType === 'string' && body.businessType.trim()
+        ? body.businessType.trim()
+        : 'Transport'
     const city = typeof body.city === 'string' ? body.city.trim() : ''
     const state = typeof body.state === 'string' ? body.state.trim() : ''
     const ownerName = typeof body.ownerName === 'string' ? body.ownerName.trim() : ''
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-    const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
+    const phone =
+      typeof body.mobile === 'string' && body.mobile.trim()
+        ? body.mobile.trim()
+        : typeof body.phone === 'string'
+          ? body.phone.trim()
+          : ''
     const gstin = typeof body.gstin === 'string' ? body.gstin.trim().toUpperCase() : ''
-    const rawUsername = typeof body.username === 'string' ? body.username.trim().toLowerCase() : ''
+    const rawUsername =
+      typeof body.username === 'string' && body.username.trim()
+        ? body.username.trim().toLowerCase()
+        : email.split('@')[0].toLowerCase()
     const password = typeof body.password === 'string' ? body.password : ''
-    const billingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
+
+    if ('confirmPassword' in body && body.confirmPassword !== password) {
+      res.status(400).json({ error: 'Password and confirm password do not match.' })
+      return
+    }
+    if ('termsAccepted' in body && body.termsAccepted !== true) {
+      res.status(400).json({ error: 'You must accept the DriveMitra Terms & Privacy Policy to create an account.' })
+      return
+    }
 
     if (organizationName.length < 2 || !city || !state || !ownerName || !email.includes('@')) {
-      res.status(400).json({ error: 'Organization name, city, state, owner name, and valid work email are required.' })
+      res.status(400).json({ error: 'Fleet/Organisation name, city, state, owner name, and valid email are required.' })
       return
     }
     const username = rawUsername.replace(/[^a-z0-9._-]/g, '')
@@ -462,16 +532,16 @@ export function buildApiRouter(): Router {
       .prepare('SELECT id FROM users WHERE LOWER(username) = ? OR LOWER(email) = ?')
       .get(username, email) as { id: string } | undefined
     if (duplicateUser) {
-      res.status(409).json({ error: 'An account with that username or work email already exists.' })
+      res.status(409).json({ error: 'An account with that username or email already exists.' })
       return
     }
 
+    const selectedCycle = body.billingCycle === 'annual' || body.planId === 'annual' ? 'annual' : 'monthly'
     const selectedPlan =
-      SUBSCRIPTION_PLANS.find((p) => p.id === body.planId) ?? SUBSCRIPTION_PLANS[1] // Default Growth trial
+      SUBSCRIPTION_PLANS.find((p) => p.id === selectedCycle) ?? SUBSCRIPTION_PLANS[0]
+    const totals = computeCheckoutTotals(selectedCycle)
     const now = new Date()
     const nowIso = now.toISOString()
-    const trialDays = 14
-    const trialEndDate = new Date(now.getTime() + trialDays * 86400000).toISOString().slice(0, 10)
     const orgId = `org-${crypto.randomUUID().slice(0, 8)}`
     const prefix = organizationName.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3) || 'FLT'
     const code = `${prefix}-${Math.floor(100 + Math.random() * 899)}`
@@ -486,12 +556,18 @@ export function buildApiRouter(): Router {
       timezone: 'Asia/Kolkata',
       currency: 'INR',
       planId: selectedPlan.id,
-      vehicleLimit: selectedPlan.vehicleLimit,
-      driverLimit: selectedPlan.driverLimit,
-      status: 'active',
-      paymentStatus: 'paid',
+      billingFrequency: selectedCycle,
+      businessType: businessType as Organization['businessType'],
+      vehicleLimit: UNLIMITED_SEAT_CAP,
+      driverLimit: UNLIMITED_SEAT_CAP,
+      status: 'payment_pending',
+      paymentStatus: 'pending',
+      onboardingCompleted: false,
+      onboardingStep: 1,
+      gracePeriodDays: 0,
+      expiredAccessPolicy: 'read_only',
       subscriptionStartDate: nowIso.slice(0, 10),
-      subscriptionExpiryDate: trialEndDate,
+      subscriptionExpiryDate: nowIso.slice(0, 10),
       ownerName,
       ownerEmail: email,
       ownerPhone: phone || undefined,
@@ -502,10 +578,11 @@ export function buildApiRouter(): Router {
 
     db.prepare(`
       INSERT INTO organizations (
-        id, name, code, city, state, timezone, plan_id, vehicle_limit, driver_limit,
-        status, payment_status, subscription_start_date, subscription_expiry_date,
+        id, name, code, city, state, timezone, plan_id, billing_frequency, business_type,
+        vehicle_limit, driver_limit, status, payment_status, onboarding_completed, onboarding_step,
+        grace_period_days, expired_access_policy, subscription_start_date, subscription_expiry_date,
         grace_period_until, suspension_reason, owner_name, owner_email, owner_phone, gstin, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, 0, 'read_only', ?, ?, NULL, NULL, ?, ?, ?, ?, ?)
     `).run(
       org.id,
       org.name,
@@ -514,8 +591,10 @@ export function buildApiRouter(): Router {
       org.state,
       org.timezone,
       org.planId,
-      org.vehicleLimit,
-      org.driverLimit,
+      selectedCycle,
+      businessType,
+      UNLIMITED_SEAT_CAP,
+      UNLIMITED_SEAT_CAP,
       org.status,
       org.paymentStatus,
       org.subscriptionStartDate,
@@ -549,25 +628,29 @@ export function buildApiRouter(): Router {
     db.prepare(`
       INSERT INTO users (
         id, username, email, full_name, password_hash, role, organization_id,
-        password_change_required, status, created_at, last_login_at
-      ) VALUES (?, ?, ?, ?, ?, 'org_admin', ?, 0, 'active', ?, ?)
-    `).run(ownerUserId, username, email, ownerName, hashPassword(password), org.id, nowIso, nowIso)
+        mobile, password_change_required, status, created_at, last_login_at
+      ) VALUES (?, ?, ?, ?, ?, 'org_admin', ?, ?, 0, 'active', ?, ?)
+    `).run(ownerUserId, username, email, ownerName, hashPassword(password), org.id, phone || null, nowIso, nowIso)
 
     db.prepare(`
-      INSERT INTO saas_billing_invoices (
-        id, organization_id, invoice_number, plan_id, billing_cycle,
-        base_amount_inr, gst_inr, total_inr, status, period_start, period_end, issued_at, notes
-      ) VALUES (?, ?, ?, ?, ?, 0, 0, 0, 'trial', ?, ?, ?, ?)
+      INSERT INTO subscriptions (
+        id, organization_id, plan_id, billing_frequency, status,
+        base_amount_inr, tax_amount_inr, total_amount_inr, currency,
+        started_at, current_period_start, current_period_end,
+        grace_period_days, expired_access_policy, cancel_at_period_end,
+        auto_renew, updated_at, created_at
+      ) VALUES (?, ?, ?, ?, 'pending_payment', ?, ?, ?, 'INR', ?, NULL, NULL, 0, 'read_only', 0, 1, ?, ?)
     `).run(
-      `sinv-${crypto.randomUUID().slice(0, 8)}`,
+      `sub-${org.id}`,
       org.id,
-      `DM-${code}-TRIAL`,
       selectedPlan.id,
-      billingCycle,
-      org.subscriptionStartDate,
-      trialEndDate,
+      selectedCycle,
+      totals.baseAmountInr,
+      totals.taxAmountInr,
+      totals.totalPayableInr,
+      nowIso.slice(0, 10),
       nowIso,
-      `14-day SaaS workspace trial (${selectedPlan.name} tier)`,
+      nowIso,
     )
 
     db.prepare(`
@@ -580,10 +663,21 @@ export function buildApiRouter(): Router {
       username,
       org.id,
       org.name,
-      `Self-serve SaaS workspace signup on ${selectedPlan.name} (${billingCycle}) 14-day trial.`,
-      JSON.stringify({ planId: selectedPlan.id, billingCycle, ownerEmail: email }),
+      `Fleet Owner registered (${businessType}); awaiting mandatory staff onboarding & paid subscription verification.`,
+      JSON.stringify({ planId: selectedPlan.id, billingCycle: selectedCycle, ownerEmail: email }),
       nowIso,
     )
+
+    emitNotification(db, {
+      organizationId: org.id,
+      recipientUserId: ownerUserId,
+      eventType: 'OWNER_ONBOARDING_REQUIRED',
+      title: 'Complete setup to activate your fleet',
+      message: 'Step 1: Add at least 1 Staff Member, then choose Monthly (₹3,500) or Annual (₹36,000) to activate operations.',
+      module: 'onboarding',
+      actionUrl: '/onboarding',
+      severity: 'info',
+    })
 
     const rawToken = generateOpaqueToken(32)
     const tokenHash = hashToken(rawToken)
@@ -601,7 +695,8 @@ export function buildApiRouter(): Router {
       'Set-Cookie',
       formatCookieHeader(SESSION_COOKIE_NAME, rawToken, Math.floor(SESSION_TTL_MS / 1000)),
     )
-    res.status(201).json(sendSafeUser(createdUser, org))
+    const safeUser = sendSafeUser(createdUser, org)
+    res.status(201).json({ ...safeUser, token: rawToken, user: safeUser })
   })
 
   // ===================== LEVEL-2 SUPER ADMIN PANEL =====================
@@ -1023,7 +1118,15 @@ export function buildApiRouter(): Router {
     requireAuth,
     requirePasswordChanged,
     requireActiveOrganization,
+    requirePaidActiveSubscription(),
     (req: AuthenticatedRequest, res: Response) => {
+      if (req.authUser!.role === 'driver') {
+        res.status(403).json({
+          code: 'DRIVER_ISOLATION',
+          error: 'Drivers access only their isolated Driver Portal endpoints (/api/driver/*).',
+        })
+        return
+      }
       const db = getDb()
       const org = req.activeOrg!
       const data = getOrgFleetDataset(db, org.id)
@@ -1031,14 +1134,14 @@ export function buildApiRouter(): Router {
       const blobRow = db
         .prepare('SELECT updated_at FROM org_fleet_blobs WHERE organization_id = ?')
         .get(org.id) as { updated_at: string } | undefined
-      const latestSaasInv = db
-        .prepare('SELECT status FROM saas_billing_invoices WHERE organization_id = ? ORDER BY issued_at DESC LIMIT 1')
-        .get(org.id) as { status: string } | undefined
 
       res.json({
         organization: org,
         role: req.authUser!.role,
-        isTrial: latestSaasInv?.status === 'trial',
+        permissions: req.authPermissions,
+        subscription: req.activeSubscription,
+        subscriptionAccess: req.subscriptionAccess,
+        isTrial: false,
         updatedAt: blobRow?.updated_at ?? new Date().toISOString(),
         data,
         modules,
@@ -1096,7 +1199,12 @@ export function buildApiRouter(): Router {
     requireAuth,
     requirePasswordChanged,
     requireActiveOrganization,
+    requirePaidActiveSubscription({ allowReadOnlyOnExpiry: false }),
     (req: AuthenticatedRequest, res: Response) => {
+      if (req.authUser!.role === 'driver') {
+        res.status(403).json({ error: 'Drivers cannot overwrite fleet workspace state.' })
+        return
+      }
       const db = getDb()
       const org = req.activeOrg!
       const body = req.body as { data?: Record<string, unknown> }
@@ -1104,22 +1212,7 @@ export function buildApiRouter(): Router {
         res.status(400).json({ error: 'Invalid fleet state payload.' })
         return
       }
-      const incomingVehicles = Array.isArray(body.data.vehicles) ? body.data.vehicles : []
-      const incomingDrivers = Array.isArray(body.data.drivers) ? body.data.drivers : []
-      if (incomingVehicles.length > org.vehicleLimit) {
-        res.status(403).json({
-          code: 'PLAN_LIMIT_EXCEEDED',
-          error: `Vehicle quota reached (${incomingVehicles.length}/${org.vehicleLimit}) on your ${org.planId.toUpperCase()} SaaS plan. Upgrade in Subscription & Usage to add more vehicles.`,
-        })
-        return
-      }
-      if (incomingDrivers.length > org.driverLimit) {
-        res.status(403).json({
-          code: 'PLAN_LIMIT_EXCEEDED',
-          error: `Driver quota reached (${incomingDrivers.length}/${org.driverLimit}) on your ${org.planId.toUpperCase()} SaaS plan. Upgrade in Subscription & Usage to add more drivers.`,
-        })
-        return
-      }
+      // Unlimited vehicles/drivers/staff on both Monthly & Annual canonical plans
       const updatedAt = saveOrgFleetDataset(db, org.id, body.data, true)
       res.json({ ok: true, updatedAt })
     },
@@ -1141,17 +1234,20 @@ export function buildApiRouter(): Router {
         .prepare('SELECT * FROM saas_billing_invoices WHERE organization_id = ? ORDER BY issued_at DESC')
         .all(org.id) as Array<Record<string, unknown>>
       const invoices = invRows.map(mapSaasInvoiceRow)
+      const subInfo = loadOrgSubscription(org.id, org)
 
       res.json({
         organization: org,
+        subscription: subInfo.subscription,
+        operationalAccess: subInfo.operationalAccess,
         usage: {
           vehiclesCount: counts.totalVehicles,
-          vehicleLimit: org.vehicleLimit,
+          vehicleLimit: UNLIMITED_SEAT_CAP,
           driversCount: counts.totalDrivers,
-          driverLimit: org.driverLimit,
+          driverLimit: UNLIMITED_SEAT_CAP,
           membersCount: membersRow.count,
         },
-        isTrial: invoices[0]?.status === 'trial',
+        isTrial: false,
         invoices,
       })
     },
@@ -1167,79 +1263,22 @@ export function buildApiRouter(): Router {
       const db = getDb()
       const org = req.activeOrg!
       const body = req.body as { planId?: SubscriptionPlanId; billingCycle?: 'monthly' | 'annual' }
-      const targetPlan = SUBSCRIPTION_PLANS.find((p) => p.id === body.planId)
-      if (!targetPlan) {
-        res.status(400).json({ error: 'Select a valid SaaS subscription tier.' })
-        return
-      }
-      const billingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
-      const counts = getOrgOperationalCounts(db, org.id)
-      if (counts.totalVehicles > targetPlan.vehicleLimit) {
-        res.status(400).json({
-          error: `Cannot switch to ${targetPlan.name} (${targetPlan.vehicleLimit} vehicles max) while ${counts.totalVehicles} vehicles are active.`,
-        })
-        return
-      }
-      if (counts.totalDrivers > targetPlan.driverLimit) {
-        res.status(400).json({
-          error: `Cannot switch to ${targetPlan.name} (${targetPlan.driverLimit} drivers max) while ${counts.totalDrivers} drivers are active.`,
-        })
-        return
-      }
-
-      const now = new Date()
-      const nowIso = now.toISOString()
-      const cycleDays = billingCycle === 'annual' ? 365 : 30
-      const nextExpiry = new Date(now.getTime() + cycleDays * 86400000).toISOString().slice(0, 10)
-      const periodStart = nowIso.slice(0, 10)
-      const monthlyRate = targetPlan.monthlyInr ?? 45000
-      const baseAmountInr =
-        billingCycle === 'annual' ? Math.round(monthlyRate * 12 * 0.8) : monthlyRate
-      const gstInr = Math.round(baseAmountInr * 0.18)
-      const totalInr = baseAmountInr + gstInr
+      const cycle = body.billingCycle === 'annual' || body.planId === 'annual' ? 'annual' : 'monthly'
+      const targetPlan = SUBSCRIPTION_PLANS.find((p) => p.id === cycle) ?? SUBSCRIPTION_PLANS[0]
+      const totals = computeCheckoutTotals(cycle)
+      const nowIso = new Date().toISOString()
 
       db.prepare(`
         UPDATE organizations
-        SET plan_id = ?, vehicle_limit = ?, driver_limit = ?, payment_status = 'paid', subscription_expiry_date = ?
+        SET plan_id = ?, billing_frequency = ?, vehicle_limit = ?, driver_limit = ?
         WHERE id = ?
-      `).run(targetPlan.id, targetPlan.vehicleLimit, targetPlan.driverLimit, nextExpiry, org.id)
-
-      const invoiceId = `sinv-${crypto.randomUUID().slice(0, 8)}`
-      const invoiceNum = `DM-${org.code}-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 899)}`
-      db.prepare(`
-        INSERT INTO saas_billing_invoices (
-          id, organization_id, invoice_number, plan_id, billing_cycle,
-          base_amount_inr, gst_inr, total_inr, status, period_start, period_end, issued_at, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?, ?)
-      `).run(
-        invoiceId,
-        org.id,
-        invoiceNum,
-        targetPlan.id,
-        billingCycle,
-        baseAmountInr,
-        gstInr,
-        totalInr,
-        periodStart,
-        nextExpiry,
-        nowIso,
-        `${targetPlan.name} (${billingCycle}) subscription activation · 18% GST included`,
-      )
+      `).run(targetPlan.id, cycle, UNLIMITED_SEAT_CAP, UNLIMITED_SEAT_CAP, org.id)
 
       db.prepare(`
-        INSERT INTO platform_admin_audit_logs (
-          id, actor_user_id, actor_username, action, target_org_id, target_org_name, reason, metadata_json, created_at
-        ) VALUES (?, ?, ?, 'SUBSCRIPTION_PLAN_CHANGED', ?, ?, ?, ?, ?)
-      `).run(
-        `paud-${crypto.randomUUID().slice(0, 8)}`,
-        req.authUser!.id,
-        req.authUser!.username,
-        org.id,
-        org.name,
-        `Owner upgraded/changed SaaS subscription to ${targetPlan.name} (${billingCycle}).`,
-        JSON.stringify({ previousPlan: org.planId, nextPlan: targetPlan.id, billingCycle, totalInr }),
-        nowIso,
-      )
+        UPDATE subscriptions
+        SET plan_id = ?, billing_frequency = ?, base_amount_inr = ?, tax_amount_inr = ?, total_amount_inr = ?, updated_at = ?
+        WHERE organization_id = ?
+      `).run(targetPlan.id, cycle, totals.baseAmountInr, totals.taxAmountInr, totals.totalPayableInr, nowIso, org.id)
 
       const updatedOrg = mapOrgRow(
         db.prepare('SELECT * FROM organizations WHERE id = ?').get(org.id) as Record<string, unknown>,
@@ -1250,6 +1289,7 @@ export function buildApiRouter(): Router {
 
       res.json({
         organization: updatedOrg,
+        subscription: loadOrgSubscription(org.id, updatedOrg).subscription,
         invoices: invRows.map(mapSaasInvoiceRow),
       })
     },
@@ -1660,16 +1700,16 @@ export function buildApiRouter(): Router {
     '/fleet/modules/api-keys',
     requireAuth,
     requirePasswordChanged,
-    requireActiveOrganization,
-    requireFleetAction('update_org_settings'),
+    requirePlatformAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body as { label?: string; scope?: 'read_only' | 'read_write' | 'telematics_ingest' }
+      const body = req.body as { organizationId?: string; label?: string; scope?: 'read_only' | 'read_write' | 'telematics_ingest' }
+      const targetOrgId = body.organizationId || 'org-kaveri'
       if (!body.label?.trim()) {
         res.status(400).json({ error: 'API key label is required.' })
         return
       }
       const rand = crypto.randomBytes(2).toString('hex')
-      const created = insertApiKey(getDb(), req.activeOrg!.id, {
+      const created = insertApiKey(getDb(), targetOrgId, {
         label: body.label.trim(),
         prefix: `dm_live_${rand}••••9f2e`,
         scope: body.scope ?? 'read_only',
@@ -1684,10 +1724,10 @@ export function buildApiRouter(): Router {
     '/fleet/modules/api-keys/:keyId',
     requireAuth,
     requirePasswordChanged,
-    requireActiveOrganization,
-    requireFleetAction('update_org_settings'),
+    requirePlatformAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const ok = deleteApiKey(getDb(), req.activeOrg!.id, String(req.params.keyId))
+      const targetOrgId = typeof req.query.organizationId === 'string' ? req.query.organizationId : 'org-kaveri'
+      const ok = deleteApiKey(getDb(), targetOrgId, String(req.params.keyId))
       if (!ok) {
         res.status(404).json({ error: 'API key not found.' })
         return
@@ -1700,15 +1740,15 @@ export function buildApiRouter(): Router {
     '/fleet/modules/webhooks',
     requireAuth,
     requirePasswordChanged,
-    requireActiveOrganization,
-    requireFleetAction('update_org_settings'),
+    requirePlatformAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body as { url?: string; events?: string[] }
+      const body = req.body as { organizationId?: string; url?: string; events?: string[] }
+      const targetOrgId = body.organizationId || 'org-kaveri'
       if (!body.url?.trim().startsWith('http')) {
         res.status(400).json({ error: 'A valid http/https webhook URL is required.' })
         return
       }
-      const created = insertWebhook(getDb(), req.activeOrg!.id, {
+      const created = insertWebhook(getDb(), targetOrgId, {
         url: body.url.trim(),
         events: Array.isArray(body.events) && body.events.length > 0 ? body.events : ['vehicle.alert', 'work_order.updated'],
         active: true,
@@ -1722,15 +1762,15 @@ export function buildApiRouter(): Router {
     '/fleet/modules/webhooks/:webhookId',
     requireAuth,
     requirePasswordChanged,
-    requireActiveOrganization,
-    requireFleetAction('update_org_settings'),
+    requirePlatformAdmin,
     (req: AuthenticatedRequest, res: Response) => {
-      const body = req.body as { active?: boolean }
+      const body = req.body as { organizationId?: string; active?: boolean }
+      const targetOrgId = body.organizationId || 'org-kaveri'
       if (typeof body.active !== 'boolean') {
         res.status(400).json({ error: 'Boolean active state is required.' })
         return
       }
-      const ok = toggleWebhookActive(getDb(), req.activeOrg!.id, String(req.params.webhookId), body.active)
+      const ok = toggleWebhookActive(getDb(), targetOrgId, String(req.params.webhookId), body.active)
       if (!ok) {
         res.status(404).json({ error: 'Webhook endpoint not found.' })
         return
@@ -2761,6 +2801,8 @@ export function buildApiRouter(): Router {
       }
     },
   )
+
+  router.use('/', buildCanonicalRouter())
 
   return router
 }

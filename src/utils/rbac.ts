@@ -1,4 +1,9 @@
-import type { OrganizationRole } from '../types/fleet'
+import type { OrganizationRole, PermissionAction, PermissionModuleKey, StaffPermissionMatrix } from '../types/fleet'
+import {
+  getPresetMatrixForRole,
+  hasModulePermission,
+  resolveModulePermissionForPath,
+} from './staffPermissions'
 
 export type FleetAction =
   | 'create_organization'
@@ -130,6 +135,26 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'manage_finance_settings',
     'view_finance_reports',
   ]),
+  fleet_staff: new Set<FleetAction>([
+    'add_vehicle',
+    'edit_vehicle',
+    'assign_driver',
+    'add_driver',
+    'schedule_trip',
+    'end_trip',
+    'schedule_maintenance',
+    'manage_work_orders',
+    'report_issue',
+    'acknowledge_alert',
+    'use_copilot',
+  ]),
+  driver: new Set<FleetAction>([
+    'end_trip',
+    'log_fuel',
+    'submit_inspection',
+    'report_issue',
+    'dispute_driver_event',
+  ]),
   fleet_manager: new Set<FleetAction>([
     'add_vehicle',
     'edit_vehicle',
@@ -202,37 +227,147 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
   ]),
 }
 
-export function canPerformAction(role: OrganizationRole, action: FleetAction): boolean {
+export const ACTION_TO_MODULE_PERMISSION: Record<
+  FleetAction,
+  { moduleKey: PermissionModuleKey; action: PermissionAction } | null
+> = {
+  create_organization: null,
+  manage_platform_orgs: null,
+  manage_members: { moduleKey: 'staff', action: 'manage' },
+  add_vehicle: { moduleKey: 'vehicles', action: 'add' },
+  edit_vehicle: { moduleKey: 'vehicles', action: 'edit' },
+  decommission_vehicle: { moduleKey: 'vehicles', action: 'delete' },
+  restore_vehicle: { moduleKey: 'vehicles', action: 'edit' },
+  assign_driver: { moduleKey: 'assignments', action: 'edit' },
+  add_driver: { moduleKey: 'drivers', action: 'add' },
+  manage_driver_status: { moduleKey: 'drivers', action: 'edit' },
+  verify_documents: { moduleKey: 'documents', action: 'approve' },
+  dispute_driver_event: { moduleKey: 'drivers', action: 'edit' },
+  resolve_driver_dispute: { moduleKey: 'drivers', action: 'approve' },
+  schedule_trip: { moduleKey: 'trips', action: 'add' },
+  end_trip: { moduleKey: 'trips', action: 'edit' },
+  log_fuel: { moduleKey: 'fuel_history', action: 'add' },
+  verify_fuel: { moduleKey: 'fuel_history', action: 'approve' },
+  schedule_maintenance: { moduleKey: 'maintenance', action: 'manage' },
+  complete_maintenance: { moduleKey: 'maintenance', action: 'manage' },
+  resolve_prediction: { moduleKey: 'maintenance', action: 'manage' },
+  manage_work_orders: { moduleKey: 'work_orders', action: 'manage' },
+  manage_inventory: { moduleKey: 'parts_inventory', action: 'manage' },
+  manage_workshops: { moduleKey: 'vendors', action: 'manage' },
+  submit_inspection: { moduleKey: 'inspections', action: 'add' },
+  report_issue: { moduleKey: 'issues', action: 'add' },
+  acknowledge_alert: { moduleKey: 'dashboard', action: 'view' },
+  manage_financials: { moduleKey: 'finance', action: 'manage' },
+  manage_subscription: { moduleKey: 'settings', action: 'manage' },
+  update_org_settings: { moduleKey: 'settings', action: 'edit' },
+  update_global_settings: null,
+  update_telemetry: { moduleKey: 'live_monitoring', action: 'edit' },
+  export_reports: { moduleKey: 'reports', action: 'export' },
+  use_copilot: { moduleKey: 'dashboard', action: 'view' },
+  view_finance: { moduleKey: 'finance', action: 'view' },
+  view_finance_unmasked: { moduleKey: 'finance', action: 'view' },
+  add_finance_records: { moduleKey: 'finance', action: 'add' },
+  edit_finance_records: { moduleKey: 'finance', action: 'edit' },
+  record_finance_payments: { moduleKey: 'finance', action: 'add' },
+  reconcile_finance_payments: { moduleKey: 'finance', action: 'approve' },
+  manage_bank_details: { moduleKey: 'finance', action: 'manage' },
+  manage_finance_settings: { moduleKey: 'finance', action: 'manage' },
+  view_finance_reports: { moduleKey: 'reports', action: 'view' },
+}
+
+export function canPerformAction(
+  role: OrganizationRole,
+  action: FleetAction,
+  customPermissions?: StaffPermissionMatrix | null,
+): boolean {
+  if (role === 'platform_admin') return true
+  if (role === 'org_admin') return ROLE_ACTIONS.org_admin.has(action)
+  if (role === 'driver') return ROLE_ACTIONS.driver.has(action)
+  if (customPermissions) {
+    const mapped = ACTION_TO_MODULE_PERMISSION[action]
+    if (!mapped) return false
+    if (action === 'view_finance_unmasked' || action === 'manage_bank_details') {
+      if (!customPermissions.sensitive.viewBankDetails) return false
+    }
+    return hasModulePermission(customPermissions, role, mapped.moduleKey, mapped.action)
+  }
   return ROLE_ACTIONS[role]?.has(action) ?? false
 }
 
-export function assertRolePermission(role: OrganizationRole, action: FleetAction): void {
-  if (!canPerformAction(role, action)) {
+export function assertRolePermission(
+  role: OrganizationRole,
+  action: FleetAction,
+  customPermissions?: StaffPermissionMatrix | null,
+): void {
+  if (!canPerformAction(role, action, customPermissions)) {
     throw new Error(`Role "${role.replace(/_/g, ' ')}" is not authorized to perform "${action.replace(/_/g, ' ')}".`)
   }
 }
 
 export function getDefaultHomeForRole(role: OrganizationRole): string {
   if (role === 'platform_admin') return '/platform-admin'
+  if (role === 'driver') return '/driver'
   if (role === 'maintenance') return '/dashboard/maintenance'
   if (role === 'finance') return '/dashboard/financials'
   return '/dashboard'
 }
 
-export function canAccessRoute(role: OrganizationRole, pathname: string): boolean {
+export function canAccessRoute(
+  role: OrganizationRole,
+  pathname: string,
+  customPermissions?: StaffPermissionMatrix | null,
+): boolean {
   const clean = pathname.replace(/\/+$/, '') || '/'
 
   if (clean.startsWith('/platform-admin')) {
     return role === 'platform_admin'
   }
 
-  // Driver mobile companion app is permanently removed from the owner-only platform
-  if (clean.startsWith('/driver')) {
-    return false
+  // Strictly isolated Driver Portal routes (/driver and /driver/*)
+  if (clean === '/driver' || clean.startsWith('/driver/')) {
+    return role === 'driver'
+  }
+
+  // Drivers cannot access owner/staff dashboard modules or platform admin routes
+  if (role === 'driver') {
+    if (clean.startsWith('/dashboard') || clean.startsWith('/onboarding')) {
+      return false
+    }
+    return true
+  }
+
+  // Platform Integrations are strictly Platform Admin only (never Owner/Staff/Driver)
+  if (clean === '/dashboard/integrations' || clean.startsWith('/dashboard/integrations/')) {
+    return role === 'platform_admin'
+  }
+
+  if (clean === '/onboarding' || clean.startsWith('/onboarding/')) {
+    return role === 'org_admin'
   }
 
   if (!clean.startsWith('/dashboard')) {
     return true
+  }
+
+  if (clean === '/dashboard/subscription' || clean.startsWith('/dashboard/subscription/')) {
+    return role === 'platform_admin' || role === 'org_admin' || role === 'finance'
+  }
+
+  if (clean === '/dashboard/get-started' || clean === '/dashboard/support') {
+    return role !== 'platform_admin'
+  }
+
+  // Custom granular staff / permission-matrix check takes immediate precedence when provided
+  if (role === 'fleet_staff' || customPermissions) {
+    const effective = customPermissions ?? getPresetMatrixForRole(role)
+    const mapped = resolveModulePermissionForPath(clean)
+    if (mapped) {
+      return hasModulePermission(effective, role, mapped.moduleKey, mapped.action)
+    }
+  }
+
+  if (clean === '/dashboard/staff' || clean.startsWith('/dashboard/staff/')) {
+    return role === 'platform_admin' || role === 'org_admin'
   }
 
   // Admin & Billing workflow routes (checked before coarse prefix matches)
@@ -240,16 +375,8 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     return role === 'platform_admin' || role === 'org_admin'
   }
 
-  if (clean === '/dashboard/subscription' || clean.startsWith('/dashboard/subscription/')) {
-    return role === 'platform_admin' || role === 'org_admin' || role === 'finance'
-  }
-
   if (clean === '/dashboard/settings' || clean.startsWith('/dashboard/settings/')) {
     return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager'
-  }
-
-  if (clean === '/dashboard/get-started' || clean === '/dashboard/support') {
-    return role !== 'platform_admin'
   }
 
   if (clean === '/dashboard/contracts' || clean.startsWith('/dashboard/contracts/')) {
@@ -286,7 +413,6 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     )
   }
 
-  // Specific Finance write routes must check fine-grained action permissions BEFORE '/dashboard/finance/'
   if (clean === '/dashboard/finance/vehicles/new') {
     return canPerformAction(role, 'add_finance_records')
   }
@@ -307,7 +433,6 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     return canPerformAction(role, 'manage_financials')
   }
 
-  // Specific Fleet & Operations mutation routes BEFORE coarse prefix checks
   if (clean === '/dashboard/fleet/new') {
     return canPerformAction(role, 'add_vehicle')
   }
@@ -436,10 +561,6 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
     )
   }
 
-  if (clean === '/dashboard/integrations') {
-    return role === 'platform_admin' || role === 'org_admin' || role === 'fleet_manager' || role === 'viewer'
-  }
-
   if (
     clean.startsWith('/dashboard/drivers') ||
     clean.startsWith('/dashboard/fleet/drivers') ||
@@ -460,3 +581,4 @@ export function canAccessRoute(role: OrganizationRole, pathname: string): boolea
 
   return true
 }
+

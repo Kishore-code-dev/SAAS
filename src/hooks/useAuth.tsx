@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
-import type { Organization, OrganizationRole, OrganizationStatus } from '../types/fleet'
+import type {
+  BusinessType,
+  Organization,
+  OrganizationRole,
+  OrganizationStatus,
+  StaffPermissionMatrix,
+  SubscriptionRecord,
+} from '../types/fleet'
 
 export interface AuthenticatedUser {
   id: string
@@ -8,6 +15,9 @@ export interface AuthenticatedUser {
   fullName: string
   role: OrganizationRole
   organizationId: string | null
+  driverId?: string | null
+  staffProfileId?: string | null
+  mobile?: string | null
   passwordChangeRequired: boolean
   status: string
   lastLoginAt?: string
@@ -26,21 +36,28 @@ interface SignInResult {
 
 export interface RegisterTenantInput {
   organizationName: string
+  businessType: BusinessType | string
   city: string
   state: string
   ownerName: string
   email: string
+  mobile: string
   phone?: string
   gstin?: string
-  username: string
+  username?: string
   password: string
-  planId: 'starter' | 'growth' | 'enterprise'
-  billingCycle: 'monthly' | 'annual'
+  confirmPassword: string
+  termsAccepted: boolean
+  planId?: 'monthly' | 'annual' | 'starter' | 'growth' | 'enterprise'
+  billingCycle?: 'monthly' | 'annual'
 }
 
 interface AuthContextType {
   user: AuthenticatedUser | null
   organization: Organization | null
+  permissions: StaffPermissionMatrix | null
+  subscription: SubscriptionRecord | null
+  subscriptionAccess: 'full' | 'read_only' | 'blocked' | 'onboarding_only'
   orgBlockedState: OrgBlockedInfo | null
   loading: boolean
   isAuthenticated: boolean
@@ -64,9 +81,29 @@ async function safeJson(res: Response): Promise<Record<string, unknown>> {
   }
 }
 
+function buildUserFromPayload(data: Record<string, unknown>): AuthenticatedUser {
+  return {
+    id: String(data.id),
+    username: String(data.username),
+    email: String(data.email),
+    fullName: String(data.fullName),
+    role: data.role as OrganizationRole,
+    organizationId: data.organizationId ? String(data.organizationId) : null,
+    driverId: data.driverId ? String(data.driverId) : null,
+    staffProfileId: data.staffProfileId ? String(data.staffProfileId) : null,
+    mobile: data.mobile ? String(data.mobile) : null,
+    passwordChangeRequired: Boolean(data.passwordChangeRequired),
+    status: String(data.status ?? 'active'),
+    lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthenticatedUser | null>(null)
   const [organization, setOrganization] = useState<Organization | null>(null)
+  const [permissions, setPermissions] = useState<StaffPermissionMatrix | null>(null)
+  const [subscription, setSubscription] = useState<SubscriptionRecord | null>(null)
+  const [subscriptionAccess, setSubscriptionAccess] = useState<'full' | 'read_only' | 'blocked' | 'onboarding_only'>('full')
   const [orgBlockedState, setOrgBlockedState] = useState<OrgBlockedInfo | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -80,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.status === 403 && data.code === 'ORG_ACCESS_BLOCKED') {
         setUser(null)
         setOrganization(null)
+        setPermissions(null)
+        setSubscription(null)
         setOrgBlockedState({
           status: (data.orgStatus as OrganizationStatus) ?? 'suspended',
           reason: String(data.reason || data.error || 'Organization access suspended.'),
@@ -89,26 +128,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok || !data.authenticated) {
         setUser(null)
         setOrganization(null)
+        setPermissions(null)
+        setSubscription(null)
         return
       }
 
       setOrgBlockedState(null)
-      setUser({
-        id: String(data.id),
-        username: String(data.username),
-        email: String(data.email),
-        fullName: String(data.fullName),
-        role: data.role as OrganizationRole,
-        organizationId: data.organizationId ? String(data.organizationId) : null,
-        passwordChangeRequired: Boolean(data.passwordChangeRequired),
-        status: String(data.status ?? 'active'),
-        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
-      })
+      setUser(buildUserFromPayload(data))
       setOrganization((data.organization as Organization | null) ?? null)
+      setPermissions((data.permissions as StaffPermissionMatrix | null) ?? null)
+      setSubscription((data.subscription as SubscriptionRecord | null) ?? null)
+      setSubscriptionAccess(
+        (data.subscriptionAccess as AuthContextType['subscriptionAccess']) ?? 'full',
+      )
     } catch {
-      // Offline / unit-test JSDOM fallback: stay cleanly unauthenticated
       setUser(null)
       setOrganization(null)
+      setPermissions(null)
+      setSubscription(null)
     } finally {
       setLoading(false)
     }
@@ -142,19 +179,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: new Error(String(data.error || 'Invalid username or password.')) }
       }
 
-      const nextUser: AuthenticatedUser = {
-        id: String(data.id),
-        username: String(data.username),
-        email: String(data.email),
-        fullName: String(data.fullName),
-        role: data.role as OrganizationRole,
-        organizationId: data.organizationId ? String(data.organizationId) : null,
-        passwordChangeRequired: Boolean(data.passwordChangeRequired),
-        status: String(data.status ?? 'active'),
-        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
-      }
+      const nextUser = buildUserFromPayload(data)
       setUser(nextUser)
       setOrganization((data.organization as Organization | null) ?? null)
+      setPermissions((data.permissions as StaffPermissionMatrix | null) ?? null)
+      setSubscription((data.subscription as SubscriptionRecord | null) ?? null)
+      setSubscriptionAccess(
+        (data.subscriptionAccess as AuthContextType['subscriptionAccess']) ?? 'full',
+      )
       setOrgBlockedState(null)
       window.dispatchEvent(new CustomEvent('dm-auth-session', { detail: { user: nextUser } }))
       return {
@@ -180,24 +212,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: new Error(String(data.error || 'Unable to create SaaS workspace.')) }
       }
 
-      const nextUser: AuthenticatedUser = {
-        id: String(data.id),
-        username: String(data.username),
-        email: String(data.email),
-        fullName: String(data.fullName),
-        role: data.role as OrganizationRole,
-        organizationId: data.organizationId ? String(data.organizationId) : null,
-        passwordChangeRequired: Boolean(data.passwordChangeRequired),
-        status: String(data.status ?? 'active'),
-        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
-      }
+      const nextUser = buildUserFromPayload(data)
       setUser(nextUser)
       setOrganization((data.organization as Organization | null) ?? null)
+      setPermissions((data.permissions as StaffPermissionMatrix | null) ?? null)
+      setSubscription((data.subscription as SubscriptionRecord | null) ?? null)
+      setSubscriptionAccess(
+        (data.subscriptionAccess as AuthContextType['subscriptionAccess']) ?? 'onboarding_only',
+      )
       setOrgBlockedState(null)
       window.dispatchEvent(new CustomEvent('dm-auth-session', { detail: { user: nextUser } }))
       return {
         error: null,
-        redirectTo: typeof data.redirectTo === 'string' ? data.redirectTo : '/dashboard',
+        redirectTo: typeof data.redirectTo === 'string' ? data.redirectTo : '/onboarding',
       }
     } catch {
       return { error: new Error('Unable to reach onboarding server. Verify the server is running.') }
@@ -216,19 +243,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { error: new Error(String(data.error || 'Unable to update password.')) }
       }
-      const nextUser: AuthenticatedUser = {
-        id: String(data.id),
-        username: String(data.username),
-        email: String(data.email),
-        fullName: String(data.fullName),
-        role: data.role as OrganizationRole,
-        organizationId: data.organizationId ? String(data.organizationId) : null,
-        passwordChangeRequired: false,
-        status: String(data.status ?? 'active'),
-        lastLoginAt: data.lastLoginAt ? String(data.lastLoginAt) : undefined,
-      }
+      const nextUser = buildUserFromPayload(data)
+      nextUser.passwordChangeRequired = false
       setUser(nextUser)
       setOrganization((data.organization as Organization | null) ?? null)
+      setPermissions((data.permissions as StaffPermissionMatrix | null) ?? null)
+      setSubscription((data.subscription as SubscriptionRecord | null) ?? null)
       window.dispatchEvent(new CustomEvent('dm-auth-session', { detail: { user: nextUser } }))
       return {
         error: null,
@@ -289,6 +309,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(null)
     setOrganization(null)
+    setPermissions(null)
+    setSubscription(null)
+    setSubscriptionAccess('full')
     setOrgBlockedState(null)
     window.dispatchEvent(new Event('dm-auth-signout'))
   }
@@ -301,6 +324,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         organization,
+        permissions,
+        subscription,
+        subscriptionAccess,
         orgBlockedState,
         loading,
         isAuthenticated,

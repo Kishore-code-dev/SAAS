@@ -65,7 +65,7 @@ export default function Header({
     markAllAlertsRead,
   } = useFleet()
 
-  const { user, signOut } = useAuth()
+  const { user, permissions, signOut } = useAuth()
   const financeCtx = useOptionalFinance()
   const financeAlerts = financeCtx?.alerts ?? []
   const ackFinanceAlert = financeCtx?.ackFinanceAlert ?? (async () => {})
@@ -74,11 +74,73 @@ export default function Header({
 
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [serverNotifications, setServerNotifications] = useState<
+    Array<{
+      id: string
+      title: string
+      message: string
+      eventType: string
+      actionUrl?: string | null
+      isRead?: boolean
+      readAt?: string | null
+      createdAt: string
+    }>
+  >([])
+
+  React.useEffect(() => {
+    if (!user) {
+      setServerNotifications([])
+      return
+    }
+    let active = true
+    void fetch('/api/notifications', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { notifications?: typeof serverNotifications } | null) => {
+        if (active && Array.isArray(d?.notifications)) {
+          setServerNotifications(d.notifications)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      active = false
+    }
+  }, [user, alertsDrawerOpen])
+
+  const markServerNotificationRead = async (id: string) => {
+    setServerNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: n.readAt || new Date().toISOString() } : n)),
+    )
+    await fetch(`/api/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'PATCH',
+      credentials: 'include',
+    }).catch(() => undefined)
+  }
+
+  const markAllServerNotificationsRead = async () => {
+    const nowIso = new Date().toISOString()
+    setServerNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, readAt: n.readAt || nowIso })))
+    await fetch('/api/notifications/read-all', {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => undefined)
+  }
 
   const displayName = user?.fullName ?? user?.username ?? 'Fleet Owner'
   const unreadFinanceCount = financeAlerts.filter((a) => !a.read).length
-  const totalUnreadCount = unreadAlertCount + unreadFinanceCount
+  const unreadServerNotifCount = serverNotifications.filter((n) => !n.isRead && !n.readAt).length
+  const totalUnreadCount = unreadAlertCount + unreadFinanceCount + unreadServerNotifCount
   const combinedAlerts = [
+    ...serverNotifications.map((sn) => ({
+      id: sn.id,
+      kind: 'system' as const,
+      severity: 'high' as const,
+      timestamp: sn.createdAt,
+      title: sn.title,
+      message: sn.message,
+      actionRoute: sn.actionUrl || '/dashboard',
+      read: Boolean(sn.isRead || sn.readAt),
+      category: 'maintenance' as RiskCategory,
+    })),
     ...financeAlerts.map((fa) => ({
       id: fa.id,
       kind: 'finance' as const,
@@ -149,7 +211,7 @@ export default function Header({
 
           <PWAInstallButton compact />
 
-          {onOpenCopilot && canPerformAction(activeRole, 'use_copilot') && (
+          {onOpenCopilot && canPerformAction(activeRole, 'use_copilot', permissions) && (
             <button
               type="button"
               onClick={onOpenCopilot}
@@ -199,7 +261,7 @@ export default function Header({
           </button>
 
           {/* Add Vehicle Primary CTA */}
-          {onAddVehicle && canPerformAction(activeRole, 'add_vehicle') && (
+          {onAddVehicle && canPerformAction(activeRole, 'add_vehicle', permissions) && (
             <button
               type="button"
               onClick={onAddVehicle}
@@ -241,7 +303,7 @@ export default function Header({
                   <p className="text-xs font-semibold text-[#625346] truncate">{displayName}</p>
                   <p className="text-xs text-[#958777] truncate">{activeOrganization.name}</p>
                 </div>
-                {canAccessRoute(activeRole, '/dashboard/settings') && (
+                {canAccessRoute(activeRole, '/dashboard/settings', permissions) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -253,7 +315,19 @@ export default function Header({
                     Workspace Settings
                   </button>
                 )}
-                {canAccessRoute(activeRole, '/dashboard/admin') && (
+                {canAccessRoute(activeRole, '/dashboard/staff', permissions) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserMenuOpen(false)
+                      navigate('/dashboard/staff')
+                    }}
+                    className="w-full text-left px-2.5 py-2 text-xs font-medium text-[#625346] hover:bg-[#EEE8F7] rounded-lg"
+                  >
+                    Staff &amp; Permissions
+                  </button>
+                )}
+                {canAccessRoute(activeRole, '/dashboard/admin', permissions) && (
                   <button
                     type="button"
                     onClick={() => {
@@ -311,6 +385,7 @@ export default function Header({
                     onClick={() => {
                       markAllAlertsRead()
                       if (unreadFinanceCount > 0) void ackFinanceAlert('all', 'read_all')
+                      if (unreadServerNotifCount > 0) void markAllServerNotificationsRead()
                     }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-[#6E5696] hover:bg-[#EEE8F7]"
                   >
@@ -379,6 +454,8 @@ export default function Header({
                           onClick={() => {
                             if (al.kind === 'finance') {
                               void ackFinanceAlert(al.id, 'read')
+                            } else if (al.kind === 'system') {
+                              void markServerNotificationRead(al.id)
                             } else {
                               markAlertRead(al.id)
                             }
@@ -398,6 +475,8 @@ export default function Header({
                             onClick={() => {
                               if (al.kind === 'finance') {
                                 void ackFinanceAlert(al.id, 'read')
+                              } else if (al.kind === 'system') {
+                                void markServerNotificationRead(al.id)
                               } else {
                                 markAlertRead(al.id)
                               }

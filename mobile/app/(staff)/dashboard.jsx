@@ -6,13 +6,19 @@ import { useFleetStore } from '../../store/fleetStore'
 import { useRouter } from 'expo-router'
 
 export default function StaffDashboard() {
-  const { user, organization, logout } = useAuthStore()
+  const { user, organization, permissions, logout } = useAuthStore()
   const { workOrders, vehicles, isLoading, loadFleetData, pendingSync, flushOfflineQueue } = useFleetStore()
   const router = useRouter()
 
   useEffect(() => {
     loadFleetData()
   }, [])
+
+  const grantedModules = permissions?.modules
+    ? Object.entries(permissions.modules)
+        .filter(([, actions]) => actions?.view)
+        .map(([key]) => key)
+    : []
 
   const handleLogout = async () => {
     await logout()
@@ -24,7 +30,7 @@ export default function StaffDashboard() {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.orgName} numberOfLines={1}>
-            {organization?.name ?? 'DriveMitra'} · Staff
+            {organization?.name ?? 'DriveMitra'} · Fleet Staff
           </Text>
           <Text style={styles.welcome} numberOfLines={1}>
             {user?.fullName ?? 'Fleet Staff'}
@@ -46,6 +52,19 @@ export default function StaffDashboard() {
             </Text>
           </TouchableOpacity>
         )}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            Granted Modules ({grantedModules.length}/31 · Owner RBAC Enforced)
+          </Text>
+          <View style={styles.chipWrap}>
+            {grantedModules.map((mod) => (
+              <View key={mod} style={styles.chip}>
+                <Text style={styles.chipText}>{mod.replace(/_/g, ' ')}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Permitted Operational Desk ({workOrders.length} Work Orders · {vehicles.length} Vehicles)</Text>
@@ -101,6 +120,9 @@ const styles = StyleSheet.create({
   syncTitle: { fontSize: 12, fontWeight: '700', color: '#625346', textAlign: 'center' },
   section: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E5E5', borderRadius: 12, padding: 16 },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: '#625346', marginBottom: 12 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { backgroundColor: '#EEE8F7', borderWidth: 1, borderColor: '#DDD3ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  chipText: { fontSize: 11, fontWeight: '600', color: '#6E5696', textTransform: 'capitalize' },
   moduleList: { gap: 8 },
   moduleItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#FAFAFA' },
   moduleText: { fontSize: 13, fontWeight: '600', color: '#625346' },

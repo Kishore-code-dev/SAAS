@@ -1,0 +1,1473 @@
+# DRIVEMITRA
+# USER MANAGEMENT, ROLE LOGIC, SUBSCRIPTIONS & BUSINESS RULES
+
+## 1. OBJECTIVE
+
+Implement and verify the complete business logic of DriveMitra.
+
+This specification covers:
+
+1. Fleet Owner account.
+2. Staff account.
+3. Driver account.
+4. Platform Administrator.
+5. Role-based access control.
+6. Staff permission management.
+7. Driver operational restrictions.
+8. Two subscription plans.
+9. Subscription activation.
+10. Payment verification.
+11. Subscription renewal and expiration.
+12. Organisation-level data isolation.
+13. Notifications and account lifecycle.
+14. Cross-module business rules.
+15. Complete testing and validation.
+
+This must integrate with the existing DriveMitra application.
+
+Do not create a separate, disconnected user-management or subscription system.
+
+Inspect the existing database, authentication, payment logic and frontend before making changes.
+
+Preserve existing records and working functionality.
+
+---
+
+# PART 1 — ORGANISATION AND ACCOUNT STRUCTURE
+
+DriveMitra is an organisation-based fleet management platform.
+
+Each subscribing customer represents a fleet organisation.
+
+### Organisation hierarchy
+
+Platform Administrator
+    |
+    |-- Fleet Organisation A
+    |      |
+    |      |-- Fleet Owner
+    |      |-- Staff Members
+    |      |-- Drivers
+    |      |-- Vehicles
+    |      |-- Assignments
+    |      |-- Trips
+    |      |-- Maintenance
+    |      |-- Finance
+    |      |-- Contracts
+    |
+    |-- Fleet Organisation B
+           |
+           |-- Fleet Owner
+           |-- Staff Members
+           |-- Drivers
+           |-- Vehicles
+           |-- Assignments
+           |-- Trips
+           |-- Maintenance
+           |-- Finance
+           |-- Contracts
+
+Every organisation must have isolated records.
+
+Organisation A must never be able to access Organisation B's private information.
+
+Use a consistent organisation identifier across all tenant-owned records.
+
+Do not rely only on frontend organisation filters. Enforce tenant isolation in backend queries and authorisation.
+
+## 1.1 Account types
+
+Implement these four account types:
+
+1. PLATFORM_ADMIN
+2. FLEET_OWNER
+3. FLEET_STAFF
+4. FLEET_DRIVER
+
+Each account must have:
+- Unique internal user ID.
+- Organisation ID, where applicable.
+- Role.
+- Account status.
+- Authentication credentials.
+- Creation date.
+- Last login.
+- Activity history.
+
+A Driver Record and a Driver Login Account are separate concepts.
+
+A person may exist as a driver record without having mobile application credentials.
+
+Only create or activate a login account when the authorised account creation or invitation workflow is completed.
+
+---
+
+# PART 2 — FLEET OWNER LOGIC
+
+## 2.1 Owner registration
+
+The Fleet Owner is the primary customer and administrator of their fleet organisation.
+
+The owner must be able to register a new organisation.
+
+### Registration page
+
+Required fields:
+
+- Owner Full Name.
+- Mobile Number.
+- Email Address.
+- Password.
+- Confirm Password.
+- Fleet/Organisation Name.
+- Business Type.
+- Fleet Location.
+- Terms and Conditions Acceptance.
+
+Business Type examples:
+- Transport.
+- Logistics.
+- Passenger Transport.
+- Goods Transportation.
+- School/Staff Transportation.
+- Construction Fleet.
+- Other.
+
+Allow additional organisation details to be completed after registration.
+
+### Registration workflow
+
+Step 1:
+Owner enters personal and organisation details.
+
+Step 2:
+Validate email and mobile according to the supported verification process.
+
+Step 3:
+Create the owner account and organisation in a pending state.
+
+Step 4:
+Direct the owner to the onboarding process.
+
+Step 5:
+Collect required organisation details.
+
+Step 6:
+Require the owner to add at least one staff member.
+
+Step 7:
+Allow the owner to add drivers. This is optional.
+
+Step 8:
+Present the subscription selection page.
+
+Step 9:
+Owner selects Monthly or Annual.
+
+Step 10:
+Owner completes payment.
+
+Step 11:
+Payment must be verified.
+
+Step 12:
+Activate the subscription and organisation access.
+
+Important:
+Do not grant paid operational access merely because the user registered or selected a subscription plan.
+
+If the owner has not completed payment verification, show the appropriate pending-payment or activation state.
+
+## 2.2 Mandatory staff requirement
+
+A Fleet Owner must add at least one staff member during organisation onboarding.
+
+Implement this as an onboarding requirement, not an arbitrary vehicle or employee subscription limit.
+
+Rules:
+- At least one staff record must be created.
+- The owner can invite the staff member.
+- The invitation can remain pending.
+- The onboarding system must distinguish between a created staff record and an activated staff login.
+- The owner can continue managing onboarding according to the configured workflow.
+- Do not falsely report that the staff member has accepted an invitation.
+
+If the staff member has not accepted the invitation, display:
+
+Staff Invitation Pending.
+
+Do not count the owner as the required staff member.
+
+## 2.3 Driver requirement
+
+Drivers are optional during initial onboarding.
+
+The owner can:
+- Add drivers during onboarding.
+- Add drivers later.
+- Invite drivers to the mobile application.
+- Maintain driver records without login access.
+- Activate or deactivate driver accounts.
+- Assign and reassign vehicles.
+- Upload and maintain driver documents.
+
+There must not be an artificial requirement to add a driver before activating a fleet.
+
+## 2.4 Owner permissions
+
+The Fleet Owner has full authority over their organisation's operational and business modules.
+
+The owner can:
+
+### Organisation management
+- Edit organisation profile.
+- Manage fleet information.
+- Manage subscription.
+- Manage billing information.
+- Manage organisation settings.
+
+### Staff management
+- Add staff.
+- Invite staff.
+- Edit staff.
+- Configure permissions.
+- Suspend staff.
+- Reactivate staff.
+- Review staff activity.
+
+### Driver management
+- Add drivers.
+- Edit drivers.
+- Upload documents.
+- Manage licences.
+- Assign vehicles.
+- Manage driver accounts.
+- Review driver activity.
+
+### Fleet management
+- Add and edit vehicles.
+- Manage vehicle assignments.
+- Manage trips.
+- Manage inspections.
+- Manage issues.
+- Manage maintenance.
+- Manage work orders.
+- Manage fuel and expenses.
+- Manage inventory.
+- Manage tyre records.
+- Manage reminders.
+
+### Financial management
+- Manage vehicle finance.
+- Manage EMI schedules.
+- Record payments.
+- Review expenses.
+- Manage contract payments.
+- Manage deposits.
+- Review reports.
+
+### Other management
+- Manage contacts.
+- Manage vendors.
+- Manage documents.
+- Manage warranties.
+- Manage custom records.
+- Manage approval workflows.
+- Manage notifications.
+
+### Owner restriction
+
+Integrations are exclusively controlled by the Platform Administrator.
+
+The Fleet Owner must not access platform-level integration credentials, server settings or other organisations' data.
+
+The owner must also not be able to grant permissions exceeding their own authority.
+
+---
+
+# PART 3 — STAFF LOGIC
+
+## 3.1 Staff account creation
+
+The Fleet Owner creates staff accounts.
+
+Staff cannot independently register a new fleet organisation through the staff invitation workflow.
+
+### Add Staff page
+
+Fields:
+
+- Full Name.
+- Mobile Number.
+- Email Address.
+- Employee ID.
+- Designation.
+- Department.
+- Login Username, if supported.
+- Assigned Responsibilities.
+- Initial Permissions.
+
+### Staff creation workflow
+
+1. Owner opens Staff Directory.
+2. Clicks Add Staff.
+3. Enters staff information.
+4. Selects role or responsibility.
+5. Configures permissions.
+6. Sends invitation or creates an account using the supported authentication workflow.
+7. Staff receives invitation.
+8. Staff completes account activation.
+9. Staff can sign in.
+10. Activity is recorded.
+
+### Staff account statuses
+
+- Draft.
+- Invitation Pending.
+- Active.
+- Suspended.
+- Deactivated.
+
+Do not confuse staff employment status with login account status.
+
+## 3.2 Staff permission system
+
+The Fleet Owner must be able to customise permissions individually.
+
+Do not implement only fixed Staff and Manager roles.
+
+Support permission configuration at:
+- Module level.
+- Page level, where necessary.
+- Action level.
+- Sensitive-field level.
+
+### Permission types
+
+| Permission | Meaning |
+|---|---|
+| View | View permitted records |
+| Add | Create records |
+| Edit | Modify records |
+| Delete | Delete records where safe and permitted |
+| Approve | Approve permitted workflows |
+| Export | Export permitted information |
+| Manage | Manage module settings or configuration |
+
+### Default staff permission matrix
+
+Use this as the initial restricted permission profile.
+
+| Module | Default Staff Access |
+|---|---|
+| Dashboard | View |
+| Live Monitoring | View |
+| Vehicles | Add and Edit |
+| Drivers | Add and Edit |
+| Staff | No Access |
+| Trip Planning | Add and Edit |
+| Vehicle Assignment | Add and Edit |
+| Meter History | Add and Edit |
+| Tyre Readings | No Access |
+| Expense History | No Access |
+| Replacement Analysis | No Access |
+| Tools & Equipment | Add, Edit and Maintain |
+| Inspections | No Access |
+| Issues | Add and Edit |
+| Reminders | No Access |
+| Maintenance | View and Maintain |
+| Work Orders | View and Maintain |
+| Contacts | No Access |
+| Vendors | No Access |
+| Parts & Inventory | No Access by default |
+| Fuel History | View |
+| Charging History | View |
+| Places | View |
+| Documents | No Access by default |
+| Warranties | No Access |
+| Vehicle Contracts | No Access |
+| Finance | No Access |
+| Reports | No Access by default |
+| Custom Records | Add, Edit and Maintain |
+| Settings | No Access |
+| Integrations | No Access |
+
+The owner may customise these permissions.
+
+Additional restrictions:
+
+- Staff cannot delete vehicles by default.
+- Staff cannot delete drivers by default.
+- Staff cannot cancel or delete assignments by default.
+- Staff cannot delete work orders by default.
+- Staff cannot approve contract amendments by default.
+- Staff cannot change contract rental rates by default.
+- Staff cannot release deposits by default.
+- Staff cannot modify sensitive bank information by default.
+- Staff cannot access subscription management.
+- Staff cannot manage organisation ownership.
+- Staff cannot access Integrations.
+
+The permission system must allow explicit exceptions when the owner authorises them.
+
+## 3.3 Staff data restrictions
+
+Staff may only access:
+- Their organisation's records.
+- Records permitted by their role.
+- Records within their assigned responsibilities, where assignment restrictions are configured.
+
+For example:
+
+A staff member authorised to maintain vehicles can update vehicle information.
+
+That does not automatically grant permission to view bank details or approve vehicle loan payments.
+
+## 3.4 Staff activity tracking
+
+Record:
+- Staff ID.
+- Action.
+- Module.
+- Record ID.
+- Previous value where appropriate.
+- New value where appropriate.
+- Timestamp.
+- Device/session information where appropriate.
+
+The Fleet Owner must be able to review staff activity.
+
+---
+
+# PART 4 — DRIVER LOGIC
+
+## 4.1 Driver account creation
+
+The Fleet Owner creates the driver record.
+
+Drivers cannot create or manage fleet organisations.
+
+### Add Driver page
+
+Fields:
+
+Personal:
+- Full Name.
+- Mobile Number.
+- Email, optional where supported.
+- Address, where required.
+- Date of Birth, only where necessary.
+
+Employment:
+- Driver ID.
+- Joining Date.
+- Employment Status.
+- Designation.
+- Emergency Contact.
+
+Licence:
+- Licence Number.
+- Licence Type.
+- Issuing Authority.
+- Issue Date.
+- Expiry Date.
+- Supporting Documents.
+
+Documents:
+- Driving Licence.
+- Identity Documents.
+- Other Required Documents.
+
+Vehicle:
+- Assigned Vehicle, optional.
+- Assignment Date.
+- Assignment Type.
+
+Login:
+- Username or account identifier.
+- Invitation status.
+- Account activation status.
+
+## 4.2 Driver account workflow
+
+1. Owner creates driver record.
+2. Owner uploads required documents.
+3. Owner creates or invites a driver login account.
+4. Driver receives account invitation or credentials through a secure workflow.
+5. Driver completes activation.
+6. Driver signs in to the mobile application.
+7. Driver sees their authorised dashboard.
+8. Owner can assign or change the driver's vehicle.
+9. Driver receives relevant assignment information.
+
+Never expose passwords in plain text.
+
+Use secure password setup, reset and authentication mechanisms.
+
+## 4.3 Driver mobile navigation
+
+Main navigation:
+
+1. Home.
+2. My Trips.
+3. My Vehicle.
+4. Fuel & Expenses.
+5. Inspections.
+6. Report Issue.
+7. Documents.
+8. Profile.
+
+## 4.4 Driver Home
+
+Display:
+- Driver Name.
+- Assigned Vehicle.
+- Vehicle Registration Number.
+- Current Assignment.
+- Upcoming Trips.
+- Active Trip.
+- Pending Inspections.
+- Pending Fuel Submissions.
+- Expense Submission Status.
+- Notifications.
+
+### Buttons
+
+View Trip:
+Opens the assigned trip.
+
+Start Trip:
+Validates assignment, trip status and required pre-trip information.
+
+End Trip:
+Captures completion information and required ending odometer.
+
+Submit Fuel:
+Opens fuel evidence form.
+
+Report Issue:
+Opens issue reporting form.
+
+My Vehicle:
+Opens assigned vehicle details.
+
+## 4.5 Driver trip workflow
+
+Trip statuses:
+
+- Draft.
+- Assigned.
+- Accepted, if acceptance is enabled.
+- Ready to Start.
+- In Progress.
+- On Hold, where permitted.
+- Completed.
+- Cancelled.
+
+### Start Trip
+
+Capture:
+- Trip.
+- Assigned Vehicle.
+- Start Odometer.
+- Start Time.
+- Starting Location, if permitted.
+- Required Inspection.
+- Supporting Evidence, if configured.
+
+Validate:
+- Driver is authorised.
+- Vehicle is assigned.
+- Trip is not cancelled.
+- Trip has not already started.
+- No conflicting active trip exists.
+
+### End Trip
+
+Capture:
+- Ending Odometer.
+- End Time.
+- Destination or completion status.
+- Trip Notes.
+- Required Evidence.
+- Issues or damage, if any.
+
+Calculate distance only from valid meter readings.
+
+If readings are missing or inconsistent, flag the record for review rather than inventing a distance.
+
+## 4.6 Driver fuel submission
+
+Capture:
+- Vehicle.
+- Driver.
+- Fuel Type.
+- Fuel Quantity.
+- Price per Unit.
+- Total Amount.
+- Odometer.
+- Pump Display Photograph.
+- Receipt.
+- Timestamp.
+- Location, where authorised.
+
+Allow the driver to submit evidence.
+
+The owner or authorised staff member reviews it.
+
+Submission statuses:
+- Draft.
+- Submitted.
+- Pending Review.
+- Approved.
+- Rejected.
+- Requires Additional Information.
+
+Approval must be separate from payment.
+
+## 4.7 Driver expense submission
+
+Expense categories:
+- Fuel.
+- Toll.
+- Parking.
+- Repairs.
+- Loading and Unloading.
+- Other Approved Expenses.
+
+Capture:
+- Category.
+- Amount.
+- Date.
+- Description.
+- Receipt.
+- Vehicle.
+- Trip, if applicable.
+
+The driver can view their own submissions and their approval status.
+
+## 4.8 Driver access restrictions
+
+Drivers must not:
+- View all fleet vehicles.
+- View other drivers' private information.
+- View staff management.
+- Manage organisation settings.
+- Manage subscriptions.
+- View fleet-wide finance.
+- View bank details.
+- View contract financial terms.
+- Approve expenses submitted by other users.
+- Access Integrations.
+- Export fleet-wide records.
+
+A driver can access their assigned vehicle and trip information only within the authorised period and scope.
+
+---
+
+# PART 5 — PLATFORM ADMINISTRATOR LOGIC
+
+Platform Administrator is responsible for the platform itself.
+
+### Main responsibilities
+- Organisation management.
+- Subscription management.
+- Payment verification.
+- Activation.
+- Suspension.
+- Renewal monitoring.
+- Platform integrations.
+- Server monitoring.
+- API monitoring.
+- Database health.
+- Storage monitoring.
+- Application version management.
+- Platform-level notifications.
+- Audit logs.
+
+### Platform Admin restrictions
+
+Platform Admin must not automatically gain unrestricted access to every organisation's private operational data.
+
+Any exceptional support access must be controlled, authorised, logged and limited to its purpose.
+
+---
+
+# PART 6 — SUBSCRIPTION PLANS
+
+DriveMitra has exactly TWO active subscription plans.
+
+Remove all old subscription tiers from the active pricing and subscription experience.
+
+## PLAN 1 — MONTHLY
+
+Price:
+₹3,500 per month.
+
+Billing:
+Monthly.
+
+Features:
+Full DriveMitra functionality.
+
+Renewal:
+Monthly, subject to the configured billing and payment workflow.
+
+## PLAN 2 — ANNUAL
+
+Price:
+₹36,000 per year.
+
+Billing:
+Annually.
+
+Features:
+Exactly the same features as Monthly.
+
+Renewal:
+Annually, subject to the configured billing and payment workflow.
+
+### Price comparison
+
+| Detail | Monthly | Annual |
+|---|---:|---:|
+| Billing Period | 1 Month | 12 Months |
+| Price | ₹3,500 | ₹36,000 |
+| Monthly Equivalent | ₹3,500 | ₹3,000 |
+| Annual Cost | ₹42,000 | ₹36,000 |
+| Savings | — | ₹6,000 |
+| Feature Access | Full | Full |
+
+Annual savings:
+₹42,000 - ₹36,000 = ₹6,000.
+
+Percentage savings:
+Approximately 14.29%.
+
+### Important pricing rules
+
+- Both plans provide identical product features.
+- Do not introduce Starter, Growth or Enterprise subscription tiers.
+- Do not impose arbitrary vehicle limits.
+- Do not impose arbitrary driver limits.
+- Do not impose artificial staff limits.
+- Do not restrict modules based on subscription plan.
+- Do not create hidden premium features.
+- Do not disable important fleet functionality for Monthly subscribers.
+- Do not treat Annual subscribers as a separate user role.
+
+Annual is a billing-frequency option, not a higher feature tier.
+
+The pricing page must clearly communicate this.
+
+Tax treatment must follow the actual configured billing and legal requirements. Do not silently assume that the displayed amounts are GST-inclusive or GST-exclusive. Display the correct tax breakdown before payment.
+
+---
+
+# PART 7 — SUBSCRIPTION SELECTION PAGE
+
+### Page title
+Choose Your DriveMitra Subscription
+
+### Page content
+
+Display two equal-sized pricing cards.
+
+MONTHLY:
+- ₹3,500 / month.
+- Full DriveMitra access.
+- Monthly billing.
+- No artificial vehicle limits.
+- No artificial driver limits.
+
+Button:
+Choose Monthly.
+
+ANNUAL:
+- ₹36,000 / year.
+- Full DriveMitra access.
+- Annual billing.
+- Save ₹6,000 compared with twelve monthly payments.
+- No artificial vehicle limits.
+- No artificial driver limits.
+
+Button:
+Choose Annual.
+
+### Design requirements
+
+- Equal card width.
+- Equal card height.
+- Equal padding.
+- Aligned pricing.
+- Aligned feature lists.
+- Aligned CTA buttons.
+- Subtle annual savings badge.
+- Responsive layout.
+- DriveMitra brand colours.
+
+Do not make the Annual card disproportionately large.
+
+### Button behaviour
+
+Choose Monthly:
+- Creates a pending subscription checkout.
+- Passes the Monthly plan identifier.
+- Displays the correct billing summary.
+
+Choose Annual:
+- Creates a pending subscription checkout.
+- Passes the Annual plan identifier.
+- Displays the correct billing summary.
+
+Do not activate either subscription at selection time.
+
+---
+
+# PART 8 — PAYMENT AND SUBSCRIPTION ACTIVATION
+
+## 8.1 Checkout page
+
+Display:
+- Organisation Name.
+- Selected Plan.
+- Billing Period.
+- Base Amount.
+- Applicable Tax.
+- Total Payable.
+- Payment Status.
+- Payment Method.
+
+Buttons:
+- Proceed to Payment.
+- Change Plan.
+- Cancel Checkout.
+
+Use a supported payment gateway only after verifying its configuration and integration requirements.
+
+Do not simulate successful payments.
+
+## 8.2 Payment lifecycle
+
+Use payment states such as:
+
+- Created.
+- Pending.
+- Processing.
+- Successful.
+- Failed.
+- Cancelled.
+- Refunded.
+- Partially Refunded.
+
+Maintain subscription status separately from payment status.
+
+A successful payment record alone must not bypass the subscription activation process.
+
+Verify payment using trusted server-side gateway confirmation or an authorised Platform Administrator verification process.
+
+Never trust a frontend success message as proof of payment.
+
+## 8.3 Activation
+
+After payment verification:
+
+1. Confirm organisation identity.
+2. Confirm selected plan.
+3. Confirm payment amount.
+4. Confirm payment status.
+5. Check for duplicate payment processing.
+6. Create or activate the subscription.
+7. Set billing start date.
+8. Calculate the billing end date.
+9. Set the next renewal date.
+10. Enable authorised organisation access.
+11. Record activation history.
+12. Notify the Fleet Owner.
+
+For a monthly subscription, use the appropriate monthly billing period.
+
+For an annual subscription, use the appropriate annual billing period.
+
+Use reliable date calculations that handle month-end and leap-year boundaries.
+
+## 8.4 Subscription statuses
+
+Implement:
+
+- Pending Payment.
+- Pending Verification.
+- Active.
+- Renewal Due.
+- Past Due.
+- Grace Period, if configured.
+- Expired.
+- Suspended.
+- Cancelled.
+
+Do not confuse subscription status with organisation status or user account status.
+
+## 8.5 Subscription expiration
+
+When a subscription expires:
+
+- Stop access to paid operational functionality according to the configured policy.
+- Preserve all organisation data.
+- Preserve documents and historical records.
+- Display an expiration notice.
+- Provide renewal options.
+- Do not delete the organisation.
+- Do not delete vehicles, drivers, trips, expenses or contracts.
+- Do not silently remove users.
+
+Implement a clear read-only or restricted-access policy for expired organisations.
+
+The exact grace-period duration and access policy must be explicitly configurable and visible to the owner.
+
+Do not invent a grace period.
+
+## 8.6 Renewal
+
+Monthly:
+- Generate the next billing period.
+- Display the renewal amount.
+- Record the payment.
+- Extend access after successful verification.
+
+Annual:
+- Generate the annual renewal.
+- Display the renewal amount.
+- Record the payment.
+- Extend access after successful verification.
+
+Do not extend subscriptions based on an unverified payment attempt.
+
+## 8.7 Cancellation
+
+Provide a subscription cancellation workflow.
+
+The owner should be able to:
+- View current subscription.
+- View billing dates.
+- Request cancellation.
+- Review cancellation consequences.
+- Confirm cancellation.
+- View cancellation status.
+
+Preserve access according to the actual paid-through period and configured cancellation policy.
+
+Do not automatically delete customer data after cancellation.
+
+---
+
+# PART 9 — SUBSCRIPTION MANAGEMENT DASHBOARD
+
+Fleet Owner should have:
+
+### Subscription Overview
+- Current Plan.
+- Billing Frequency.
+- Subscription Status.
+- Start Date.
+- Renewal Date.
+- Expiry Date.
+- Last Payment.
+- Next Payment.
+
+### Pages
+- Subscription Overview.
+- Change Billing Frequency.
+- Payment History.
+- Invoices.
+- Renewal Management.
+- Cancellation Requests.
+
+### Owner actions
+- View Subscription.
+- Change Monthly/Annual billing.
+- Renew.
+- View Payment History.
+- Download Invoice.
+- Request Cancellation.
+
+### Plan change rules
+
+Allow the owner to switch between Monthly and Annual through an explicit workflow.
+
+Calculate any applicable credits or prorations only if the billing policy and payment system support them.
+
+Do not invent refunds or credits.
+
+Require confirmation before changing billing frequency.
+
+Record every change in subscription history.
+
+---
+
+# PART 10 — IMPORTANT CROSS-MODULE BUSINESS RULES
+
+These rules must be checked across the entire application.
+
+## 10.1 Vehicle and driver assignment
+
+- One vehicle cannot have conflicting active assignments unless explicitly supported.
+- A driver cannot have conflicting active trip assignments.
+- A driver must be authorised to operate the assigned vehicle.
+- Assignment history must be preserved.
+- Changing a driver must not erase previous assignments.
+
+## 10.2 Vehicle ownership and contracts
+
+A vehicle must distinguish:
+- Legal Owner.
+- Operating Organisation.
+- Contract Supplier.
+- Operational Status.
+- Maintenance Responsibility.
+- Financial Responsibility.
+
+Company-owned, fleet-contracted and individually supplied vehicles must work correctly.
+
+## 10.3 Driver and user accounts
+
+- Driver record and login account are separate.
+- Deactivating a login must not automatically delete the driver record.
+- Changing an assigned vehicle must not erase driver history.
+- A driver must only access authorised records.
+
+## 10.4 Staff permissions
+
+- Permissions must be enforced on frontend and backend.
+- Owner can customise staff access.
+- Staff cannot grant themselves additional permissions.
+- Staff cannot exceed owner authority.
+- Revoked permissions must take effect without relying on a fresh frontend deployment.
+
+## 10.5 Maintenance
+
+- Issues and work orders are separate.
+- Service tasks and service entries are separate.
+- A completed work order can generate a linked service entry.
+- Opening a work order must not create a completed service record.
+- Service completion must update relevant reminders according to the configured service rules.
+
+## 10.6 Fuel and expenses
+
+- Fuel transactions must link to valid vehicles.
+- Driver submissions must link to the submitting driver.
+- Odometer values must be validated.
+- Fuel approval and payment are separate.
+- Expense approval and payment are separate.
+- Rejected records must remain auditable.
+
+## 10.7 Finance
+
+- EMI schedule must remain connected to the correct finance record.
+- Partial payments must be supported.
+- Outstanding principal must be calculated correctly.
+- A due date passing must not mark an EMI as paid.
+- Payment reconciliation must be auditable.
+
+## 10.8 Documents
+
+- Documents must have a valid owner or related record.
+- Expiry dates must generate reminders.
+- Access permissions must be enforced.
+- Replacing a document must preserve version history where supported.
+
+## 10.9 Organisation isolation
+
+Test every module for tenant isolation.
+
+Organisation A must never access:
+- Organisation B's vehicles.
+- Organisation B's drivers.
+- Organisation B's staff.
+- Organisation B's financial information.
+- Organisation B's contracts.
+- Organisation B's documents.
+- Organisation B's reports.
+
+This must be enforced by backend authorisation and database query scoping.
+
+---
+
+# PART 11 — NOTIFICATION LOGIC
+
+Implement notifications for relevant business events.
+
+### Owner notifications
+- Staff invitation accepted.
+- Driver account activated.
+- Vehicle added.
+- Vehicle assignment changed.
+- Inspection failed.
+- New issue reported.
+- Fuel submission received.
+- Expense submitted.
+- Work order awaiting approval.
+- Contract renewal approaching.
+- Bond or deposit event.
+- EMI approaching.
+- Payment overdue.
+- Subscription renewal approaching.
+- Subscription payment failed.
+- Subscription expired.
+
+### Staff notifications
+- New assignment.
+- New maintenance task.
+- Work order assigned.
+- Issue assigned.
+- Approval result.
+- Reminder due.
+
+### Driver notifications
+- New trip assignment.
+- Assignment changed.
+- Inspection required.
+- Trip reminder.
+- Submission approved.
+- Submission rejected.
+- Additional evidence requested.
+
+### Platform Admin notifications
+- New organisation.
+- Payment awaiting verification.
+- Payment failed.
+- Activation request.
+- Subscription approaching expiration.
+- Server or API health alert.
+
+Notifications must be based on real events.
+
+Do not create false alerts.
+
+---
+
+# PART 12 — DATABASE AND SECURITY REQUIREMENTS
+
+Before modifying the database, inspect existing tables and relationships.
+
+Use existing canonical entities wherever possible.
+
+Suggested logical entities, to be mapped against the existing schema:
+
+- organisations
+- users
+- roles
+- permissions
+- user_permissions
+- staff_profiles
+- driver_profiles
+- invitations
+- vehicles
+- assignments
+- subscriptions
+- subscription_plans
+- subscription_payments
+- invoices
+- subscription_events
+- audit_logs
+- notifications
+
+Do not blindly create duplicate tables if equivalent entities already exist.
+
+### Security requirements
+
+- Secure password hashing.
+- Session/token security.
+- Secure invitation tokens.
+- Token expiry.
+- Password reset workflow.
+- Server-side role validation.
+- Server-side permission validation.
+- Tenant isolation.
+- Secure document storage.
+- Sensitive financial data masking.
+- Payment verification.
+- Audit logs.
+- Rate limiting for authentication endpoints.
+- Protection against IDOR and unauthorised record access.
+
+Never store raw passwords.
+
+Never trust user-supplied organisation IDs without validating the authenticated user's membership.
+
+---
+
+# PART 13 — CROSS-CHECKING AND ACCEPTANCE TESTS
+
+This section is mandatory.
+
+Do not mark the implementation complete until these tests pass.
+
+## A. Owner tests
+
+1. Register a new Fleet Owner.
+2. Create the organisation.
+3. Complete organisation information.
+4. Add one staff member.
+5. Verify the staff invitation state.
+6. Add a driver.
+7. Verify driver creation without requiring a driver login.
+8. Select Monthly.
+9. Complete a test payment using the payment gateway's supported test environment.
+10. Verify payment.
+11. Confirm subscription activation.
+12. Sign in as Owner.
+13. Confirm all permitted owner modules are accessible.
+14. Confirm Integrations is unavailable.
+15. Add a vehicle.
+16. Assign a driver.
+17. Create an assignment.
+18. Create a work order.
+19. Review a fuel submission.
+20. View financial and operational reports.
+
+## B. Staff tests
+
+1. Sign in as Staff.
+2. Confirm only authorised modules appear.
+3. Open Vehicles.
+4. Add a permitted vehicle record.
+5. Edit a permitted vehicle record.
+6. Attempt to delete a vehicle.
+7. Confirm the backend denies the action if permission is not granted.
+8. Open Finance.
+9. Confirm access is denied by default.
+10. Attempt to access Integrations.
+11. Confirm access is denied.
+12. Review staff activity from the Owner account.
+13. Revoke one staff permission.
+14. Confirm that access is revoked.
+15. Confirm that direct API access is also denied.
+
+## C. Driver tests
+
+1. Sign in as Driver.
+2. Confirm the Driver Home page loads.
+3. View assigned vehicle.
+4. View assigned trip.
+5. Start an authorised trip.
+6. Submit starting odometer.
+7. Submit fuel evidence.
+8. Submit an expense.
+9. Report an issue.
+10. Complete an authorised trip.
+11. View submission status.
+12. Attempt to access another driver's records.
+13. Confirm access is denied.
+14. Attempt to access fleet Finance.
+15. Confirm access is denied.
+16. Attempt to access owner settings.
+17. Confirm access is denied.
+
+## D. Subscription tests
+
+### Monthly
+
+- Price displays as ₹3,500.
+- Billing period displays as one month.
+- Features are identical to Annual.
+- Payment amount is correct.
+- Subscription starts only after verification.
+- Renewal date is correct.
+- Expiration behaviour works.
+
+### Annual
+
+- Price displays as ₹36,000.
+- Billing period displays as one year.
+- Monthly equivalent displays as ₹3,000.
+- Savings display as ₹6,000.
+- Percentage savings is approximately 14.29%.
+- Features are identical to Monthly.
+- Payment amount is correct.
+- Subscription starts only after verification.
+- Renewal date is correct.
+- Expiration behaviour works.
+
+### Negative payment tests
+
+- Failed payment.
+- Cancelled payment.
+- Pending payment.
+- Duplicate callback.
+- Incorrect amount.
+- Unverified payment.
+- Repeated activation request.
+- Refund event.
+
+None of these must accidentally activate or extend a subscription.
+
+## E. Tenant isolation tests
+
+Create two test organisations.
+
+Organisation A:
+- Owner A.
+- Staff A.
+- Driver A.
+- Vehicle A.
+
+Organisation B:
+- Owner B.
+- Staff B.
+- Driver B.
+- Vehicle B.
+
+Verify that:
+
+- Owner A cannot access Vehicle B.
+- Staff A cannot access Driver B.
+- Driver A cannot access Vehicle B.
+- Owner B cannot access Organisation A's Finance.
+- API endpoints reject cross-organisation identifiers.
+- Search results remain organisation-scoped.
+- Reports remain organisation-scoped.
+- Document links cannot be used to access another organisation's files.
+
+## F. Cross-module workflow tests
+
+Test the following real workflows:
+
+### Workflow 1 — Vehicle operation
+
+Create Vehicle
+→ Add Driver
+→ Assign Vehicle
+→ Create Trip
+→ Start Trip
+→ Submit Odometer
+→ Submit Fuel
+→ End Trip
+→ Review Trip
+→ Calculate Distance.
+
+### Workflow 2 — Maintenance
+
+Report Issue
+→ Review Issue
+→ Create Work Order
+→ Approve Work Order
+→ Assign Vendor
+→ Add Parts
+→ Complete Work
+→ Record Actual Cost
+→ Create Service Entry
+→ Update Reminder.
+
+### Workflow 3 — Contract vehicle
+
+Create Fleet Partner
+→ Create Contract
+→ Add Existing Vehicle
+→ Define Rental Terms
+→ Record Deposit
+→ Complete Handover
+→ Activate Contract
+→ Record Contract Payment
+→ Track Maintenance Responsibility
+→ Complete Return.
+
+### Workflow 4 — Finance
+
+Add Financed Vehicle
+→ Create Finance Record
+→ Generate EMI Schedule
+→ Record Payment
+→ Upload Receipt
+→ Reconcile Payment
+→ Update Outstanding Principal
+→ View Finance Report.
+
+### Workflow 5 — Staff management
+
+Create Staff
+→ Configure Permissions
+→ Send Invitation
+→ Activate Account
+→ Perform Permitted Action
+→ Review Audit History
+→ Revoke Permission
+→ Confirm Access Denied.
+
+---
+
+# PART 14 — IMPLEMENTATION REPORT
+
+After implementation, provide:
+
+### User Management
+- Owner workflow status.
+- Staff workflow status.
+- Driver workflow status.
+- Platform Admin workflow status.
+
+### Permissions
+- Default staff permission matrix.
+- Custom permission implementation.
+- Driver access restrictions.
+- Backend authorisation tests.
+
+### Subscription
+- Monthly plan verification.
+- Annual plan verification.
+- Pricing calculations.
+- Payment integration.
+- Activation workflow.
+- Renewal workflow.
+- Expiration workflow.
+- Cancellation workflow.
+
+### Security
+- Tenant isolation.
+- Authentication.
+- Permission enforcement.
+- Payment verification.
+- Document access.
+- Audit logging.
+
+### Cross-module validation
+- Vehicle workflow.
+- Driver workflow.
+- Assignment workflow.
+- Maintenance workflow.
+- Fuel workflow.
+- Finance workflow.
+- Contract workflow.
+
+Report every incomplete item honestly.
+
+---
+
+# FINAL IMPLEMENTATION INSTRUCTION
+
+The purpose of this specification is to make DriveMitra behave like a real subscription-based fleet management business.
+
+The Fleet Owner owns and manages the organisation.
+
+Staff operate the modules and workflows the owner permits.
+
+Drivers perform authorised driving and operational tasks through the mobile application.
+
+The Platform Administrator manages the DriveMitra platform, subscriptions and integrations.
+
+There are exactly two active subscription plans:
+
+MONTHLY — ₹3,500/month.
+
+ANNUAL — ₹36,000/year.
+
+Both plans must provide identical functionality without artificial vehicle, driver or staff limits.
+
+Implement the complete lifecycle from registration to subscription activation, organisation management, staff and driver access, daily fleet operations, renewal and expiration.
+
+Do not implement only the screens.
+
+Implement the actual business rules, backend validation, database relationships, permissions, payment verification and complete workflows.
+
+Preserve existing DriveMitra functionality and data.
+
+Do not mark a feature complete until it has been tested.

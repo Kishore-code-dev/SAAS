@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, CircleDot, Gauge, Plus, RefreshCw, TrendingUp, Users, Wallet } from 'lucide-react'
+import { ArrowRight, CheckCircle2, CircleDot, Gauge, Plus, RefreshCw, TrendingUp, Users, Wallet, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import PageHeader from '../../components/layout/PageHeader'
 import { EnterpriseModal, formatDateTime, formatInr, formatShortDate, SeverityText } from '../../components/ui/EnterprisePrimitives'
@@ -524,8 +524,100 @@ export function TireReadingsView() {
   )
 }
 
+interface DriverExpenseItem {
+  id: string
+  driverName: string
+  vehicleId: string | null
+  category: string
+  amountInr: number
+  description: string
+  expenseDate: string
+  approvalStatus: 'Submitted' | 'Pending Review' | 'Approved' | 'Rejected' | 'Requires Additional Information'
+  paymentStatus: 'unpaid' | 'reimbursed' | 'company_paid'
+  reviewNote: string | null
+  paymentReference: string | null
+}
+
 export function ExpenseHistoryView() {
-  const { activeOrganization, vehicles, fuelTransactions, maintenanceRecords, workOrders } = useFleet()
+  const { activeOrganization, activeRole, vehicles, fuelTransactions, maintenanceRecords, workOrders } = useFleet()
+  const [driverExpenses, setDriverExpenses] = useState<DriverExpenseItem[]>([])
+  const [expenseFilter, setExpenseFilter] = useState<'all' | 'pending' | 'Approved' | 'reimbursed'>('all')
+
+  const canApproveExpense = canPerformAction(activeRole, 'approve_expense') || activeRole === 'org_admin' || activeRole === 'fleet_staff'
+
+  const loadDriverExpenses = useCallback(async () => {
+    try {
+      const res = await fetch('/api/fleet/expenses', { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      setDriverExpenses(data.expenses ?? [])
+    } catch {
+      // ignore offline
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadDriverExpenses()
+  }, [loadDriverExpenses])
+
+  const handleReviewExpense = async (
+    expenseId: string,
+    approvalStatus: 'Approved' | 'Rejected' | 'Requires Additional Information',
+  ) => {
+    try {
+      const res = await fetch(`/api/fleet/expenses/${expenseId}/review`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          approvalStatus,
+          reviewNote:
+            approvalStatus === 'Approved'
+              ? 'Receipt verified against trip corridor.'
+              : approvalStatus === 'Requires Additional Information'
+                ? 'Please attach clearer GST toll/repair bill.'
+                : 'Out-of-policy submission.',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update expense review status')
+      toast.success(`Expense marked as ${approvalStatus}`)
+      void loadDriverExpenses()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Expense review failed')
+    }
+  }
+
+  const handlePayExpense = async (expenseId: string, paymentStatus: 'reimbursed' | 'company_paid') => {
+    try {
+      const res = await fetch(`/api/fleet/expenses/${expenseId}/pay`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentStatus,
+          paymentReference: `SETTLE-${Date.now().toString().slice(-6)}`,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to record reimbursement')
+      toast.success(paymentStatus === 'reimbursed' ? 'Driver reimbursement recorded' : 'Marked as Company Paid')
+      void loadDriverExpenses()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Payment settlement failed')
+    }
+  }
+
+  const filteredDriverExpenses = useMemo(() => {
+    return driverExpenses.filter((exp) => {
+      if (expenseFilter === 'all') return true
+      if (expenseFilter === 'pending') {
+        return exp.approvalStatus === 'Submitted' || exp.approvalStatus === 'Pending Review' || exp.approvalStatus === 'Requires Additional Information'
+      }
+      if (expenseFilter === 'Approved') return exp.approvalStatus === 'Approved' && exp.paymentStatus === 'unpaid'
+      return exp.paymentStatus === 'reimbursed' || exp.paymentStatus === 'company_paid'
+    })
+  }, [driverExpenses, expenseFilter])
 
   const rows = useMemo(() => {
     const items: Array<{
@@ -583,8 +675,8 @@ export function ExpenseHistoryView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Expense History"
-        subtitle={`${activeOrganization.name} · Consolidated operating expenses across fuel, service entries, and work orders`}
+        title="Expense History & Driver Reimbursement"
+        subtitle={`${activeOrganization.name} · Consolidated operating expenses plus separate Approval vs Reimbursement tracking for Driver Portal claims`}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -596,12 +688,159 @@ export function ExpenseHistoryView() {
           </p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#958777]">Expense Entries</span>
-          <p className="dm-kpi-value mt-1">{rows.length}</p>
+          <span className="text-xs font-semibold text-[#958777]">Driver Claims Submitted</span>
+          <p className="dm-kpi-value mt-1">{driverExpenses.length}</p>
         </div>
         <div className="enterprise-card p-4">
-          <span className="text-xs font-semibold text-[#958777]">Avg Cost / Entry</span>
-          <p className="dm-kpi-value mt-1">{formatInr(rows.length ? Math.round(totalSpend / rows.length) : 0)}</p>
+          <span className="text-xs font-semibold text-[#958777]">Pending Driver Approval</span>
+          <p className="dm-kpi-value mt-1">
+            {driverExpenses.filter((e) => e.approvalStatus === 'Submitted' || e.approvalStatus === 'Pending Review').length}
+          </p>
+        </div>
+      </div>
+
+      {/* Driver Expense Submissions: Approval vs Reimbursement Queue */}
+      <div className="enterprise-card overflow-hidden">
+        <div className="px-5 py-4 border-b border-[#E5E5E5] flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="dm-card-title">Driver Expense Submissions (Approval ≠ Reimbursement)</h2>
+            <p className="text-xs text-[#958777] mt-0.5">
+              Expenses must be verified &amp; Approved before reimbursement or company-paid settlement can be recorded.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1 bg-[#EEE8F7] p-1 rounded-[10px] border border-[#DDD3ED]">
+            {(
+              [
+                { id: 'all', label: 'All' },
+                { id: 'pending', label: 'Needs Review' },
+                { id: 'Approved', label: 'Approved (Unpaid)' },
+                { id: 'reimbursed', label: 'Settled' },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setExpenseFilter(f.id)}
+                className={`px-2.5 py-1 rounded-[8px] text-xs font-semibold transition-colors ${
+                  expenseFilter === f.id ? 'bg-[#FFFFFF] text-[#625346]' : 'text-[#958777] hover:text-[#625346]'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="dm-table">
+            <thead>
+              <tr>
+                <th>Date &amp; Driver</th>
+                <th>Category &amp; Details</th>
+                <th>Amount</th>
+                <th>Approval Status</th>
+                <th>Reimbursement Status</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDriverExpenses.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-xs text-[#958777]">
+                    No driver-submitted expenses in this filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredDriverExpenses.map((exp) => {
+                  const veh = vehicles.find((v) => v.id === exp.vehicleId)
+                  return (
+                    <tr key={exp.id}>
+                      <td>
+                        <p className="font-semibold text-[#625346]">{exp.driverName}</p>
+                        <p className="text-[11px] text-[#958777]">
+                          {formatShortDate(exp.expenseDate)} {veh ? `· ${veh.registrationNumber}` : ''}
+                        </p>
+                      </td>
+                      <td>
+                        <p className="font-medium text-[#625346] capitalize">{exp.category}</p>
+                        <p className="text-[11px] text-[#958777]">{exp.description || '—'}</p>
+                      </td>
+                      <td className="font-bold tabular-nums">{formatInr(exp.amountInr)}</td>
+                      <td>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                            exp.approvalStatus === 'Approved'
+                              ? 'bg-[#EDF4EC] border-[#789A75] text-[#4D6E4A]'
+                              : exp.approvalStatus === 'Rejected'
+                                ? 'bg-[#FCECEB] border-[#D9786C] text-[#B84E42]'
+                                : 'bg-[#FCF5DE] border-[#D8B442] text-[#8E6F19]'
+                          }`}
+                        >
+                          {exp.approvalStatus}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="capitalize text-xs font-semibold text-[#625346]">
+                          {exp.paymentStatus.replace('_', ' ')}
+                        </span>
+                        {exp.paymentReference && (
+                          <p className="text-[10px] font-mono text-[#958777]">{exp.paymentReference}</p>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <div className="inline-flex flex-wrap justify-end gap-1.5">
+                          {canApproveExpense && exp.approvalStatus !== 'Approved' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void handleReviewExpense(exp.id, 'Approved')}
+                                className="btn-primary text-[11px] px-2 py-1"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleReviewExpense(exp.id, 'Requires Additional Information')}
+                                className="btn-secondary text-[11px] px-2 py-1"
+                              >
+                                Request Info
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleReviewExpense(exp.id, 'Rejected')}
+                                className="btn-secondary text-[11px] px-2 py-1 text-[#B84E42]"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {exp.approvalStatus === 'Approved' && exp.paymentStatus === 'unpaid' && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void handlePayExpense(exp.id, 'reimbursed')}
+                                className="btn-primary text-[11px] px-2 py-1"
+                              >
+                                Mark Reimbursed
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handlePayExpense(exp.id, 'company_paid')}
+                                className="btn-secondary text-[11px] px-2 py-1"
+                              >
+                                Company Paid
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 

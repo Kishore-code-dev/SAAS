@@ -45,6 +45,9 @@ function getTabsForRole(role: OrganizationRole): TabItem[] {
   ]
 }
 
+import { useAuth } from '../../hooks/useAuth'
+import { canAccessRoute } from '../../utils/rbac'
+
 export function MobileBottomNav({
   role,
   appsOpen,
@@ -55,7 +58,8 @@ export function MobileBottomNav({
   onOpenApps: () => void
 }) {
   const { pathname } = useLocation()
-  const tabs = getTabsForRole(role)
+  const { permissions } = useAuth()
+  const tabs = getTabsForRole(role).filter((t) => canAccessRoute(role, t.to, permissions))
   const inPrimaryTab = tabs.some((t) =>
     t.end ? pathname === t.to : pathname === t.to || pathname.startsWith(`${t.to}/`),
   )

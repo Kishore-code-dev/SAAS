@@ -8,8 +8,18 @@ import { languageOptions } from '../i18n/translations'
 import { BrandLogo } from '../components/ui/BrandLogo'
 import { SUBSCRIPTION_PLANS } from '../data/seedOrganizations'
 import { canAccessRoute } from '../utils/rbac'
-import type { SubscriptionPlanId } from '../types/fleet'
+import type { BusinessType, SubscriptionPlanId } from '../types/fleet'
 import { PWAInstallButton } from '../components/mobile/PWAInstallButton'
+
+const BUSINESS_TYPES: BusinessType[] = [
+  'Transport',
+  'Logistics',
+  'Passenger Transport',
+  'Goods Transportation',
+  'School/Staff Transportation',
+  'Construction Fleet',
+  'Other',
+]
 
 export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' | 'signup' }) {
   const navigate = useNavigate()
@@ -20,29 +30,28 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
 
   const paramMode = searchParams.get('mode') === 'signup' ? 'signup' : initialMode
   const paramPlan = searchParams.get('plan')
-  const initialPlan: SubscriptionPlanId =
-    paramPlan === 'starter' || paramPlan === 'growth' || paramPlan === 'enterprise'
-      ? paramPlan
-      : 'growth'
-  const initialBilling: 'monthly' | 'annual' =
-    searchParams.get('billing') === 'annual' ? 'annual' : 'monthly'
+  const initialPlan: SubscriptionPlanId = paramPlan === 'annual' ? 'annual' : 'monthly'
 
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot' | 'reset'>(paramMode)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
-  // Self-serve SaaS organization signup state
+  // Fleet Owner Registration state (creates organization in payment_pending + guides to /onboarding)
   const [orgName, setOrgName] = useState('')
+  const [businessType, setBusinessType] = useState<BusinessType>('Transport')
   const [orgCity, setOrgCity] = useState('')
   const [orgState, setOrgState] = useState('')
+  const [gstin, setGstin] = useState('')
   const [ownerName, setOwnerName] = useState('')
+  const [mobile, setMobile] = useState('')
   const [workEmail, setWorkEmail] = useState('')
   const [signupUsername, setSignupUsername] = useState('')
   const [signupPassword, setSignupPassword] = useState('')
+  const [confirmSignupPassword, setConfirmSignupPassword] = useState('')
   const [showSignupPassword, setShowSignupPassword] = useState(false)
   const [planId, setPlanId] = useState<SubscriptionPlanId>(initialPlan)
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>(initialBilling)
+  const [termsAccepted, setTermsAccepted] = useState(false)
 
   const [resetIdentifier, setResetIdentifier] = useState('')
   const [resetToken, setResetToken] = useState('')
@@ -78,7 +87,12 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
       }
       toast.success('Signed in to DriveMitra.')
       const backendDest = result.redirectTo ?? '/dashboard'
-      if (backendDest === '/change-password' || backendDest === '/platform-admin') {
+      if (
+        backendDest === '/change-password' ||
+        backendDest === '/platform-admin' ||
+        backendDest === '/onboarding' ||
+        backendDest === '/driver'
+      ) {
         navigate(backendDest, { replace: true })
         return
       }
@@ -101,37 +115,54 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
     e.preventDefault()
     setErrorMessage(null)
     if (!orgName.trim() || !orgCity.trim() || !orgState.trim() || !ownerName.trim() || !workEmail.includes('@')) {
-      setErrorMessage('Enter organization name, hub city, state, owner name, and valid work email.')
+      setErrorMessage('Enter organization name, hub city, state, owner full name, and valid work email.')
+      return
+    }
+    if (mobile.replace(/\D/g, '').length < 10) {
+      setErrorMessage('Enter a valid 10-digit mobile number.')
       return
     }
     if (signupUsername.trim().length < 3) {
-      setErrorMessage('Choose a username of at least 3 characters.')
+      setErrorMessage('Choose an admin username of at least 3 characters.')
       return
     }
     if (signupPassword.length < 8) {
       setErrorMessage('Choose a strong password (min 8 chars, upper, lower, number, symbol).')
       return
     }
+    if (signupPassword !== confirmSignupPassword) {
+      setErrorMessage('Password and Confirm Password must match.')
+      return
+    }
+    if (!termsAccepted) {
+      setErrorMessage('You must accept the DriveMitra Terms of Service & Privacy Policy.')
+      return
+    }
 
     setSubmitting(true)
     try {
       const result = await registerTenant({
-        organizationName: orgName,
-        city: orgCity,
-        state: orgState,
-        ownerName,
-        email: workEmail,
-        username: signupUsername,
+        organizationName: orgName.trim(),
+        businessType,
+        city: orgCity.trim(),
+        state: orgState.trim(),
+        gstin: gstin.trim().toUpperCase() || undefined,
+        ownerName: ownerName.trim(),
+        mobile: mobile.trim(),
+        email: workEmail.trim(),
+        username: signupUsername.trim(),
         password: signupPassword,
+        confirmPassword: confirmSignupPassword,
+        termsAccepted,
         planId,
-        billingCycle,
+        billingCycle: planId,
       })
       if (result.error) {
         setErrorMessage(result.error.message)
         return
       }
-      toast.success(`Provisioned isolated workspace for ${orgName.trim()}.`)
-      navigate(result.redirectTo ?? '/dashboard', { replace: true })
+      toast.success(`Fleet workspace registered for ${orgName.trim()}. Complete guided onboarding to activate.`)
+      navigate(result.redirectTo ?? '/onboarding', { replace: true })
     } finally {
       setSubmitting(false)
     }
@@ -195,6 +226,8 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
     }
   }
 
+  const selectedPlan = SUBSCRIPTION_PLANS.find((p) => p.id === planId) ?? SUBSCRIPTION_PLANS[0]
+
   return (
     <div className="min-h-screen bg-[#FFFFFF] flex flex-col">
       <header className="bg-[#FFFFFF] border-b border-[#E5E5E5] px-4 sm:px-6 h-14 flex items-center justify-between gap-4 sticky top-0 z-30">
@@ -223,18 +256,30 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
       </header>
 
       <main className="flex-1 flex items-center justify-center p-4 sm:p-6">
-        <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           <div className="lg:col-span-5 order-2 lg:order-1 bg-[#EEE8F7] border border-[#DDD3ED] text-[#625346] rounded-2xl p-6 sm:p-8 shadow-card flex flex-col justify-between">
             <div>
               <BrandLogo size="lg" className="mb-4" />
               <h1 className="text-2xl font-bold text-[#625346]">
-                {mode === 'signup' ? 'Create Your Fleet Mobile Workspace' : 'DriveMitra Workspace Login'}
+                {mode === 'signup' ? 'Create Your Fleet Account' : 'DriveMitra Workspace Login'}
               </h1>
               <p className="text-sm text-[#625346]/85 mt-3 leading-relaxed">
                 {mode === 'signup'
-                  ? 'Launch an isolated multi-tenant fleet app workspace in seconds with a 14-day full-feature trial.'
-                  : 'Sign in with your organization-issued username and password. Role authorization and mobile navigation adapt automatically on sign-in.'}
+                  ? 'Register your fleet organization to start guided setup: add at least one Fleet Staff member, pick your Monthly (₹3,500) or Annual (₹36,000) plan, complete GST checkout, and unlock your workspace once payment is verified.'
+                  : 'Single secure sign-in for Platform Admins, Fleet Owners, Fleet Staff, and Drivers. Your permissions, portal view, and mobile navigation adapt automatically based on your verified role.'}
               </p>
+
+              <div className="mt-5 p-3.5 rounded-xl bg-white/80 border border-[#DDD3ED] space-y-2 text-xs">
+                <p className="font-bold text-[#6E5696] uppercase tracking-wide text-[11px]">
+                  4 Isolated Role Accounts
+                </p>
+                <ul className="space-y-1 text-[#625346]">
+                  <li><strong>Platform Admin:</strong> SaaS governance, payment verification &amp; integrations</li>
+                  <li><strong>Fleet Owner:</strong> Full fleet, 31-module staff permissions &amp; billing</li>
+                  <li><strong>Fleet Staff:</strong> Enforced granular module &amp; field-level access</li>
+                  <li><strong>Driver Portal:</strong> Assigned trips, odometer, fuel, expenses &amp; issues</li>
+                </ul>
+              </div>
             </div>
 
             <div className="mt-6 space-y-3 text-xs text-[#625346] border-t border-[#DDD3ED] pt-5">
@@ -244,11 +289,11 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
               </div>
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#6E5696] shrink-0" />
-                <span>Unified mobile operations for vehicles, contracts &amp; work orders</span>
+                <span>Unlimited commercial vehicles, drivers &amp; staff on both plans</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[#6E5696] shrink-0" />
-                <span>Role-based access control &amp; offline field synchronization</span>
+                <span>Mandatory staff setup &amp; verified subscription activation (no unpaid access)</span>
               </div>
             </div>
           </div>
@@ -260,7 +305,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                 className="mb-5 p-3.5 rounded-[10px] bg-[#FCECEB] border border-[#D9786C] text-xs text-[#625346]"
               >
                 <p className="font-bold uppercase text-[#B84E42]">
-                  Organization {orgBlockedState.status}
+                  Organization {orgBlockedState.status.replace('_', ' ')}
                 </p>
                 <p className="mt-1">{orgBlockedState.reason}</p>
               </div>
@@ -286,13 +331,13 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                 <div>
                   <h2 className="text-lg font-bold text-[#625346]">Sign In</h2>
                   <p className="text-xs text-[#958777] mt-0.5">
-                    Enter your issued username and password to access your fleet workspace.
+                    Enter your issued username or work email and password to open your DriveMitra portal.
                   </p>
                 </div>
 
                 <div>
                   <label htmlFor="login-username" className="dm-label">
-                    Username
+                    Username or Email
                   </label>
                   <input
                     id="login-username"
@@ -304,7 +349,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                       setUsername(e.target.value)
                       setErrorMessage(null)
                     }}
-                    placeholder="Enter username"
+                    placeholder="Enter username or work email"
                     className="dm-input"
                     required
                   />
@@ -358,7 +403,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                 </button>
 
                 <div className="pt-3 border-t border-[#E5E5E5] flex items-center justify-between text-xs text-[#958777]">
-                  <span>New fleet organization?</span>
+                  <span>Registering a new fleet organization?</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -368,7 +413,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     }}
                     className="font-semibold text-[#6E5696] hover:underline"
                   >
-                    Start 14-Day Free Trial
+                    Create Fleet Account
                   </button>
                 </div>
               </form>
@@ -380,10 +425,10 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                   <div>
                     <h2 className="text-lg font-bold text-[#625346] flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-[#6E5696]" />
-                      Start 14-Day Free Trial
+                      Fleet Owner Registration
                     </h2>
                     <p className="text-xs text-[#958777] mt-0.5">
-                      Provision your dedicated organization workspace immediately.
+                      Step 0 of Guided Onboarding — Workspace unlocks after mandatory staff setup &amp; verified subscription payment.
                     </p>
                   </div>
                   <button
@@ -400,7 +445,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label htmlFor="signup-org-name" className="dm-label">Fleet Organization Name</label>
+                    <label htmlFor="signup-org-name" className="dm-label">Organization Name *</label>
                     <input
                       id="signup-org-name"
                       value={orgName}
@@ -411,7 +456,32 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-city" className="dm-label">Primary Hub City</label>
+                    <label htmlFor="signup-business-type" className="dm-label">Business Type *</label>
+                    <select
+                      id="signup-business-type"
+                      value={businessType}
+                      onChange={(e) => setBusinessType(e.target.value as BusinessType)}
+                      className="dm-input"
+                    >
+                      {BUSINESS_TYPES.map((bt) => (
+                        <option key={bt} value={bt}>
+                          {bt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label htmlFor="signup-gstin" className="dm-label">GSTIN (Optional)</label>
+                    <input
+                      id="signup-gstin"
+                      value={gstin}
+                      onChange={(e) => setGstin(e.target.value.toUpperCase())}
+                      placeholder="33AABCC1234F1Z5"
+                      className="dm-input font-mono uppercase"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-city" className="dm-label">Primary Hub City *</label>
                     <input
                       id="signup-city"
                       value={orgCity}
@@ -422,7 +492,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-state" className="dm-label">State</label>
+                    <label htmlFor="signup-state" className="dm-label">State *</label>
                     <input
                       id="signup-state"
                       value={orgState}
@@ -433,7 +503,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-owner" className="dm-label">Owner Full Name</label>
+                    <label htmlFor="signup-owner" className="dm-label">Owner Full Name *</label>
                     <input
                       id="signup-owner"
                       value={ownerName}
@@ -444,7 +514,19 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-email" className="dm-label">Work Email</label>
+                    <label htmlFor="signup-mobile" className="dm-label">Mobile Number *</label>
+                    <input
+                      id="signup-mobile"
+                      type="tel"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      placeholder="+91 98400 12345"
+                      className="dm-input tabular-nums"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="signup-email" className="dm-label">Work Email *</label>
                     <input
                       id="signup-email"
                       type="email"
@@ -456,7 +538,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-username" className="dm-label">Admin Username</label>
+                    <label htmlFor="signup-username" className="dm-label">Admin Username *</label>
                     <input
                       id="signup-username"
                       value={signupUsername}
@@ -467,7 +549,7 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     />
                   </div>
                   <div>
-                    <label htmlFor="signup-password" className="dm-label">Password</label>
+                    <label htmlFor="signup-password" className="dm-label">Password *</label>
                     <div className="relative">
                       <input
                         id="signup-password"
@@ -489,36 +571,78 @@ export default function Auth({ initialMode = 'login' }: { initialMode?: 'login' 
                     </div>
                   </div>
                   <div>
-                    <label htmlFor="signup-plan" className="dm-label">SaaS Plan Tier</label>
-                    <select
-                      id="signup-plan"
-                      value={planId}
-                      onChange={(e) => setPlanId(e.target.value as SubscriptionPlanId)}
+                    <label htmlFor="signup-confirm-password" className="dm-label">Confirm Password *</label>
+                    <input
+                      id="signup-confirm-password"
+                      type="password"
+                      value={confirmSignupPassword}
+                      onChange={(e) => setConfirmSignupPassword(e.target.value)}
+                      placeholder="Re-enter password"
                       className="dm-input"
-                    >
-                      {SUBSCRIPTION_PLANS.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} (Up to {p.vehicleLimit} vehicles)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="signup-billing" className="dm-label">Billing Cycle (After 14d Trial)</label>
-                    <select
-                      id="signup-billing"
-                      value={billingCycle}
-                      onChange={(e) => setBillingCycle(e.target.value as 'monthly' | 'annual')}
-                      className="dm-input"
-                    >
-                      <option value="monthly">Monthly Billing</option>
-                      <option value="annual">Annual Billing (Save 20%)</option>
-                    </select>
+                      required
+                    />
                   </div>
                 </div>
 
+                {/* Canonical Subscription Plan Selector */}
+                <div className="space-y-2">
+                  <span className="dm-label block">Subscription Plan (Unlimited Vehicles, Drivers &amp; Staff)</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {SUBSCRIPTION_PLANS.map((p) => {
+                      const active = planId === p.id
+                      const price = p.id === 'annual' ? p.annualInr : p.monthlyInr
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setPlanId(p.id)}
+                          className={`text-left p-3.5 rounded-xl border-2 transition-colors ${
+                            active
+                              ? 'border-[#6E5696] bg-[#EEE8F7]'
+                              : 'border-[#E5E5E5] bg-[#FAFAFA] hover:border-[#B8A3D9]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-[#625346]">{p.name}</span>
+                            {p.savingsVsMonthlyInr > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#EDF4EC] text-[#4D6E4A] border border-[#789A75]">
+                                Save ₹{p.savingsVsMonthlyInr.toLocaleString('en-IN')} ({p.savingsPercent}%)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-base font-extrabold text-[#625346] tabular-nums mt-1">
+                            ₹{price.toLocaleString('en-IN')}
+                            <span className="text-xs font-normal text-[#958777]">
+                              {p.id === 'annual' ? '/yr' : '/mo'} + 18% GST
+                            </span>
+                          </p>
+                          <p className="text-[11px] text-[#958777] mt-0.5">
+                            Total payable: ₹{p.totalPayableInr.toLocaleString('en-IN')}
+                          </p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-[11px] text-[#958777]">
+                    Selected: <strong>{selectedPlan.name}</strong> — GST breakdown calculated transparently during checkout (Step 5).
+                  </p>
+                </div>
+
+                <label className="flex items-start gap-2.5 text-xs text-[#625346] bg-[#FAFAFA] border border-[#E5E5E5] rounded-xl p-3 cursor-pointer">
+                  <input
+                    id="signup-terms"
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="mt-0.5 accent-[#6E5696]"
+                  />
+                  <span>
+                    I accept DriveMitra Terms of Service &amp; Privacy Policy and understand that full operational access unlocks after mandatory staff setup and verified subscription payment.
+                  </span>
+                </label>
+
                 <button type="submit" disabled={submitting} className="btn-accent w-full py-3">
-                  {submitting ? 'Provisioning Workspace...' : 'Launch Free Trial Workspace'}
+                  {submitting ? 'Creating Organization...' : 'Continue to Guided Onboarding'}
                 </button>
               </form>
             )}

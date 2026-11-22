@@ -37,7 +37,7 @@ export function MobileAppsSheet({
     visitedIntegrations,
     visitedReports,
   } = useFleet()
-  const { user, signOut } = useAuth()
+  const { user, permissions, signOut } = useAuth()
   const financeCtx = useOptionalFinance()
   const instalments = financeCtx?.instalments ?? []
   const navigate = useNavigate()
@@ -59,11 +59,11 @@ export function MobileAppsSheet({
     contractAlerts: 0,
   }
 
-  const allowed = (to: string) => canAccessRoute(activeRole, to)
+  const allowed = (to: string) => canAccessRoute(activeRole, to, permissions)
 
   const filteredEntries = useMemo<NavEntry[]>(() => {
     const q = query.trim().toLowerCase()
-    const checkRoute = (to: string) => canAccessRoute(activeRole, to)
+    const checkRoute = (to: string) => canAccessRoute(activeRole, to, permissions)
     const baseEntries: NavEntry[] = MAIN_NAV.map((e) =>
       e.children ? { ...e, children: e.children.filter((c) => checkRoute(c.to)) } : e,
     ).filter((e) => (e.children ? e.children.length > 0 : Boolean(e.to && checkRoute(e.to))))
@@ -88,7 +88,7 @@ export function MobileAppsSheet({
         return matchingChildren.length > 0 ? { ...entry, children: matchingChildren } : null
       })
       .filter((e): e is NavEntry => e !== null)
-  }, [activeRole, query])
+  }, [activeRole, permissions, query])
 
   const onboardingItems = useMemo(
     () =>
@@ -184,7 +184,9 @@ export function MobileAppsSheet({
                     onClick={() => go('/dashboard/subscription')}
                     className="min-h-[44px] px-4 py-2 rounded-xl bg-[#E8C65A] hover:bg-[#DFBA48] border border-[#D8B442] text-xs font-semibold text-[#625346] whitespace-nowrap"
                   >
-                    Manage Plan ({vehicles.length}/{activeOrganization.vehicleLimit})
+                    {activeOrganization.vehicleLimit < 0
+                      ? `Manage Plan (${vehicles.length} vehicles)`
+                      : `Manage Plan (${vehicles.length}/${activeOrganization.vehicleLimit})`}
                   </button>
                 )}
               </div>

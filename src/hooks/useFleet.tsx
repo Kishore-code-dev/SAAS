@@ -75,7 +75,7 @@ import {
   validateFuelTransactionInput,
   validateVehiclePayload,
 } from '../utils/intelligenceEngine'
-import { assertRolePermission } from '../utils/rbac'
+import { assertRolePermission, type FleetAction } from '../utils/rbac'
 import { getCorridorSeedLocation } from '../utils/fleetTracking'
 import {
   closeAndAppendAssignmentHistory,
@@ -310,7 +310,7 @@ export interface FleetContextValue {
 const FleetContext = createContext<FleetContextValue | undefined>(undefined)
 
 export function FleetProvider({ children }: { children: React.ReactNode }) {
-  const { user, organization, passwordChangeRequired } = useAuth()
+  const { user, organization, permissions, subscriptionAccess, passwordChangeRequired } = useAuth()
   const environment: OperatingEnvironment = 'production'
 
   const [dataset, setDataset] = useState<EnvironmentDataset>(() => buildSeedDataset('production'))
@@ -347,7 +347,14 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate live organization state from authenticated backend
   const hydrateFromServer = useCallback(async () => {
-    if (!user || passwordChangeRequired || user.role === 'platform_admin') {
+    if (
+      !user ||
+      passwordChangeRequired ||
+      user.role === 'platform_admin' ||
+      user.role === 'driver' ||
+      subscriptionAccess === 'onboarding_only' ||
+      organization?.onboardingCompleted === false
+    ) {
       serverHydratedRef.current = false
       return
     }
@@ -431,7 +438,16 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   const persistOrgBlobToServer = useCallback(
     (nextDataset: EnvironmentDataset, orgId: string) => {
-      if (!serverHydratedRef.current || !user || user.role === 'platform_admin') return
+      if (
+        !serverHydratedRef.current ||
+        !user ||
+        user.role === 'platform_admin' ||
+        user.role === 'driver' ||
+        subscriptionAccess === 'onboarding_only' ||
+        subscriptionAccess === 'read_only'
+      ) {
+        return
+      }
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current)
       saveTimerRef.current = window.setTimeout(() => {
         const scoped = {
@@ -498,9 +514,9 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
         state: 'Tamil Nadu',
         timezone: 'Asia/Kolkata',
         currency: 'INR' as const,
-        planId: 'starter' as const,
-        vehicleLimit: 15,
-        driverLimit: 25,
+        planId: 'monthly' as const,
+        vehicleLimit: -1,
+        driverLimit: -1,
         status: 'active' as const,
         paymentStatus: 'paid' as const,
         subscriptionStartDate: '2026-01-01',
@@ -785,8 +801,18 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
 
   const unreadAlertCount = useMemo(() => alerts.filter((a) => !a.read).length, [alerts])
 
+  const assertFleetPermission = useCallback(
+    (action: FleetAction) => {
+      if (subscriptionAccess === 'read_only' && action !== 'manage_subscription') {
+        throw new Error('Subscription expired — workspace is in read-only mode until renewed.')
+      }
+      assertRolePermission(activeRole, action, permissions)
+    },
+    [activeRole, permissions, subscriptionAccess],
+  )
+
   const inviteMember = async (fullName: string, email: string, role: OrganizationRole) => {
-    assertRolePermission(activeRole, 'manage_members')
+    assertFleetPermission('manage_members')
     if (role === 'platform_admin' && activeRole !== 'platform_admin') {
       throw new Error('Only Platform Super Admins can assign platform_admin.')
     }
@@ -837,7 +863,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateMemberRole = async (memberId: string, role: OrganizationRole) => {
-    assertRolePermission(activeRole, 'manage_members')
+    assertFleetPermission('manage_members')
     if (role === 'platform_admin' && activeRole !== 'platform_admin') {
       throw new Error('Only Platform Super Admins can grant platform_admin.')
     }
@@ -863,7 +889,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateMemberStatus = async (memberId: string, status: 'active' | 'suspended') => {
-    assertRolePermission(activeRole, 'manage_members')
+    assertFleetPermission('manage_members')
     if (serverHydratedRef.current) {
       const res = await fetch(`/api/fleet/members/${memberId}`, {
         method: 'PATCH',
@@ -886,7 +912,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addVehicle = (payload: AddVehiclePayload): Vehicle => {
-    assertRolePermission(activeRole, 'add_vehicle')
+    assertFleetPermission('add_vehicle')
     const validationErr = validateVehiclePayload({
       registrationNumber: payload.registrationNumber,
       make: payload.make,
@@ -1024,7 +1050,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateVehicle = (vehicleId: string, patch: Partial<Vehicle>) => {
-    assertRolePermission(activeRole, 'edit_vehicle')
+    assertFleetPermission('edit_vehicle')
     const current = orgAllVehicles.find((v) => v.id === vehicleId)
     if (!current) return
     const nextReg = patch.registrationNumber ?? current.registrationNumber
@@ -1066,7 +1092,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const decommissionVehicle = (vehicleId: string) => {
-    assertRolePermission(activeRole, 'decommission_vehicle')
+    assertFleetPermission('decommission_vehicle')
     const target = orgAllVehicles.find((v) => v.id === vehicleId)
     if (!target || target.decommissioned) return
     const closedAt = new Date().toISOString()
@@ -1106,7 +1132,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const restoreVehicle = (vehicleId: string) => {
-    assertRolePermission(activeRole, 'restore_vehicle')
+    assertFleetPermission('restore_vehicle')
     const target = orgAllVehicles.find((v) => v.id === vehicleId && v.decommissioned)
     if (!target) return
     const conflict = vehicles.find(
@@ -1133,7 +1159,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const assignDriverToVehicle = (vehicleId: string, driverId: string | null) => {
-    assertRolePermission(activeRole, 'assign_driver')
+    assertFleetPermission('assign_driver')
     const veh = vehicles.find((v) => v.id === vehicleId)
     if (!veh) return
     const nowIso = new Date().toISOString()
@@ -1188,7 +1214,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     emergencyContactName?: string
     emergencyContactPhone?: string
   }): Driver => {
-    assertRolePermission(activeRole, 'add_driver')
+    assertFleetPermission('add_driver')
     if (!payload.name.trim() || !payload.licenseNumber.trim()) {
       throw new Error('Driver name and Indian commercial licence number are required.')
     }
@@ -1234,7 +1260,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateDriverDetails = (driverId: string, patch: Partial<Driver>) => {
-    assertRolePermission(activeRole, 'manage_driver_status')
+    assertFleetPermission('manage_driver_status')
     commitDataset((prev) => ({
       ...prev,
       drivers: prev.drivers.map((d) =>
@@ -1245,7 +1271,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateDriverOperationalStatus = (driverId: string, operationalStatus: DriverOperationalStatus) => {
-    assertRolePermission(activeRole, 'manage_driver_status')
+    assertFleetPermission('manage_driver_status')
     const mappedStatus: Driver['status'] =
       operationalStatus === 'suspended'
         ? 'suspended'
@@ -1295,7 +1321,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const disputeDriverEvent = (eventId: string, reason: string) => {
-    assertRolePermission(activeRole, 'dispute_driver_event')
+    assertFleetPermission('dispute_driver_event')
     commitDataset((prev) => ({
       ...prev,
       driverEvents: prev.driverEvents.map((e) =>
@@ -1312,7 +1338,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     decision: 'accepted_dismissed' | 'rejected_upheld',
     note: string,
   ) => {
-    assertRolePermission(activeRole, 'resolve_driver_dispute')
+    assertFleetPermission('resolve_driver_dispute')
     commitDataset((prev) => ({
       ...prev,
       driverEvents: prev.driverEvents.map((e) =>
@@ -1331,7 +1357,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     destination = 'Regional Delivery Zone',
     offlineMode = false,
   ): Trip | null => {
-    assertRolePermission(activeRole, 'schedule_trip')
+    assertFleetPermission('schedule_trip')
     const vehicle = vehicles.find((v) => v.id === vehicleId && !v.decommissioned)
     if (!vehicle) throw new Error('Selected vehicle is unavailable or decommissioned.')
     if (vehicle.operationStatus === 'maintenance') {
@@ -1400,7 +1426,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const endTrip = (tripId: string) => {
-    assertRolePermission(activeRole, 'end_trip')
+    assertFleetPermission('end_trip')
     const trip = trips.find((t) => t.id === tripId)
     if (!trip || trip.status === 'completed') return
 
@@ -1451,7 +1477,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     originAddress: string
     destinationAddress: string
   }) => {
-    assertRolePermission(activeRole, 'schedule_trip')
+    assertFleetPermission('schedule_trip')
     return startTrip(payload.driverId, payload.vehicleId, payload.originAddress, payload.destinationAddress)
   }
 
@@ -1460,7 +1486,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const addFuelTransaction = (
     payload: Omit<FuelTransaction, 'id' | 'organizationId' | 'environment' | 'anomalyFlags' | 'verificationStatus'>,
   ): FuelTransaction => {
-    assertRolePermission(activeRole, 'log_fuel')
+    assertFleetPermission('log_fuel')
     const err = validateFuelTransactionInput({
       vehicleId: payload.vehicleId,
       amountInr: payload.amountInr,
@@ -1490,7 +1516,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const verifyFuelTransaction = (txId: string, status: 'verified' | 'needs_review') => {
-    assertRolePermission(activeRole, 'verify_fuel')
+    assertFleetPermission('verify_fuel')
     commitDataset((prev) => ({
       ...prev,
       fuelTransactions: prev.fuelTransactions.map((tx) =>
@@ -1513,7 +1539,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     linkedPredictionId?: string
     billNumber?: string
   }): MaintenanceRecord => {
-    assertRolePermission(activeRole, 'schedule_maintenance')
+    assertFleetPermission('schedule_maintenance')
     if (!Number.isFinite(payload.costInr) || payload.costInr < 0) {
       throw new Error('Maintenance estimate cost cannot be negative.')
     }
@@ -1547,7 +1573,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const completeMaintenance = (recordId: string) => {
-    assertRolePermission(activeRole, 'complete_maintenance')
+    assertFleetPermission('complete_maintenance')
     const rec = maintenanceRecords.find((m) => m.id === recordId)
     if (!rec) return
     if (rec.linkedPredictionId) {
@@ -1581,7 +1607,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const resolvePrediction = (predictionId: string) => {
-    assertRolePermission(activeRole, 'resolve_prediction')
+    assertFleetPermission('resolve_prediction')
     setPredictionStatusOverrides((prev) => ({ ...prev, [predictionId]: 'resolved' }))
     commitDataset((prev) => ({
       ...prev,
@@ -1596,7 +1622,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const submitVehicleInspection = (
     payload: Omit<VehicleInspection, 'id' | 'organizationId' | 'environment' | 'timestamp' | 'passed'>,
   ): VehicleInspection => {
-    assertRolePermission(activeRole, 'submit_inspection')
+    assertFleetPermission('submit_inspection')
     const passed =
       payload.tyreCondition === 'good' &&
       payload.brakeFeel === 'normal' &&
@@ -1622,7 +1648,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addServiceSchedule = (payload: Omit<ServiceScheduleReminder, 'id' | 'organizationId'>): ServiceScheduleReminder => {
-    assertRolePermission(activeRole, 'schedule_maintenance')
+    assertFleetPermission('schedule_maintenance')
     const item: ServiceScheduleReminder = {
       ...payload,
       id: `sch-${Date.now()}`,
@@ -1637,7 +1663,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const completeServiceSchedule = (scheduleId: string) => {
-    assertRolePermission(activeRole, 'complete_maintenance')
+    assertFleetPermission('complete_maintenance')
     commitDataset((prev) => ({
       ...prev,
       serviceSchedules: prev.serviceSchedules.map((s) =>
@@ -1650,7 +1676,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const addSmallIssue = (
     payload: Omit<SmallIssueLog, 'id' | 'organizationId' | 'reportedAt' | 'reportedBy' | 'status'>,
   ): SmallIssueLog => {
-    assertRolePermission(activeRole, 'report_issue')
+    assertFleetPermission('report_issue')
     const issue: SmallIssueLog = {
       ...payload,
       id: `iss-${Date.now()}`,
@@ -1679,7 +1705,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     scheduledFor?: string
     tasks?: string[]
   }): WorkOrder => {
-    assertRolePermission(activeRole, 'manage_work_orders')
+    assertFleetPermission('manage_work_orders')
     const wo: WorkOrder = {
       id: `wo-${Date.now()}`,
       organizationId: activeOrganization.id,
@@ -1716,7 +1742,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const convertIssueToWorkOrder = (issueId: string, workshopId?: string, laborCostInr = 2500): WorkOrder | null => {
-    assertRolePermission(activeRole, 'manage_work_orders')
+    assertFleetPermission('manage_work_orders')
     const issue = smallIssues.find((i) => i.id === issueId)
     if (!issue) return null
     const workshop = workshops.find((w) => w.id === workshopId) ?? workshops[0]
@@ -1757,7 +1783,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateWorkOrderStatus = (workOrderId: string, status: WorkOrderStatus) => {
-    assertRolePermission(activeRole, 'manage_work_orders')
+    assertFleetPermission('manage_work_orders')
     const nowIso = new Date().toISOString()
     commitDataset((prev) => {
       const target = prev.workOrders.find((w) => w.id === workOrderId && w.organizationId === activeOrganization.id)
@@ -1798,7 +1824,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addWorkOrderPart = (workOrderId: string, partId: string, quantity: number) => {
-    assertRolePermission(activeRole, 'manage_work_orders')
+    assertFleetPermission('manage_work_orders')
     if (!Number.isFinite(quantity) || quantity <= 0) {
       throw new Error('Quantity must be greater than zero.')
     }
@@ -1871,7 +1897,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addPartInventory = (payload: Omit<PartInventoryItem, 'id' | 'organizationId' | 'updatedAt'>): PartInventoryItem => {
-    assertRolePermission(activeRole, 'manage_inventory')
+    assertFleetPermission('manage_inventory')
     if (!payload.sku.trim() || !payload.name.trim()) {
       throw new Error('Part SKU and name are required.')
     }
@@ -1892,7 +1918,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const adjustPartStock = (partId: string, quantityDelta: number, reason: string) => {
-    assertRolePermission(activeRole, 'manage_inventory')
+    assertFleetPermission('manage_inventory')
     const part = partsInventory.find((p) => p.id === partId)
     if (!part) return
     const nextQty = Math.max(0, part.stockQty + quantityDelta)
@@ -1925,7 +1951,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     items: Array<{ partId: string; orderedQty: number }>
     expectedAt?: string
   }): PurchaseOrder => {
-    assertRolePermission(activeRole, 'manage_inventory')
+    assertFleetPermission('manage_inventory')
     const supplier = suppliers.find((s) => s.id === payload.supplierId) ?? suppliers[0]
     if (!supplier) throw new Error('Select a valid supplier.')
     const lineItems = payload.items
@@ -1966,7 +1992,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const receivePurchaseOrderItems = (poId: string, receivedMap: Record<string, number>) => {
-    assertRolePermission(activeRole, 'manage_inventory')
+    assertFleetPermission('manage_inventory')
     const nowIso = new Date().toISOString()
 
     commitDataset((prev) => {
@@ -2024,7 +2050,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const addWorkshop = (
     payload: Omit<WorkshopVendor, 'id' | 'organizationId' | 'completedJobsCount' | 'totalSpendInr'>,
   ): WorkshopVendor => {
-    assertRolePermission(activeRole, 'manage_workshops')
+    assertFleetPermission('manage_workshops')
     const ws: WorkshopVendor = {
       ...payload,
       id: `ws-${Date.now()}`,
@@ -2043,7 +2069,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const addFinancialInvoice = (
     payload: Omit<FinancialInvoice, 'id' | 'organizationId' | 'paidAmountInr' | 'status'>,
   ): FinancialInvoice => {
-    assertRolePermission(activeRole, 'manage_financials')
+    assertFleetPermission('manage_financials')
     if (!Number.isFinite(payload.amountInr) || payload.amountInr <= 0) {
       throw new Error('Invoice amount must be greater than ₹0.')
     }
@@ -2063,7 +2089,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const verifyFinancialInvoice = (invoiceId: string) => {
-    assertRolePermission(activeRole, 'manage_financials')
+    assertFleetPermission('manage_financials')
     commitDataset((prev) => ({
       ...prev,
       invoices: prev.invoices.map((i) =>
@@ -2081,7 +2107,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     paymentMethod: PaymentRecord['paymentMethod']
     referenceNumber: string
   }): PaymentRecord => {
-    assertRolePermission(activeRole, 'manage_financials')
+    assertFleetPermission('manage_financials')
     const inv = invoices.find((i) => i.id === payload.invoiceId)
     if (!inv) throw new Error('Invoice not found.')
     if (!Number.isFinite(payload.amountInr) || payload.amountInr <= 0) {
@@ -2127,7 +2153,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
     mimeType: string
     contentBase64: string
   }): Promise<DocumentVaultItem> => {
-    assertRolePermission(activeRole, 'edit_vehicle')
+    assertFleetPermission('edit_vehicle')
     let doc: DocumentVaultItem
     if (serverHydratedRef.current) {
       const res = await fetch('/api/fleet/documents', {
@@ -2172,7 +2198,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const verifyVaultDocument = (docId: string, status: 'verified' | 'rejected', rejectionReason?: string) => {
-    assertRolePermission(activeRole, 'verify_documents')
+    assertFleetPermission('verify_documents')
     const nowIso = new Date().toISOString()
     commitDataset((prev) => ({
       ...prev,
@@ -2192,7 +2218,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateTyrePosition = (tyreId: string, patch: Partial<TyrePositionRecord>) => {
-    assertRolePermission(activeRole, 'schedule_maintenance')
+    assertFleetPermission('schedule_maintenance')
     const nowDate = new Date().toISOString().slice(0, 10)
     commitDataset((prev) => {
       const orgVehicleIds = new Set(
@@ -2225,7 +2251,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const addTyrePosition = (
     payload: Omit<TyrePositionRecord, 'id' | 'status' | 'lastInspectedAt'>,
   ): TyrePositionRecord => {
-    assertRolePermission(activeRole, 'schedule_maintenance')
+    assertFleetPermission('schedule_maintenance')
     const vehicle = orgAllVehicles.find((v) => v.id === payload.vehicleId)
     if (!vehicle) throw new Error('Selected vehicle is outside active organization.')
     const item: TyrePositionRecord = {
@@ -2267,7 +2293,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const acknowledgeAlert = (alertId: string) => {
-    assertRolePermission(activeRole, 'acknowledge_alert')
+    assertFleetPermission('acknowledge_alert')
     commitDataset((prev) => ({
       ...prev,
       alerts: prev.alerts.map((a) =>
@@ -2280,7 +2306,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateSubscriptionPlan = (planId: SubscriptionPlanId, updatedOrg?: Partial<Organization>) => {
-    assertRolePermission(activeRole, 'manage_subscription')
+    assertFleetPermission('manage_subscription')
     const spec = SUBSCRIPTION_PLANS.find((p) => p.id === planId) ?? SUBSCRIPTION_PLANS[0]
     setIsTrialWorkspace(false)
     commitDataset((prev) => ({
@@ -2303,7 +2329,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const updateOrganizationProfile = (
     patch: Partial<Pick<Organization, 'name' | 'city' | 'state' | 'timezone' | 'gstin' | 'ownerEmail' | 'ownerPhone'>>,
   ) => {
-    assertRolePermission(activeRole, 'update_org_settings')
+    assertFleetPermission('update_org_settings')
     if (serverHydratedRef.current) {
       void fetch('/api/fleet/organization', {
         method: 'PATCH',
@@ -2322,7 +2348,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateSettings = (patch: Partial<WorkspaceSettings>) => {
-    assertRolePermission(activeRole, 'update_org_settings')
+    assertFleetPermission('update_org_settings')
     setSettings((prev) => {
       const next = { ...prev, ...patch }
       try {
@@ -2684,7 +2710,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   const recordReportGeneration = (
     entry: Omit<ReportHistoryItem, 'id' | 'organizationId' | 'environment' | 'generatedAt'>,
   ) => {
-    assertRolePermission(activeRole, 'export_reports')
+    assertFleetPermission('export_reports')
     const item: ReportHistoryItem = {
       ...entry,
       id: `rep-${Date.now()}`,
@@ -2700,7 +2726,7 @@ export function FleetProvider({ children }: { children: React.ReactNode }) {
   }
 
   const updateTelemetryState = (vehicleId: string, patch: Partial<Vehicle['telemetry']>) => {
-    assertRolePermission(activeRole, 'update_telemetry')
+    assertFleetPermission('update_telemetry')
     if (patch.location && !isValidCoordinate(patch.location.lat, patch.location.lng)) return
     commitDataset((prev) => ({
       ...prev,

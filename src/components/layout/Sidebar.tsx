@@ -73,7 +73,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     visitedIntegrations,
     visitedReports,
   } = useFleet()
-  const { user, signOut } = useAuth()
+  const { user, permissions, signOut } = useAuth()
   const financeCtx = useOptionalFinance()
   const instalments = financeCtx?.instalments ?? []
   const navigate = useNavigate()
@@ -106,7 +106,7 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
     contractAlerts: 0,
   }
 
-  const allowed = (to: string) => canAccessRoute(activeRole, to)
+  const allowed = (to: string) => canAccessRoute(activeRole, to, permissions)
   const entries = MAIN_NAV.map((e) =>
     e.children ? { ...e, children: e.children.filter((c) => allowed(c.to)) } : e,
   ).filter((e) => (e.children ? e.children.length > 0 : e.to && allowed(e.to)))
@@ -358,7 +358,9 @@ export default function Sidebar({ open, onClose }: { open: boolean; onClose: () 
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-[#625346] truncate">{planLabel}</span>
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#EEE8F7] text-[#6E5696] border border-[#DDD3ED] tabular-nums">
-                  {vehicles.length}/{activeOrganization.vehicleLimit} assets
+                  {activeOrganization.vehicleLimit < 0
+                    ? `${vehicles.length} assets`
+                    : `${vehicles.length}/${activeOrganization.vehicleLimit} assets`}
                 </span>
               </div>
               {allowed('/dashboard/subscription') && (

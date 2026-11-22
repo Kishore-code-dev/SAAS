@@ -2,6 +2,7 @@ export default {
   expo: {
     name: 'DriveMitra',
     slug: 'drivemitra-mobile',
+    scheme: 'drivemitra',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
@@ -26,9 +27,22 @@ export default {
       bundler: 'metro',
     },
     plugins: [
-      ['expo-location', { locationAlwaysPermission: 'DriveMitra requires location access for real-time commercial fleet GPS tracking during active dispatches.' }],
-      ['expo-camera', { cameraPermission: 'DriveMitra requires camera access to capture fuel pump displays, receipts, and vehicle inspection defects.' }],
-      ['expo-notifications', {}],
+      'expo-router',
+      'expo-sqlite',
+      [
+        'expo-location',
+        {
+          locationWhenInUsePermission:
+            'DriveMitra uses your location to log corridor GPS checkpoints during active fleet dispatches.',
+        },
+      ],
+      [
+        'expo-image-picker',
+        {
+          cameraPermission:
+            'DriveMitra uses your camera to photograph fuel pump meters and receipts.',
+        },
+      ],
     ],
   },
 }

@@ -42,6 +42,10 @@ function lazyWithRetry(
 }
 
 const PlatformAdmin = lazyWithRetry(() => import('./pages/PlatformAdmin'))
+const OnboardingWizard = lazyWithRetry(() => import('./pages/OnboardingWizard'))
+const AcceptInvitation = lazyWithRetry(() => import('./pages/AcceptInvitation'))
+const StaffDirectory = lazyWithRetry(() => import('./pages/StaffDirectory'))
+const DriverPortal = lazyWithRetry(() => import('./pages/driver/DriverPortal'))
 const LiveMap = lazyWithRetry(() => import('./pages/LiveMap'))
 const Trips = lazyWithRetry(() => import('./pages/Trips'))
 const Vehicles = lazyWithRetry(() => import('./pages/Vehicles'))
@@ -295,7 +299,16 @@ function LoadingScreen() {
 }
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { loading, isAuthenticated, passwordChangeRequired, orgBlockedState, signOut } = useAuth()
+  const {
+    loading,
+    isAuthenticated,
+    user,
+    organization,
+    subscriptionAccess,
+    passwordChangeRequired,
+    orgBlockedState,
+    signOut,
+  } = useAuth()
   const location = useLocation()
   if (loading) return <LoadingScreen />
 
@@ -325,22 +338,36 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/change-password" replace />
   }
 
+  const requiresOnboarding =
+    user?.role === 'org_admin' &&
+    Boolean(organization) &&
+    (organization?.onboardingCompleted === false || subscriptionAccess === 'onboarding_only')
+
+  if (
+    requiresOnboarding &&
+    location.pathname !== '/onboarding' &&
+    !location.pathname.startsWith('/onboarding/') &&
+    location.pathname !== '/dashboard/subscription'
+  ) {
+    return <Navigate to="/onboarding" replace />
+  }
+
   return <>{children}</>
 }
 
 export function RoleProtectedRoute({ children }: { children: React.ReactNode }) {
   const { activeRole } = useFleet()
-  const { user } = useAuth()
+  const { user, permissions } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const effectiveRole = user?.role ?? activeRole
 
-  if (!canAccessRoute(effectiveRole, location.pathname)) {
+  if (!canAccessRoute(effectiveRole, location.pathname, permissions)) {
     const fallback = getDefaultHomeForRole(effectiveRole)
     return (
       <div className="min-h-screen bg-[#FFFFFF]">
         <AccessDeniedState
-          roleLabel={effectiveRole.replace('_', ' ')}
+          roleLabel={effectiveRole.replace(/_/g, ' ')}
           targetPath={location.pathname}
           onReturn={() => navigate(fallback, { replace: true })}
         />
@@ -356,13 +383,26 @@ function LegacyVehicleRedirect() {
 }
 
 function MobileAppRoot() {
-  const { loading, isAuthenticated, user, passwordChangeRequired } = useAuth()
+  const {
+    loading,
+    isAuthenticated,
+    user,
+    organization,
+    subscriptionAccess,
+    passwordChangeRequired,
+  } = useAuth()
   if (loading) return <LoadingScreen />
   if (!isAuthenticated || !user) {
     return <Navigate to="/auth" replace />
   }
   if (passwordChangeRequired) {
     return <Navigate to="/change-password" replace />
+  }
+  if (
+    user.role === 'org_admin' &&
+    (organization?.onboardingCompleted === false || subscriptionAccess === 'onboarding_only')
+  ) {
+    return <Navigate to="/onboarding" replace />
   }
   return <Navigate to={getDefaultHomeForRole(user.role)} replace />
 }
@@ -376,11 +416,42 @@ export function AppRoutes() {
           <Route path="/website" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/signup" element={<Auth initialMode="signup" />} />
+          <Route path="/invite/:token" element={<AcceptInvitation />} />
           <Route
             path="/change-password"
             element={
               <ProtectedRoute>
                 <ForcePasswordChange />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute>
+                  <OnboardingWizard />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute>
+                  <DriverPortal />
+                </RoleProtectedRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/driver/:tab"
+            element={
+              <ProtectedRoute>
+                <RoleProtectedRoute>
+                  <DriverPortal />
+                </RoleProtectedRoute>
               </ProtectedRoute>
             }
           />
@@ -494,6 +565,7 @@ export function AppRoutes() {
             <Route path="financials" element={<RoleProtectedRoute><Financials /></RoleProtectedRoute>} />
             <Route path="reports" element={<RoleProtectedRoute><Reports /></RoleProtectedRoute>} />
             <Route path="alerts" element={<RoleProtectedRoute><AlertsPage /></RoleProtectedRoute>} />
+            <Route path="staff" element={<RoleProtectedRoute><StaffDirectory /></RoleProtectedRoute>} />
             <Route path="admin" element={<RoleProtectedRoute><AdminConsole /></RoleProtectedRoute>} />
             <Route path="subscription" element={<RoleProtectedRoute><Subscription /></RoleProtectedRoute>} />
             <Route path="settings" element={<RoleProtectedRoute><Settings /></RoleProtectedRoute>} />

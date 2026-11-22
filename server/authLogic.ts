@@ -126,6 +126,7 @@ export function isOrganizationLoginAllowed(status: OrganizationStatus): {
 
 export function getBackendRedirectForRole(role: OrganizationRole): string {
   if (role === 'platform_admin') return '/platform-admin'
+  if (role === 'driver') return '/driver'
   if (role === 'maintenance') return '/dashboard/maintenance'
   if (role === 'finance') return '/dashboard/financials'
   return '/dashboard'

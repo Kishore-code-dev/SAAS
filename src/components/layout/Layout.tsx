@@ -8,11 +8,14 @@ import { MobileBottomNav } from '../mobile/MobileBottomNav'
 import { MobileAppsSheet } from '../mobile/MobileAppsSheet'
 import { OfflineIndicator } from '../mobile/OfflineIndicator'
 
+import { useAuth } from '../../hooks/useAuth'
+
 export default function Layout() {
   const [appsOpen, setAppsOpen] = useState(false)
   const [copilotOpen, setCopilotOpen] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
-  const { environment, activeOrganization, activeRole, isTrialWorkspace, nowTick } = useFleet()
+  const { environment, activeOrganization, activeRole } = useFleet()
+  const { subscriptionAccess, subscription } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const onSubscriptionPage = pathname === '/dashboard/subscription'
@@ -21,14 +24,10 @@ export default function Layout() {
     window.scrollTo({ top: 0 })
   }, [pathname])
 
-  const expiryMs = new Date(activeOrganization.subscriptionExpiryDate).getTime()
-  const daysLeft = Number.isFinite(expiryMs)
-    ? Math.max(0, Math.ceil((expiryMs - nowTick) / 86400000))
-    : 14
   const showBillingAlert =
     !bannerDismissed &&
     !onSubscriptionPage &&
-    (isTrialWorkspace ||
+    (subscriptionAccess === 'read_only' ||
       activeOrganization.status === 'grace_period' ||
       activeOrganization.status === 'payment_pending')
 
@@ -46,8 +45,8 @@ export default function Layout() {
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-3.5 h-3.5 text-[#6E5696] shrink-0" />
               <span className="font-medium truncate">
-                {isTrialWorkspace
-                  ? `14-Day ${activeOrganization.planId.toUpperCase()} Trial · ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining (${activeOrganization.subscriptionExpiryDate})`
+                {subscriptionAccess === 'read_only'
+                  ? `Subscription expired (${subscription?.currentPeriodEnd?.slice(0, 10) ?? activeOrganization.subscriptionExpiryDate}) — Workspace is in read-only mode until renewed.`
                   : activeOrganization.status === 'grace_period'
                     ? `Grace Period · Renew before ${activeOrganization.gracePeriodUntil ?? activeOrganization.subscriptionExpiryDate}`
                     : 'Subscription Payment Pending · Complete activation'}
@@ -58,12 +57,12 @@ export default function Layout() {
                 to="/dashboard/subscription"
                 className="font-semibold text-[#6E5696] hover:underline whitespace-nowrap"
               >
-                {isTrialWorkspace ? 'Activate Plan' : 'Billing'}
+                {subscriptionAccess === 'read_only' ? 'Renew Plan' : 'Billing'}
               </Link>
               <button
                 type="button"
                 onClick={() => setBannerDismissed(true)}
-                aria-label="Dismiss trial banner"
+                aria-label="Dismiss billing banner"
                 className="p-1.5 rounded-lg hover:bg-[#DDD3ED]/50 text-[#958777] hover:text-[#625346]"
               >
                 <X className="w-3.5 h-3.5" />

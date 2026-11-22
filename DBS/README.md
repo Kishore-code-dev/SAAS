@@ -1,9 +1,9 @@
 # DriveMitra Database Reference Copy (`DBS/`)
 
-- **Snapshot Timestamp**: 2026-11-22T08:10:27.516Z
+- **Snapshot Timestamp**: 2026-11-22T08:22:52.634Z
 - **Integrity Check**: ok
 - **Total Tables**: 69
-- **Total Rows**: 828
+- **Total Rows**: 831
 
 ## Auto-Sync Behavior
 This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` on server startup/migrations and after mutating API operations.
@@ -15,7 +15,7 @@ This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` 
 - `DriveMitra_Full_Database_Architecture.pdf` — Multi-page formatted schema, ER hierarchy, TypeScript interfaces, and API reference.
 
 ## Table Row Counts
-- `auth_sessions`: 6 rows
+- `auth_sessions`: 9 rows
 - `contract_amendments`: 1 rows
 - `contract_bonds_deposits`: 3 rows
 - `contract_deposit_deductions`: 0 rows

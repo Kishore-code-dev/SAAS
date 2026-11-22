@@ -218,9 +218,55 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+        hmr: false,
+        ws: false,
       },
       appType: 'spa',
+    })
+    app.use((req, res, next) => {
+      if (req.path !== '/@vite/client') {
+        next()
+        return
+      }
+      delete req.headers['if-none-match']
+      delete req.headers['if-modified-since']
+      const chunks: Buffer[] = []
+      const originalWrite = res.write.bind(res)
+      const originalEnd = res.end.bind(res)
+      res.write = ((chunk: unknown, encodingOrCb?: unknown, cb?: unknown) => {
+        if (chunk) {
+          const enc = typeof encodingOrCb === 'string' ? (encodingOrCb as BufferEncoding) : 'utf8'
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), enc))
+        }
+        if (typeof encodingOrCb === 'function') (encodingOrCb as () => void)()
+        else if (typeof cb === 'function') (cb as () => void)()
+        return true
+      }) as typeof res.write
+      res.end = ((chunk?: unknown, encodingOrCb?: unknown, cb?: unknown) => {
+        if (chunk && typeof chunk !== 'function') {
+          const enc = typeof encodingOrCb === 'string' ? (encodingOrCb as BufferEncoding) : 'utf8'
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), enc))
+        }
+        res.write = originalWrite
+        res.end = originalEnd
+        const done =
+          typeof chunk === 'function'
+            ? (chunk as () => void)
+            : typeof encodingOrCb === 'function'
+              ? (encodingOrCb as () => void)
+              : (cb as (() => void) | undefined)
+        const raw = Buffer.concat(chunks).toString('utf8')
+        const patched = raw
+          .replace(
+            /const transport = normalizeModuleRunnerTransport\(\(\(\) => \{[\s\S]*?\}\)\(\)\);/,
+            'const transport = normalizeModuleRunnerTransport({ connect() {}, disconnect() {}, send() {} });',
+          )
+          .replace('console.debug("[vite] connecting...");', 'console.debug("[vite] HMR disabled");')
+        res.removeHeader('Content-Length')
+        res.setHeader('Cache-Control', 'no-store')
+        return originalEnd(patched, 'utf8', done)
+      }) as typeof res.end
+      next()
     })
     app.use(vite.middlewares)
   } else {

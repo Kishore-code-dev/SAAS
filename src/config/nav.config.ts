@@ -15,10 +15,10 @@ import {
   LayoutDashboard,
   MapPin,
   Package,
-  Plug,
   Settings as SettingsIcon,
   ShieldCheck,
   Smartphone,
+  UserCog,
   Users,
   Wrench,
 } from 'lucide-react'
@@ -136,7 +136,8 @@ export const MAIN_NAV: NavEntry[] = [
       { to: '/dashboard/service/programs', label: 'Service Programs' },
     ],
   },
-  { id: 'contacts', to: '/dashboard/drivers', label: 'Contacts', labelKey: 'nav.drivers', icon: Users },
+  { id: 'contacts', to: '/dashboard/drivers', label: 'Drivers & Contacts', labelKey: 'nav.drivers', icon: Users },
+  { id: 'staff', to: '/dashboard/staff', label: 'Staff & Permissions', icon: UserCog },
   { id: 'vendors', to: '/dashboard/workshops', label: 'Vendors', labelKey: 'nav.workshops', icon: Building2 },
   {
     id: 'parts',
@@ -161,7 +162,6 @@ export const MAIN_NAV: NavEntry[] = [
   { id: 'documents', to: '/dashboard/documents', label: 'Documents', icon: FileCheck2 },
   { id: 'warranties', to: '/dashboard/warranties', label: 'Warranties', icon: ShieldCheck },
   { id: 'custom-records', to: '/dashboard/custom-records', label: 'Custom Records', icon: FolderKanban },
-  { id: 'integrations', to: '/dashboard/integrations', label: 'Integrations', icon: Plug },
   { id: 'mobile', to: '/dashboard/mobile', label: 'Mobile App', icon: Smartphone },
   {
     id: 'finance',
