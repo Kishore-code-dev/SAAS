@@ -113,6 +113,13 @@ const DEFAULT_ROLE_CONTRACT_PERMS: Record<OrganizationRole, Set<ContractPermissi
     'view_contracts',
     'view_contract_financial_reports',
   ]),
+  fleet_staff: new Set<ContractPermissionKey>([
+    'view_contracts',
+    'manage_contract_vehicles',
+  ]),
+  driver: new Set<ContractPermissionKey>([
+    'view_contracts',
+  ]),
 }
 
 export function resolveEffectiveContractPermissions(

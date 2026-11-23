@@ -865,7 +865,7 @@ export function ensureCanonicalSchema(db: DatabaseSync): void {
       plan.tagline,
       plan.billingFrequency,
       plan.baseAmountInr,
-      plan.taxRatePct,
+      plan.gstRatePct,
       plan.taxAmountInr,
       plan.totalPayableInr,
       plan.monthlyEquivalentInr,
