@@ -154,6 +154,7 @@ export default function DriverDetails() {
   }, [resolvedId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadPortalAccount()
   }, [loadPortalAccount])
 

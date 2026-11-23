@@ -128,7 +128,7 @@ describe('Canonical 31-Module Staff RBAC Engine', () => {
     assert.equal(canAccessRoute('driver', '/dashboard/staff'), false)
     assert.equal(canAccessRoute('driver', '/dashboard/settings'), false)
     assert.equal(canAccessRoute('driver', '/platform-admin'), false)
-    assert.equal(canPerformAction('driver', 'create_vehicle'), false)
+    assert.equal(canPerformAction('driver', 'add_vehicle'), false)
 
     // Non-drivers cannot open /driver portal routes
     assert.equal(canAccessRoute('fleet_staff', '/driver'), false)

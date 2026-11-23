@@ -89,6 +89,7 @@ export default function Header({
 
   React.useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setServerNotifications([])
       return
     }

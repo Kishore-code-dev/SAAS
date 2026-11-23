@@ -84,6 +84,7 @@ export default function Subscription() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchSubscriptionState()
   }, [fetchSubscriptionState, activeOrganization.id])
 

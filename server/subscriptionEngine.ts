@@ -3,7 +3,7 @@ import type {
   CanonicalSubscriptionStatus,
   SubscriptionPaymentStatus,
   SubscriptionPlanId,
-} from '../types/fleet'
+} from '../src/types/fleet'
 
 export interface CanonicalPlanSpec {
   id: 'monthly' | 'annual'

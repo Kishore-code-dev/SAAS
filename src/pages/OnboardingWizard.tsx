@@ -83,6 +83,7 @@ export function OnboardingWizard() {
   const [staffEmail, setStaffEmail] = useState('')
   const [staffMobile, setStaffMobile] = useState('')
   const [staffDesignation, setStaffDesignation] = useState('Operations Coordinator')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [staffDepartment, setStaffDepartment] = useState('Operations')
   const [staffError, setStaffError] = useState('')
 
@@ -138,6 +139,7 @@ export function OnboardingWizard() {
   }, [navigate])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchState()
   }, [fetchState])
 
@@ -355,7 +357,7 @@ export function OnboardingWizard() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BrandLogo variant="dark" size="sm" />
+            <BrandLogo size="sm" />
             <span className="text-xs font-semibold uppercase tracking-wider px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
               Setup Required · Pending Activation
             </span>

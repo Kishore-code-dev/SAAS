@@ -84,6 +84,7 @@ export default function Drivers() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDriverAccounts()
   }, [loadDriverAccounts])
 

@@ -6,6 +6,7 @@ import type {
   OrganizationStatus,
   StaffPermissionMatrix,
   SubscriptionRecord,
+  SubscriptionPlanId,
 } from '../types/fleet'
 
 export interface AuthenticatedUser {
@@ -48,8 +49,8 @@ export interface RegisterTenantInput {
   password: string
   confirmPassword: string
   termsAccepted: boolean
-  planId?: 'monthly' | 'annual' | 'starter' | 'growth' | 'enterprise'
-  billingCycle?: 'monthly' | 'annual'
+  planId?: SubscriptionPlanId
+  billingCycle?: SubscriptionPlanId
 }
 
 interface AuthContextType {

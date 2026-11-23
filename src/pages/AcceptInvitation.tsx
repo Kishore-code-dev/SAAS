@@ -33,6 +33,7 @@ export function AcceptInvitation() {
 
   useEffect(() => {
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError('Missing invitation token.')
       setLoading(false)
       return
@@ -100,7 +101,7 @@ export function AcceptInvitation() {
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
         <div className="flex justify-center mb-6">
-          <BrandLogo variant="dark" size="sm" />
+          <BrandLogo size="sm" />
         </div>
 
         {loading ? (

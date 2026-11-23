@@ -69,15 +69,25 @@ export function DriverPortal() {
   }
 
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [homeData, setHomeData] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [trips, setTrips] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [vehicleDetail, setVehicleDetail] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [fuelLogs, setFuelLogs] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [expenses, setExpenses] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [inspections, setInspections] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [issues, setIssues] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [documentsData, setDocumentsData] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [profileData, setProfileData] = useState<any>(null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [notifications, setNotifications] = useState<any[]>([])
 
   // Start/End Trip odometer inputs keyed by tripId
@@ -163,6 +173,7 @@ export function DriverPortal() {
       navigate(user.role === 'platform_admin' ? '/platform-admin' : '/dashboard', { replace: true })
       return
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAll()
   }, [user, navigate, loadAll])
 
@@ -404,7 +415,7 @@ export function DriverPortal() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BrandLogo variant="dark" size="sm" />
+            <BrandLogo size="sm" />
             <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
               Driver Portal
             </span>
@@ -822,7 +833,7 @@ export function DriverPortal() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">Tyre Condition</label>
-                      <select value={tyreCondition} onChange={(e) => setTyreCondition(e.target.value as any)} className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                      <select value={tyreCondition} onChange={(e) => setTyreCondition(e.target.value as 'good' | 'worn' | 'critical')} className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
                         <option value="good">Good — Safe tread & inflation</option>
                         <option value="worn">Worn — Monitor soon</option>
                         <option value="critical">Critical — Replace immediately</option>
@@ -830,7 +841,7 @@ export function DriverPortal() {
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">Brake Feel</label>
-                      <select value={brakeFeel} onChange={(e) => setBrakeFeel(e.target.value as any)} className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                      <select value={brakeFeel} onChange={(e) => setBrakeFeel(e.target.value as 'normal' | 'spongy' | 'squealing')} className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
                         <option value="normal">Normal & responsive</option>
                         <option value="spongy">Spongy / soft pedal</option>
                         <option value="squealing">Squealing / grinding</option>
@@ -892,7 +903,7 @@ export function DriverPortal() {
                       placeholder="Issue summary (e.g. Rear left tyre puncture)"
                       className="sm:col-span-2 px-3.5 py-2 rounded-xl border border-slate-300 text-sm"
                     />
-                    <select value={issueSeverity} onChange={(e) => setIssueSeverity(e.target.value as any)} className="px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
+                    <select value={issueSeverity} onChange={(e) => setIssueSeverity(e.target.value as 'low' | 'medium' | 'high' | 'critical')} className="px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white">
                       <option value="low">Low Severity</option>
                       <option value="medium">Medium Severity</option>
                       <option value="high">High Severity</option>

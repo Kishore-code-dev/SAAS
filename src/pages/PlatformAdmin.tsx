@@ -230,6 +230,7 @@ export default function PlatformAdmin() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAll(true)
   }, [loadAll])
 
@@ -588,14 +589,14 @@ export default function PlatformAdmin() {
             label="Pending Payment Verifications"
             value={metrics.pendingPayments}
             icon={Clock}
-            tone={metrics.pendingPayments > 0 ? 'yellow' : 'green'}
+            tone={metrics.pendingPayments > 0 ? 'yellow' : 'sage'}
             subValue={`${metrics.pendingOrGrace} pending/grace orgs`}
           />
           <KpiCard
             label="Total Fleet Vehicles"
             value={metrics.totalVehicles}
             icon={Users}
-            tone={metrics.pausedCount > 0 ? 'coral' : 'default'}
+            tone={metrics.pausedCount > 0 ? 'coral' : 'sage'}
             subValue={`${metrics.pausedCount} suspended/archived`}
           />
         </div>
@@ -1056,9 +1057,9 @@ export default function PlatformAdmin() {
           <div className="space-y-6">
             {monitoring && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <KpiCard label="Platform Health" value={monitoring.health.toUpperCase()} icon={ShieldCheck} tone="green" subValue={formatShortDate(monitoring.timestamp)} />
-                <KpiCard label="Pending Verifications" value={monitoring.pendingPaymentVerifications} icon={Clock} tone={monitoring.pendingPaymentVerifications > 0 ? 'yellow' : 'green'} />
-                <KpiCard label="Failed Payment Attempts" value={monitoring.failedPaymentAttempts} icon={ShieldAlert} tone={monitoring.failedPaymentAttempts > 0 ? 'coral' : 'default'} />
+                <KpiCard label="Platform Health" value={monitoring.health.toUpperCase()} icon={ShieldCheck} tone="sage" subValue={formatShortDate(monitoring.timestamp)} />
+                <KpiCard label="Pending Verifications" value={monitoring.pendingPaymentVerifications} icon={Clock} tone={monitoring.pendingPaymentVerifications > 0 ? 'yellow' : 'sage'} />
+                <KpiCard label="Failed Payment Attempts" value={monitoring.failedPaymentAttempts} icon={ShieldAlert} tone={monitoring.failedPaymentAttempts > 0 ? 'coral' : 'sage'} />
                 <KpiCard label="Active Auth Sessions" value={monitoring.activeAuthSessions} icon={Activity} tone="purple" />
               </div>
             )}

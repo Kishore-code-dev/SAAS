@@ -1,16 +1,13 @@
 import crypto from 'node:crypto'
 import express, { type Response, type Router } from 'express'
 import type {
-  CanonicalSubscriptionStatus,
   DriverExpenseCategory,
   DriverExpenseStatus,
-  OrganizationRole,
   StaffPermissionMatrix,
   SubscriptionPaymentStatus,
 } from '../src/types/fleet.ts'
 import {
   DEFAULT_STAFF_PERMISSION_MATRIX,
-  hasModulePermission,
   normalizeStaffPermissions,
 } from '../src/utils/staffPermissions.ts'
 import {
@@ -35,7 +32,7 @@ import {
   requirePlatformAdmin,
   type AuthenticatedRequest,
 } from './authMiddleware.ts'
-import { getDb, mapOrgRow, mapSaasInvoiceRow, mapUserRow } from './db.ts'
+import { getDb, mapOrgRow, mapSaasInvoiceRow } from './db.ts'
 import { getOrgFleetDataset, saveOrgFleetDataset } from './fleetDb.ts'
 import {
   emitNotification,

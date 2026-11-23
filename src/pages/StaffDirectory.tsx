@@ -100,6 +100,7 @@ export function StaffDirectory() {
   }, [selectedStaffId])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadDirectory()
   }, [loadDirectory])
 

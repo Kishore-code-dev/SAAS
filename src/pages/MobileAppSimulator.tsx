@@ -387,6 +387,33 @@ export default function MobileAppSimulator() {
           </div>
 
           <div className="enterprise-card p-5 space-y-3">
+            <h2 className="dm-card-title flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-[#6E5696]" />
+              <span>Expo Go Mobile App &amp; QR Code</span>
+            </h2>
+            <p className="text-xs text-[#958777]">
+              Scan the QR code below using the <strong className="text-[#625346]">Expo Go</strong> app on iOS or Android to test the DriveMitra mobile driver &amp; staff portal live.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-xl bg-[#FAFAFA] border border-[#E5E5E5]">
+              <div className="w-32 h-32 bg-white p-2 rounded-xl border border-[#E5E5E5] flex items-center justify-center shrink-0 shadow-sm">
+                {/* SVG QR Code representation for Expo Go URL */}
+                <svg viewBox="0 0 100 100" className="w-full h-full text-slate-900">
+                  <path fill="currentColor" d="M0 0h30v30H0zM10 10h10v10H10zM40 0h20v10H40zM70 0h30v30H70zM80 10h10v10H80zM0 40h10v20H0zM20 40h20v10H20zM50 40h10v20H50zM70 40h10v10H70zM90 40h10v20H90zM20 60h10v10H20zM40 60h20v10H40zM70 70h10v20H70zM0 70h30v30H0zM10 80h10v10H10zM40 80h10v10H40zM60 80h10v20H60zM80 80h20v20H80z" />
+                </svg>
+              </div>
+              <div className="space-y-2 text-xs">
+                <p className="font-bold text-[#625346]">Expo Dev URI:</p>
+                <code className="px-2.5 py-1 rounded-lg bg-[#EEE8F7] text-[#6E5696] font-mono block select-all">
+                  exp://127.0.0.1:8081
+                </code>
+                <p className="text-[#958777]">
+                  Run <code className="text-[#625346]">npx expo start</code> in your <code className="text-[#625346]">/mobile</code> folder to broadcast your local Metro bundler.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="enterprise-card p-5 space-y-3">
             <h2 className="dm-card-title">Mobile Operational Shortcuts</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {[

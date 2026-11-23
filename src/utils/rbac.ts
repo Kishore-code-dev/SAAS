@@ -48,6 +48,7 @@ export type FleetAction =
   | 'manage_bank_details'
   | 'manage_finance_settings'
   | 'view_finance_reports'
+  | 'approve_expense'
 
 const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
   platform_admin: new Set<FleetAction>([
@@ -134,6 +135,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'manage_bank_details',
     'manage_finance_settings',
     'view_finance_reports',
+    'approve_expense',
   ]),
   fleet_staff: new Set<FleetAction>([
     'add_vehicle',
@@ -147,6 +149,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'report_issue',
     'acknowledge_alert',
     'use_copilot',
+    'approve_expense',
   ]),
   driver: new Set<FleetAction>([
     'end_trip',
@@ -218,6 +221,7 @@ const ROLE_ACTIONS: Record<OrganizationRole, Set<FleetAction>> = {
     'manage_bank_details',
     'manage_finance_settings',
     'view_finance_reports',
+    'approve_expense',
   ]),
   viewer: new Set<FleetAction>([
     'export_reports',
@@ -273,6 +277,7 @@ export const ACTION_TO_MODULE_PERMISSION: Record<
   manage_bank_details: { moduleKey: 'finance', action: 'manage' },
   manage_finance_settings: { moduleKey: 'finance', action: 'manage' },
   view_finance_reports: { moduleKey: 'reports', action: 'view' },
+  approve_expense: { moduleKey: 'expense_history', action: 'approve' },
 }
 
 export function canPerformAction(
