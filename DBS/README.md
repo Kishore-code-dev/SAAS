@@ -1,9 +1,9 @@
 # DriveMitra Database Reference Copy (`DBS/`)
 
-- **Snapshot Timestamp**: 2026-11-22T08:22:52.634Z
+- **Snapshot Timestamp**: 2026-11-24T09:56:47.850Z
 - **Integrity Check**: ok
-- **Total Tables**: 69
-- **Total Rows**: 831
+- **Total Tables**: 81
+- **Total Rows**: 841
 
 ## Auto-Sync Behavior
 This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` on server startup/migrations and after mutating API operations.
@@ -15,7 +15,7 @@ This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` 
 - `DriveMitra_Full_Database_Architecture.pdf` — Multi-page formatted schema, ER hierarchy, TypeScript interfaces, and API reference.
 
 ## Table Row Counts
-- `auth_sessions`: 9 rows
+- `auth_sessions`: 0 rows
 - `contract_amendments`: 1 rows
 - `contract_bonds_deposits`: 3 rows
 - `contract_deposit_deductions`: 0 rows
@@ -27,6 +27,7 @@ This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` 
 - `contract_permissions`: 0 rows
 - `contract_versions`: 4 rows
 - `document_files`: 0 rows
+- `driver_expenses`: 0 rows
 - `finance_alerts`: 19 rows
 - `finance_documents`: 31 rows
 - `finance_emi_instalments`: 264 rows
@@ -72,13 +73,24 @@ This folder is automatically kept in sync with `.drivemitra-data/drivemitra.db` 
 - `fleet_workshops`: 3 rows
 - `fleet_workspace_settings`: 3 rows
 - `individual_vehicle_owners`: 2 rows
+- `invitations`: 0 rows
+- `notifications`: 0 rows
 - `org_fleet_blobs`: 3 rows
 - `org_members`: 6 rows
 - `organizations`: 3 rows
 - `password_reset_tokens`: 0 rows
 - `platform_admin_audit_logs`: 1 rows
+- `platform_integrations_config`: 4 rows
+- `platform_support_sessions`: 0 rows
 - `saas_billing_invoices`: 5 rows
-- `users`: 7 rows
+- `staff_activity_logs`: 0 rows
+- `staff_profiles`: 4 rows
+- `subscription_events`: 0 rows
+- `subscription_payments`: 0 rows
+- `subscription_plans`: 2 rows
+- `subscriptions`: 3 rows
+- `user_permissions`: 4 rows
+- `users`: 9 rows
 - `vehicle_contract_vehicles`: 4 rows
 - `vehicle_contracts`: 4 rows
 - `vehicle_finance_records`: 13 rows

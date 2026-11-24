@@ -26,6 +26,11 @@ export default {
     web: {
       bundler: 'metro',
     },
+    extra: {
+      eas: {
+        projectId: '3630c328-660d-4a1f-8e10-9eb0597c5534',
+      },
+    },
     plugins: [
       'expo-router',
       'expo-sqlite',
