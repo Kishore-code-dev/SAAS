@@ -75,11 +75,11 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.card}>
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>EXPO GO MOBILE CLIENT</Text>
+              <Text style={styles.badgeText}>DRIVEMITRA ENTERPRISE MOBILE</Text>
             </View>
             <Text style={styles.title}>DriveMitra</Text>
             <Text style={styles.subtitle}>
-              Enterprise Fleet Intelligence &amp; Smartphone Telematics
+              Fleet Intelligence &amp; Smartphone Telematics
             </Text>
 
             {error && (
@@ -120,7 +120,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
               {loading ? (
-                <ActivityIndicator color="#625346" />
+                <ActivityIndicator color="#362C24" />
               ) : (
                 <Text style={styles.buttonText}>Sign In to Fleet Workspace</Text>
               )}
@@ -181,7 +181,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F8F6F2',
   },
   scrollContent: {
     flexGrow: 1,
@@ -190,59 +190,62 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    padding: 22,
-    shadowColor: '#625346',
-    shadowOffset: { width: 0, height: 4 },
+    borderColor: '#EBE5DF',
+    padding: 24,
+    shadowColor: '#362C24',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 12,
+    shadowRadius: 16,
+    elevation: 4,
   },
   badge: {
     alignSelf: 'center',
     backgroundColor: '#EEE8F7',
     borderWidth: 1,
-    borderColor: '#DDD3ED',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    marginBottom: 10,
+    borderColor: '#D3C4F0',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 12,
   },
   badgeText: {
     fontSize: 10,
     fontWeight: '800',
     color: '#6E5696',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
-    color: '#625346',
+    color: '#362C24',
     textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 12,
+    fontWeight: '600',
     color: '#958777',
     textAlign: 'center',
     marginTop: 4,
-    marginBottom: 22,
+    marginBottom: 24,
   },
   errorBox: {
     backgroundColor: '#FCECEB',
     borderWidth: 1,
     borderColor: '#D9786C',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
     marginBottom: 16,
   },
   errorText: {
     color: '#B84E42',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
   labelRow: {
     flexDirection: 'row',
@@ -253,7 +256,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#625346',
+    color: '#362C24',
     marginBottom: 6,
   },
   toggleText: {
@@ -262,33 +265,39 @@ const styles = StyleSheet.create({
     color: '#6E5696',
   },
   input: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F9F8F6',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 10,
+    borderColor: '#E2DCD5',
+    borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     fontSize: 14,
-    color: '#625346',
+    color: '#362C24',
   },
   button: {
     backgroundColor: '#E8C65A',
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: '#D8B442',
+    shadowColor: '#D8B442',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
   },
   buttonText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#625346',
+    fontWeight: '800',
+    color: '#362C24',
+    letterSpacing: 0.3,
   },
   serverToggle: {
-    marginTop: 16,
+    marginTop: 18,
     alignItems: 'center',
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   serverToggleText: {
     fontSize: 12,
@@ -296,12 +305,12 @@ const styles = StyleSheet.create({
     color: '#6E5696',
   },
   serverPanel: {
-    marginTop: 8,
-    padding: 12,
-    backgroundColor: '#FAFAFA',
+    marginTop: 10,
+    padding: 14,
+    backgroundColor: '#F9F8F6',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 10,
+    borderColor: '#EBE5DF',
+    borderRadius: 12,
     gap: 8,
   },
   serverLabel: {
@@ -312,12 +321,12 @@ const styles = StyleSheet.create({
   serverInput: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#E2DCD5',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 12,
-    color: '#625346',
+    color: '#362C24',
   },
   presetRow: {
     flexDirection: 'row',
@@ -327,7 +336,7 @@ const styles = StyleSheet.create({
   presetBtn: {
     backgroundColor: '#EEE8F7',
     borderWidth: 1,
-    borderColor: '#DDD3ED',
+    borderColor: '#D3C4F0',
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
